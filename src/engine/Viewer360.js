@@ -14,16 +14,6 @@ export class Viewer360 {
   loadZone(zoneData, activeSelectionsMap = {}) {
     this.currentZone = zoneData;
 
-    // Destroy existing Pannellum instance if present
-    if (this.viewer) {
-      try {
-        this.viewer.destroy();
-      } catch (e) {
-        // ignore
-      }
-      this.viewer = null;
-    }
-
     // Set active selections
     zoneData.slots.forEach(slot => {
       const itemId = activeSelectionsMap[slot.id] || slot.defaultItemId;
@@ -34,6 +24,27 @@ export class Viewer360 {
         this.customWriting.set(slot.id, activeSelectionsMap[customTextKey]);
       }
     });
+
+    // Determine target 4K panorama image (check if any active selected item specifies a custom 4K scene)
+    let activePanoramaUrl = zoneData.panoramaUrl;
+    for (const slot of zoneData.slots) {
+      const selectedItemId = this.activeSelections.get(slot.id);
+      const item = getItemById(selectedItemId);
+      if (item && item.panoramaUrl && item.id !== slot.defaultItemId) {
+        activePanoramaUrl = item.panoramaUrl;
+        break;
+      }
+    }
+
+    // Destroy existing Pannellum instance if present
+    if (this.viewer) {
+      try {
+        this.viewer.destroy();
+      } catch (e) {
+        // ignore
+      }
+      this.viewer = null;
+    }
 
     // Build Hotspots Configuration for Pannellum
     const hotSpotsConfig = zoneData.slots.map(slot => {
@@ -62,7 +73,7 @@ export class Viewer360 {
 
       this.viewer = window.pannellum.viewer(this.container, {
         type: 'equirectangular',
-        panorama: zoneData.panoramaUrl,
+        panorama: activePanoramaUrl,
         autoLoad: true,
         showZoomCtrl: true,
         showFullscreenCtrl: false,
@@ -73,7 +84,7 @@ export class Viewer360 {
       // Fallback Photo Panorama Viewer
       this.container.innerHTML = `
         <div class="fallback-panorama-wrapper">
-          <img src="${zoneData.panoramaUrl}" class="fallback-panorama-img" alt="${zoneData.name}" />
+          <img src="${activePanoramaUrl}" class="fallback-panorama-img" alt="${zoneData.name}" />
         </div>
       `;
     }
@@ -110,7 +121,7 @@ export class Viewer360 {
       this.customWriting.set(slotId, writingText);
     }
     
-    // Reload scene with updated hotspot item badges
+    // Save current camera view orientation
     const currentYaw = this.viewer ? this.viewer.getYaw() : 0;
     const currentPitch = this.viewer ? this.viewer.getPitch() : 0;
     const currentFov = this.viewer ? this.viewer.getHfov() : 70;
@@ -119,6 +130,7 @@ export class Viewer360 {
     this.activeSelections.forEach((val, key) => selectionsObj[key] = val);
     this.customWriting.forEach((val, key) => selectionsObj[`custom_text_${key}`] = val);
 
+    // Reload scene with updated 4K panorama image & hotspot item badges
     this.loadZone(this.currentZone, selectionsObj);
 
     if (this.viewer) {
