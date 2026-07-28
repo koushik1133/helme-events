@@ -25,16 +25,8 @@ export class Viewer360 {
       }
     });
 
-    // Determine target 4K panorama image (check if any active selected item specifies a custom 4K scene)
-    let activePanoramaUrl = zoneData.panoramaUrl;
-    for (const slot of zoneData.slots) {
-      const selectedItemId = this.activeSelections.get(slot.id);
-      const item = getItemById(selectedItemId);
-      if (item && item.panoramaUrl && item.id !== slot.defaultItemId) {
-        activePanoramaUrl = item.panoramaUrl;
-        break;
-      }
-    }
+    // Lock the base venue panorama URL (The room space remains 100% constant)
+    const basePanoramaUrl = zoneData.panoramaUrl;
 
     // Destroy existing Pannellum instance if present
     if (this.viewer) {
@@ -46,18 +38,19 @@ export class Viewer360 {
       this.viewer = null;
     }
 
-    // Build Hotspots Configuration for Pannellum
+    // Build Hotspots Configuration for Pannellum anchored at exact spatial coordinates
     const hotSpotsConfig = zoneData.slots.map(slot => {
       const selectedItemId = this.activeSelections.get(slot.id);
       const item = getItemById(selectedItemId);
       const writingText = this.customWriting.get(slot.id);
+      const isCustomized = selectedItemId !== slot.defaultItemId;
 
       return {
         pitch: slot.pos3D.pitch,
         yaw: slot.pos3D.yaw,
-        cssClass: 'custom-pannellum-hotspot',
+        cssClass: `custom-pannellum-hotspot ${isCustomized ? 'hotspot-customized' : ''}`,
         createTooltipFunc: (hotSpotDiv) => {
-          this.createHotspotOverlay(hotSpotDiv, slot, item, writingText);
+          this.createHotspotOverlay(hotSpotDiv, slot, item, writingText, isCustomized);
         },
         clickHandlerFunc: () => {
           if (this.onSelectSlot) {
@@ -73,7 +66,7 @@ export class Viewer360 {
 
       this.viewer = window.pannellum.viewer(this.container, {
         type: 'equirectangular',
-        panorama: activePanoramaUrl,
+        panorama: basePanoramaUrl,
         autoLoad: true,
         showZoomCtrl: true,
         showFullscreenCtrl: false,
@@ -84,24 +77,29 @@ export class Viewer360 {
       // Fallback Photo Panorama Viewer
       this.container.innerHTML = `
         <div class="fallback-panorama-wrapper">
-          <img src="${activePanoramaUrl}" class="fallback-panorama-img" alt="${zoneData.name}" />
+          <img src="${basePanoramaUrl}" class="fallback-panorama-img" alt="${zoneData.name}" />
         </div>
       `;
     }
   }
 
-  createHotspotOverlay(hotSpotDiv, slot, item, writingText) {
+  createHotspotOverlay(hotSpotDiv, slot, item, writingText, isCustomized) {
     hotSpotDiv.innerHTML = `
-      <div class="hotspot-target-pill" data-slot-id="${slot.id}">
-        <span class="pulse-beacon"></span>
-        <div class="hotspot-badge-card">
-          <img src="${item ? item.imageUrl : ''}" class="hotspot-thumb" alt="${item ? item.name : ''}" />
+      <div class="hotspot-target-pill ${isCustomized ? 'pill-active-glow' : ''}" data-slot-id="${slot.id}">
+        <span class="pulse-beacon ${isCustomized ? 'beacon-emerald' : ''}"></span>
+        
+        <div class="hotspot-badge-card ${isCustomized ? 'badge-customized' : ''}">
+          <div class="hotspot-media-wrap">
+            <img src="${item ? item.imageUrl : ''}" class="hotspot-thumb" alt="${item ? item.name : ''}" />
+            ${isCustomized ? `<span class="badge-swapped-tag">Swapped</span>` : ''}
+          </div>
           <div class="hotspot-text">
             <span class="slot-label">${slot.label} (${slot.quantity}x)</span>
             <strong class="item-name">${item ? item.name : 'None'}</strong>
             ${writingText ? `<span class="writing-badge">✍️ "${writingText}"</span>` : ''}
             <span class="item-price">$${item ? item.price * slot.quantity : 0}</span>
           </div>
+          <button class="btn-quick-swap-icon" title="Swap Item">✏️</button>
         </div>
       </div>
     `;
@@ -130,7 +128,7 @@ export class Viewer360 {
     this.activeSelections.forEach((val, key) => selectionsObj[key] = val);
     this.customWriting.forEach((val, key) => selectionsObj[`custom_text_${key}`] = val);
 
-    // Reload scene with updated 4K panorama image & hotspot item badges
+    // Reload scene in the SAME room space with updated in-place item visual badges
     this.loadZone(this.currentZone, selectionsObj);
 
     if (this.viewer) {

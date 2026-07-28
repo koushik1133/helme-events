@@ -591,6 +591,11 @@ body {
   animation: beaconPulse 2s infinite ease-out;
 }
 
+.beacon-emerald {
+  background: var(--accent-emerald) !important;
+  box-shadow: 0 0 16px var(--accent-emerald) !important;
+}
+
 @keyframes beaconPulse {
   0% { transform: scale(0.8); opacity: 1; }
   100% { transform: scale(2.2); opacity: 0; }
@@ -615,21 +620,53 @@ body {
   transition: var(--transition-fast);
 }
 
+.hotspot-badge-card.badge-customized {
+  border: 1.5px solid var(--accent-emerald);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.35);
+}
+
 .hotspot-badge-card:hover {
   border-color: var(--accent-indigo);
   transform: translateX(-50%) scale(1.05);
 }
 
+.hotspot-media-wrap {
+  position: relative;
+}
+
 .hotspot-thumb {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-xs);
   object-fit: cover;
+}
+
+.badge-swapped-tag {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-emerald);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
 }
 
 .hotspot-text {
   display: flex;
   flex-direction: column;
+}
+
+.btn-quick-swap-icon {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
+  padding: 3px 6px;
+  cursor: pointer;
 }
 
 .hotspot-text .slot-label { font-size: 0.65rem; color: var(--text-muted); }
