@@ -754,6 +754,9 @@ class Event360App {
     this.activeSelections[slotId] = newItemId;
     if (customText !== undefined) {
       this.activeSelections[`custom_text_${slotId}`] = customText;
+      if (this.threeDLiveSpaceEditor && this.threeDLiveSpaceEditor.updateSloganText) {
+        this.threeDLiveSpaceEditor.updateSloganText(customText);
+      }
     }
 
     const item = getItemById(newItemId);

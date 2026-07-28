@@ -12,7 +12,7 @@ export class AudioEngine {
       if (AudioCtx) {
         this.ctx = new AudioCtx();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        this.masterGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
         this.masterGain.connect(this.ctx.destination);
       }
     }
@@ -36,10 +36,13 @@ export class AudioEngine {
 
   playZoneSound(zoneId) {
     if (!this.ctx) return;
-    this.stop();
+    this.stopImmediate();
 
     this.isPlaying = true;
     const now = this.ctx.currentTime;
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setValueAtTime(0.001, now);
+    this.masterGain.gain.linearRampToValueAtTime(0.25, now + 0.3); // Smooth linear fade-in
 
     if (zoneId.includes('election')) {
       this.currentSound = this.createRallySoundscape(now);
@@ -140,7 +143,21 @@ export class AudioEngine {
     return { stop: () => osc.stop() };
   }
 
+  // 🔊 Calibrated Smooth Gain Ramp Fade-Out (Zero Glitch Clicks)
   stop() {
+    if (this.masterGain && this.ctx) {
+      const now = this.ctx.currentTime;
+      this.masterGain.gain.cancelScheduledValues(now);
+      this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+      this.masterGain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+
+      setTimeout(() => this.stopImmediate(), 260);
+    } else {
+      this.stopImmediate();
+    }
+  }
+
+  stopImmediate() {
     if (this.currentSound && typeof this.currentSound.stop === 'function') {
       try {
         this.currentSound.stop();
