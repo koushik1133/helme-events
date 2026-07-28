@@ -1,319 +1,286 @@
 export const VENUE_ZONES = [
-  // --- Standard Venue Zones ---
   {
     id: 'zone-stage',
-    name: 'Main Stage & Performance Lawn',
-    subtitle: 'Outdoor amphi lawn for keynotes, concerts, & inaugurations',
+    name: 'Main Stage Lawn',
+    subtitle: 'Concert & Keynote Stage Setup',
+    mapPos: { x: 52, y: 44 },
     panoramaUrl: '/images/zone_stage_360.jpg',
     thumbnailUrl: '/images/zone_stage_360.jpg',
-    mapPos: { x: 74, y: 55 },
-    categoryType: 'venue',
     slots: [
       {
         id: 'slot-stage-main',
         label: 'Stage Setup',
         category: 'stages',
+        quantity: 1,
         defaultItemId: 'stage-led-arch',
-        quantity: 1,
-        pos3D: { pitch: -2, yaw: 0 }
-      },
-      {
-        id: 'slot-stage-lighting',
-        label: 'Lighting Rig',
-        category: 'lighting',
-        defaultItemId: 'lighting-fairy-canopy',
-        quantity: 1,
-        pos3D: { pitch: 22, yaw: 12 }
-      },
-      {
-        id: 'slot-stage-seating',
-        label: 'Front Row Seating',
-        category: 'chairs',
-        defaultItemId: 'chair-throne',
-        quantity: 10,
-        pos3D: { pitch: -16, yaw: -28 }
+        pos3D: { pitch: -5, yaw: 0 }
       },
       {
         id: 'slot-stage-backdrop',
         label: 'Stage Backdrop',
         category: 'backdrops',
-        defaultItemId: 'backdrop-shimmer-sequin',
         quantity: 1,
-        pos3D: { pitch: 4, yaw: 170 }
+        defaultItemId: 'backdrop-shimmer-sequin',
+        pos3D: { pitch: 10, yaw: 0 }
+      },
+      {
+        id: 'slot-stage-seating',
+        label: 'VIP Front Row Seating',
+        category: 'chairs',
+        quantity: 20,
+        defaultItemId: 'chair-chiavari-gold',
+        pos3D: { pitch: -25, yaw: -15 }
       }
     ]
   },
   {
     id: 'zone-banquet',
     name: 'Royal Banquet Ballroom',
-    subtitle: 'Grand hall for fine dining, galas, and awards ceremonies',
+    subtitle: 'Dining & Gala Reception',
+    mapPos: { x: 82, y: 78 },
     panoramaUrl: '/images/zone_banquet_360.jpg',
     thumbnailUrl: '/images/zone_banquet_360.jpg',
-    mapPos: { x: 38, y: 28 },
-    categoryType: 'venue',
     slots: [
       {
         id: 'slot-banquet-table',
-        label: 'Banquet Dining Tables',
+        label: 'Guest Dining Tables',
         category: 'tables',
+        quantity: 12,
         defaultItemId: 'table-round-standard',
-        quantity: 8,
-        pos3D: { pitch: -18, yaw: 0 }
+        pos3D: { pitch: -18, yaw: 45 }
       },
       {
         id: 'slot-banquet-chairs',
-        label: 'Chiavari Guest Chairs',
+        label: 'Guest Chairs',
         category: 'chairs',
+        quantity: 120,
         defaultItemId: 'chair-chiavari-gold',
-        quantity: 64,
-        pos3D: { pitch: -14, yaw: -42 }
+        pos3D: { pitch: -22, yaw: -45 }
       },
       {
         id: 'slot-banquet-lighting',
-        label: 'Ballroom Chandeliers',
+        label: 'Overhead Lighting',
         category: 'lighting',
+        quantity: 1,
         defaultItemId: 'lighting-chandeliers',
-        quantity: 3,
-        pos3D: { pitch: 32, yaw: 15 }
+        pos3D: { pitch: 35, yaw: 0 }
       }
     ]
   },
   {
     id: 'zone-fountain',
     name: 'Garden Fountain Plaza',
-    subtitle: 'Open-air courtyard with central marble fountain feature',
+    subtitle: 'Outdoor Cocktail & Water Feature',
+    mapPos: { x: 58, y: 72 },
     panoramaUrl: '/images/zone_fountain_360.jpg',
     thumbnailUrl: '/images/zone_fountain_360.jpg',
-    mapPos: { x: 32, y: 62 },
-    categoryType: 'venue',
     slots: [
       {
         id: 'slot-fountain-center',
-        label: 'Central Water Feature',
+        label: 'Center Fountain Feature',
         category: 'fountains',
-        defaultItemId: 'fountain-royal-marble',
         quantity: 1,
+        defaultItemId: 'fountain-royal-marble',
         pos3D: { pitch: -10, yaw: 0 }
       },
       {
-        id: 'slot-fountain-tables',
-        label: 'Cocktail Tables',
-        category: 'tables',
-        defaultItemId: 'table-cocktail',
-        quantity: 12,
-        pos3D: { pitch: -12, yaw: -65 }
-      },
-      {
-        id: 'slot-fountain-lights',
-        label: 'Perimeter Mood Lights',
+        id: 'slot-fountain-lighting',
+        label: 'Plaza Atmosphere Lighting',
         category: 'lighting',
-        defaultItemId: 'lighting-rgb-uplighting',
-        quantity: 12,
-        pos3D: { pitch: 18, yaw: 75 }
+        quantity: 1,
+        defaultItemId: 'lighting-fairy-canopy',
+        pos3D: { pitch: 25, yaw: 90 }
       }
     ]
   },
   {
     id: 'zone-lounge',
     name: 'VIP Lounge Terrace',
-    subtitle: 'Exclusive rooftop deck with velvet sofas and skyline views',
+    subtitle: 'Executive Outdoor Cocktail Bar',
+    mapPos: { x: 18, y: 64 },
     panoramaUrl: '/images/zone_lounge_360.jpg',
     thumbnailUrl: '/images/zone_lounge_360.jpg',
-    mapPos: { x: 62, y: 20 },
-    categoryType: 'venue',
     slots: [
       {
-        id: 'slot-lounge-sofa',
-        label: 'VIP Lounge Armchairs',
-        category: 'chairs',
-        defaultItemId: 'chair-velvet-armchair',
-        quantity: 16,
-        pos3D: { pitch: -16, yaw: -35 }
-      },
-      {
         id: 'slot-lounge-table',
-        label: 'LED Center Tables',
+        label: 'High-Top Cocktail Tables',
         category: 'tables',
-        defaultItemId: 'table-led-glass',
-        quantity: 4,
-        pos3D: { pitch: -20, yaw: 15 }
+        quantity: 8,
+        defaultItemId: 'table-cocktail',
+        pos3D: { pitch: -15, yaw: -30 }
       },
       {
-        id: 'slot-lounge-backdrop',
-        label: 'Greenery Wall Backdrop',
-        category: 'backdrops',
-        defaultItemId: 'backdrop-hedge-wall',
-        quantity: 2,
-        pos3D: { pitch: 8, yaw: -110 }
+        id: 'slot-lounge-seating',
+        label: 'Lounge Armchairs',
+        category: 'chairs',
+        quantity: 16,
+        defaultItemId: 'chair-velvet-armchair',
+        pos3D: { pitch: -20, yaw: 30 }
+      },
+      {
+        id: 'slot-lounge-lighting',
+        label: 'Ambient Uplighting',
+        category: 'lighting',
+        quantity: 1,
+        defaultItemId: 'lighting-rgb-uplighting',
+        pos3D: { pitch: 15, yaw: -120 }
       }
     ]
   },
   {
     id: 'zone-entrance',
     name: 'Entrance Arch & Photo Wall',
-    subtitle: 'Welcome foyer, red carpet reception, and floral photo area',
+    subtitle: 'Red Carpet Welcome Foyer',
+    mapPos: { x: 32, y: 26 },
     panoramaUrl: '/images/zone_entrance_360.jpg',
     thumbnailUrl: '/images/zone_entrance_360.jpg',
-    mapPos: { x: 90, y: 44 },
-    categoryType: 'venue',
     slots: [
       {
         id: 'slot-entrance-arch',
         label: 'Welcome Floral Arch Wall',
         category: 'backdrops',
-        defaultItemId: 'backdrop-floral-wall',
         quantity: 1,
-        pos3D: { pitch: 5, yaw: 0 }
+        defaultItemId: 'backdrop-floral-wall',
+        pos3D: { pitch: 2, yaw: -65 }
       },
       {
         id: 'slot-entrance-water',
         label: 'Foyer Water Feature',
         category: 'fountains',
-        defaultItemId: 'fountain-glass-waterfall',
         quantity: 1,
-        pos3D: { pitch: -8, yaw: 45 }
+        defaultItemId: 'fountain-glass-waterfall',
+        pos3D: { pitch: -4, yaw: 60 }
       },
       {
         id: 'slot-entrance-seating',
         label: 'Reception Ghost Chairs',
         category: 'chairs',
-        defaultItemId: 'chair-ghost',
         quantity: 8,
-        pos3D: { pitch: -14, yaw: -75 }
+        defaultItemId: 'chair-ghost',
+        pos3D: { pitch: -25, yaw: -140 }
       }
     ]
   },
 
-  // --- Indian Specific Event Zones ---
+  // 🇮🇳 INDIA EVENTS STUDIO ZONES
   {
     id: 'zone-india-election',
-    name: 'Indian Election Rally (Jansabha)',
-    subtitle: 'Massive political rally grounds with stage podium, crowd barricades, & campaign flags',
+    name: '🇮🇳 Election Rally (Jansabha)',
+    subtitle: 'Massive Political Rally Ground & Bulletproof Stage',
+    mapPos: { x: 50, y: 35 },
     panoramaUrl: '/images/india_election_360.jpg',
     thumbnailUrl: '/images/india_election_360.jpg',
-    mapPos: { x: 74, y: 55 },
-    categoryType: 'india',
-    subType: 'election',
+    isIndiaMode: true,
     slots: [
       {
-        id: 'slot-elec-podium',
-        label: 'Rally Stage & Podium',
+        id: 'slot-election-podium',
+        label: 'Rally Stage & Bulletproof Glass Podium',
         category: 'stages',
+        quantity: 1,
         defaultItemId: 'stage-bulletproof-podium',
-        quantity: 1,
-        pos3D: { pitch: -4, yaw: 0 }
+        pos3D: { pitch: -5, yaw: 0 }
       },
       {
-        id: 'slot-elec-flags',
-        label: 'Campaign Flags & Wall',
+        id: 'slot-election-hoarding',
+        label: 'Tricolor Campaign Flag & Banner Wall',
         category: 'backdrops',
-        defaultItemId: 'backdrop-election-flags',
         quantity: 1,
-        pos3D: { pitch: 10, yaw: 45 }
+        defaultItemId: 'backdrop-election-flags',
+        pos3D: { pitch: 12, yaw: -15 }
       },
       {
-        id: 'slot-elec-audio',
-        label: 'Crowd Loudspeaker Array',
+        id: 'slot-election-audio',
+        label: 'High-Output Rally Horn Speaker Towers',
         category: 'fountains',
+        quantity: 4,
         defaultItemId: 'fountain-horn-speakers',
-        quantity: 8,
-        pos3D: { pitch: 18, yaw: -60 }
+        pos3D: { pitch: 8, yaw: 85 }
       },
       {
-        id: 'slot-elec-vvip',
-        label: 'Stage VVIP Chairs',
+        id: 'slot-election-seating',
+        label: 'VVIP Dignitary Stage Armchairs',
         category: 'chairs',
-        defaultItemId: 'chair-vvip-executive',
         quantity: 12,
-        pos3D: { pitch: -12, yaw: 25 }
+        defaultItemId: 'chair-vvip-executive',
+        pos3D: { pitch: -18, yaw: -45 }
       }
     ]
   },
   {
     id: 'zone-india-function',
-    name: 'Indian Royal Function & Mandap',
-    subtitle: 'Grand Indian wedding mandap decorated with marigolds, silk drapes, & Jhula swing',
+    name: '🇮🇳 Grand Function (Royal Mandap)',
+    subtitle: 'Traditional Indian Wedding & Reception Mandap',
+    mapPos: { x: 75, y: 65 },
     panoramaUrl: '/images/india_function_360.jpg',
     thumbnailUrl: '/images/india_function_360.jpg',
-    mapPos: { x: 38, y: 28 },
-    categoryType: 'india',
-    subType: 'function',
+    isIndiaMode: true,
     slots: [
       {
-        id: 'slot-func-mandap',
-        label: 'Royal Mandap Stage',
+        id: 'slot-function-mandap',
+        label: 'Carved Pillar Royal Wedding Mandap',
         category: 'stages',
+        quantity: 1,
         defaultItemId: 'stage-royal-mandap',
-        quantity: 1,
-        pos3D: { pitch: -2, yaw: 0 }
+        pos3D: { pitch: -4, yaw: 0 }
       },
       {
-        id: 'slot-func-jhula',
-        label: 'Carved Wooden Jhula Swing',
-        category: 'tables',
-        defaultItemId: 'table-antique-jhula',
-        quantity: 1,
-        pos3D: { pitch: -12, yaw: -55 }
-      },
-      {
-        id: 'slot-func-flowers',
-        label: 'Marigold Floral Wall',
+        id: 'slot-function-marigold',
+        label: 'Fresh Marigold & Jasmine Backdrop',
         category: 'backdrops',
-        defaultItemId: 'backdrop-marigold-garland',
         quantity: 1,
-        pos3D: { pitch: 8, yaw: 110 }
+        defaultItemId: 'backdrop-marigold-garland',
+        pos3D: { pitch: 10, yaw: -30 }
       },
       {
-        id: 'slot-func-thrones',
-        label: 'Maharaja Wedding Thrones',
+        id: 'slot-function-throne',
+        label: 'Royal Maharaja Gold Throne Pair',
         category: 'chairs',
-        defaultItemId: 'chair-maharaja-throne',
         quantity: 2,
-        pos3D: { pitch: -10, yaw: 20 }
+        defaultItemId: 'chair-maharaja-throne',
+        pos3D: { pitch: -14, yaw: -10 }
+      },
+      {
+        id: 'slot-function-jhula',
+        label: 'Carved Royal Wooden Swing Setup',
+        category: 'tables',
+        quantity: 1,
+        defaultItemId: 'table-antique-jhula',
+        pos3D: { pitch: -12, yaw: 65 }
       }
     ]
   },
   {
     id: 'zone-india-meeting',
-    name: 'Indian Corporate & Summit Meeting',
-    subtitle: 'High-tech international summit hall with digital LED podiums & 4K video screens',
+    name: '🇮🇳 Public Meeting / Summit',
+    subtitle: 'High-Tech Digital Conference & Ministerial Summit',
+    mapPos: { x: 25, y: 45 },
     panoramaUrl: '/images/india_meeting_360.jpg',
     thumbnailUrl: '/images/india_meeting_360.jpg',
-    mapPos: { x: 62, y: 20 },
-    categoryType: 'india',
-    subType: 'meeting',
+    isIndiaMode: true,
     slots: [
       {
-        id: 'slot-meet-podium',
-        label: 'Summit Digital Podium',
+        id: 'slot-meeting-podium',
+        label: 'Acrylic LED Digital Summit Podium',
         category: 'stages',
+        quantity: 1,
         defaultItemId: 'stage-digital-podium',
-        quantity: 1,
-        pos3D: { pitch: -4, yaw: 0 }
+        pos3D: { pitch: -5, yaw: 0 }
       },
       {
-        id: 'slot-meet-screen',
-        label: '4K Seamless LED Video Wall',
+        id: 'slot-meeting-screen',
+        label: 'Curved 4K Seamless Video Screen Wall',
         category: 'backdrops',
+        quantity: 1,
         defaultItemId: 'backdrop-seamless-led',
-        quantity: 1,
-        pos3D: { pitch: 12, yaw: -20 }
+        pos3D: { pitch: 12, yaw: 0 }
       },
       {
-        id: 'slot-meet-table',
-        label: 'Curved Summit Table',
+        id: 'slot-meeting-desk',
+        label: 'Curved International Summit Desk',
         category: 'tables',
-        defaultItemId: 'table-summit-desk',
         quantity: 1,
-        pos3D: { pitch: -18, yaw: -45 }
-      },
-      {
-        id: 'slot-meet-lighting',
-        label: 'DMX Summit Spotlight Array',
-        category: 'lighting',
-        defaultItemId: 'lighting-rgb-uplighting',
-        quantity: 16,
-        pos3D: { pitch: 25, yaw: 60 }
+        defaultItemId: 'table-summit-desk',
+        pos3D: { pitch: -15, yaw: -30 }
       }
     ]
   }
