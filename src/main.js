@@ -66,6 +66,7 @@ class Event360App {
     this.initUI();
     this.initComponents();
     this.bindGlobalEvents();
+    this.switchView(this.activeView);
   }
 
   applyTheme(themeMode) {

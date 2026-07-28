@@ -344,6 +344,71 @@ body {
   border-color: var(--border-strong);
 }
 
+/* India Events Secondary Sub-Bar */
+.india-sub-bar {
+  background: var(--bg-nav);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.6rem 1.5rem;
+  z-index: 90;
+  transition: var(--transition-fast);
+}
+
+.india-sub-bar.hidden {
+  display: none;
+}
+
+.sub-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+.sub-bar-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+}
+
+.india-mode-toggle-group {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  gap: 4px;
+}
+
+.india-mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-attio);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.india-mode-btn:hover {
+  color: var(--text-main);
+}
+
+.india-mode-btn.active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 /* ==========================================================================
    3. AERIAL MAP DASHBOARD
    ========================================================================== */
@@ -387,9 +452,9 @@ body {
 
 .photo-map-container {
   width: 100%;
-  max-width: 1240px;
+  max-width: 1360px;
   height: 100%;
-  max-height: 750px;
+  max-height: 780px;
   position: relative;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -406,23 +471,24 @@ body {
 
 .map-overlay-title {
   position: absolute;
-  top: 1.5rem;
-  left: 2rem;
+  top: 1.25rem;
+  left: 1.25rem;
   background: var(--bg-nav);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   padding: 0.75rem 1.1rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   pointer-events: none;
   z-index: 40;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 .map-overlay-title h3 {
   font-family: var(--font-attio);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
   color: var(--text-main);
 }
 
@@ -443,26 +509,27 @@ body {
 
 .photo-node-button {
   background: var(--bg-surface);
-  border: 1.5px solid var(--accent-indigo);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
-  padding: 3px 10px 3px 3px;
+  padding: 3px 12px 3px 3px;
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.3);
   position: relative;
   transition: var(--transition-fast);
 }
 
 .photo-node-button:hover {
-  transform: scale(1.06);
-  border-color: var(--accent-gold);
+  transform: scale(1.08);
+  border-color: var(--accent-indigo);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--accent-indigo);
 }
 
 .node-thumb {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
 }
