@@ -2,9 +2,10 @@ import { VENUE_ZONES } from '../data/zones.js';
 import { getItemById } from '../data/catalog.js';
 
 export class InteractiveMap {
-  constructor(containerElement, onSelectZone, activeSelections) {
+  constructor(containerElement, onSelectZone, onSelectSlot, activeSelections) {
     this.container = containerElement;
     this.onSelectZone = onSelectZone;
+    this.onSelectSlot = onSelectSlot;
     this.activeSelections = activeSelections;
 
     this.render();
@@ -51,7 +52,7 @@ export class InteractiveMap {
                   <div class="dot-tooltip photo-zone-card">
                     <div class="card-media">
                       <img src="${zone.panoramaUrl}" alt="${zone.name}" class="card-banner-img" />
-                      <span class="card-badge">360° Live</span>
+                      <span class="card-badge">360° Live Studio</span>
                     </div>
 
                     <div class="card-content">
@@ -61,13 +62,14 @@ export class InteractiveMap {
                       </div>
                       <p class="zone-desc">${zone.subtitle}</p>
 
+                      <!-- Clickable Options Slots List -->
                       <div class="tooltip-slots photo-slots-list">
                         ${zone.slots.map(slot => {
                           const item = getItemById(this.activeSelections[slot.id] || slot.defaultItemId);
                           return `
-                            <div class="tooltip-slot-item">
+                            <div class="tooltip-slot-item map-slot-clickable" data-zone-id="${zone.id}" data-slot-id="${slot.id}" title="Click to swap ${slot.label}">
                               <span class="slot-label">${slot.label}:</span>
-                              <strong class="slot-val">${item ? item.name : 'None'}</strong>
+                              <strong class="slot-val">${item ? item.name : 'None'} ✏️</strong>
                             </div>
                           `;
                         }).join('')}
@@ -87,7 +89,7 @@ export class InteractiveMap {
 
         <div class="map-overlay-title">
           <h3>📍 Aerial Venue Dashboard</h3>
-          <p>Click any photo node on the aerial map to enter its 360° visualizer & swap setup objects.</p>
+          <p>Click any photo node or item slot to interchange chairs, stages, tables, & backdrops live.</p>
         </div>
       </div>
     `;
@@ -96,9 +98,11 @@ export class InteractiveMap {
   }
 
   bindEvents() {
-    const wrappers = this.container.querySelectorAll('.photo-node-wrapper');
-    wrappers.forEach(wrap => {
-      wrap.addEventListener('click', () => {
+    const wrappers = this.container.querySelectorAll('.photo-node-button');
+    wrappers.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wrap = btn.closest('.photo-node-wrapper');
         const zoneId = wrap.getAttribute('data-zone-id');
         if (zoneId && this.onSelectZone) {
           this.onSelectZone(zoneId);
@@ -113,6 +117,18 @@ export class InteractiveMap {
         const zoneId = btn.getAttribute('data-zone-id');
         if (zoneId && this.onSelectZone) {
           this.onSelectZone(zoneId);
+        }
+      });
+    });
+
+    const slotItems = this.container.querySelectorAll('.map-slot-clickable');
+    slotItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const zoneId = item.getAttribute('data-zone-id');
+        const slotId = item.getAttribute('data-slot-id');
+        if (zoneId && slotId && this.onSelectSlot) {
+          this.onSelectSlot(zoneId, slotId);
         }
       });
     });

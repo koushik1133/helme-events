@@ -1,12 +1,11 @@
 export const ITEM_CATALOG = {
   chairs: [
-    // Standard / Luxury
     {
       id: 'chair-folding',
       name: 'Standard Folding Chair',
       price: 8,
       category: 'chairs',
-      description: 'Durable white resin folding chair with padded vinyl seat.',
+      description: 'Durable white resin folding chair with padded vinyl seat for outdoor event seating.',
       imageUrl: '/images/chair_chiavari_gold.jpg',
       color: '#e2e8f0'
     },
@@ -15,16 +14,16 @@ export const ITEM_CATALOG = {
       name: 'Gold Chiavari Chair',
       price: 18,
       category: 'chairs',
-      description: 'Elegant metallic gold Chiavari chair with ivory velvet cushion.',
+      description: 'Elegant metallic gold Chiavari chair with ivory velvet cushion for luxury galas and weddings.',
       imageUrl: '/images/chair_chiavari_gold.jpg',
       color: '#eab308'
     },
     {
       id: 'chair-velvet-armchair',
-      name: 'Luxury Velvet Armchair',
+      name: 'Luxury Emerald Velvet Armchair',
       price: 45,
       category: 'chairs',
-      description: 'Plush emerald velvet armchair with polished brass frame.',
+      description: 'Plush emerald green velvet lounge armchair with polished brass frame.',
       imageUrl: '/images/zone_lounge_360.jpg',
       color: '#059669'
     },
@@ -33,21 +32,19 @@ export const ITEM_CATALOG = {
       name: 'Modern Ghost Acrylic Chair',
       price: 25,
       category: 'chairs',
-      description: 'Sleek transparent polycarbonate designer chair.',
+      description: 'Sleek transparent polycarbonate ghost designer chair for minimalist modern events.',
       imageUrl: '/images/zone_entrance_360.jpg',
       color: '#38bdf8'
     },
     {
       id: 'chair-throne',
-      name: 'VIP Royal Throne Chair',
+      name: 'VIP Royal Mahogany Throne Chair',
       price: 85,
       category: 'chairs',
-      description: 'High-back carved mahogany throne chair with gold leaf accents.',
+      description: 'High-back carved mahogany throne chair with hand-applied gold leaf accents.',
       imageUrl: '/images/chair_chiavari_gold.jpg',
       color: '#9333ea'
     },
-
-    // Indian Event Specific
     {
       id: 'chair-maharaja-throne',
       name: 'Royal Maharaja Gold Throne Pair',
@@ -71,7 +68,7 @@ export const ITEM_CATALOG = {
       name: 'Rally VVIP Cushioned Armchair',
       price: 65,
       category: 'chairs',
-      description: 'Heavy-duty VVIP high-back stage chair for political dignitaries.',
+      description: 'Heavy-duty VVIP high-back stage chair for political dignitaries & guest speakers.',
       imageUrl: '/images/india_election_360.jpg',
       color: '#1e293b'
     }
@@ -83,51 +80,49 @@ export const ITEM_CATALOG = {
       name: 'Standard Round Banquet Table',
       price: 40,
       category: 'tables',
-      description: '60-inch round banquet table with white floor-length linen.',
+      description: '60-inch round banquet dining table with white floor-length linen.',
       imageUrl: '/images/zone_banquet_360.jpg',
       color: '#f8fafc'
     },
     {
       id: 'table-rustic-wood',
-      name: 'Rustic Solid Farmhouse Table',
+      name: 'Rustic Solid Oak Farmhouse Table',
       price: 120,
       category: 'tables',
-      description: '8-foot handcrafted solid oak harvest table with matte finish.',
+      description: '8-foot handcrafted solid oak harvest table with matte protective finish.',
       imageUrl: '/images/zone_fountain_360.jpg',
       color: '#78350f'
     },
     {
       id: 'table-led-glass',
-      name: 'Glass LED Illuminated Table',
+      name: 'Glass LED Illuminated Cocktail Table',
       price: 250,
       category: 'tables',
-      description: 'Temper glass table with programmable RGB ambient under-lighting.',
+      description: 'Tempered glass table with programmable RGB ambient under-lighting.',
       imageUrl: '/images/zone_lounge_360.jpg',
       color: '#06b6d4'
     },
     {
       id: 'table-cocktail',
-      name: 'Marble Cocktail High-Top',
+      name: 'Marble Cocktail High-Top Table',
       price: 85,
       category: 'tables',
-      description: 'Carrara marble top cocktail table with brushed brass pedestal.',
+      description: 'Carrara white marble top cocktail table with brushed brass pedestal base.',
       imageUrl: '/images/zone_fountain_360.jpg',
       color: '#cbd5e1'
     },
-
-    // Indian Specific
     {
       id: 'table-antique-jhula',
       name: 'Carved Royal Wooden Jhula (Swing)',
       price: 450,
       category: 'tables',
-      description: 'Handcrafted antique wooden swing setup with brass chains & marigold garlands.',
+      description: 'Handcrafted antique wooden swing setup with brass chains & fresh marigold garlands.',
       imageUrl: '/images/india_function_360.jpg',
       color: '#d97706'
     },
     {
       id: 'table-summit-desk',
-      name: 'Curved International Summit Table',
+      name: 'Curved International Summit Desk',
       price: 850,
       category: 'tables',
       description: 'Curved wood veneer conference table with integrated mic units and digital monitors.',
@@ -142,7 +137,7 @@ export const ITEM_CATALOG = {
       name: 'Classic Tiered Stone Fountain',
       price: 650,
       category: 'fountains',
-      description: 'Three-tiered Mediterranean carved limestone water fountain.',
+      description: 'Three-tiered Mediterranean carved limestone water fountain feature.',
       imageUrl: '/images/fountain_royal_marble.jpg',
       color: '#94a3b8'
     },
@@ -151,13 +146,13 @@ export const ITEM_CATALOG = {
       name: 'Modern Glass Waterfall Wall',
       price: 950,
       category: 'fountains',
-      description: '8ft architectural tempered glass water wall with underwater LED rays.',
+      description: '8ft architectural tempered glass water wall with underwater LED illumination.',
       imageUrl: '/images/zone_entrance_360.jpg',
       color: '#0284c7'
     },
     {
       id: 'fountain-royal-marble',
-      name: 'Royal Sculpted Marble Fountain',
+      name: 'Royal Sculpted White Marble Fountain',
       price: 1400,
       category: 'fountains',
       description: 'Grand Renaissance-style carved white marble fountain with bronze spouts.',
@@ -173,14 +168,12 @@ export const ITEM_CATALOG = {
       imageUrl: '/images/zone_fountain_360.jpg',
       color: '#ec4899'
     },
-
-    // Indian Specific Audio & Features
     {
       id: 'fountain-horn-speakers',
       name: 'High-Output Rally Horn Speaker Array',
       price: 600,
       category: 'fountains',
-      description: 'Heavy-duty 360-degree horn loudspeaker towers for election crowd audio.',
+      description: 'Heavy-duty 360-degree horn loudspeaker towers for election crowd sound projection.',
       imageUrl: '/images/india_election_360.jpg',
       color: '#f59e0b'
     },
@@ -201,13 +194,13 @@ export const ITEM_CATALOG = {
       name: 'Modular Wooden Riser Stage',
       price: 350,
       category: 'stages',
-      description: '16x12ft carpeted wooden stage platform with skirt.',
+      description: '16x12ft carpeted wooden stage platform with skirt for presentations.',
       imageUrl: '/images/zone_stage_360.jpg',
       color: '#475569'
     },
     {
       id: 'stage-led-arch',
-      name: 'Concert LED Arch Stage',
+      name: 'Concert LED Arch Truss Stage',
       price: 1850,
       category: 'stages',
       description: 'Professional aluminum truss stage with curved LED video arch and spotlights.',
@@ -223,8 +216,6 @@ export const ITEM_CATALOG = {
       imageUrl: '/images/zone_stage_360.jpg',
       color: '#800020'
     },
-
-    // Indian Election & Summit Podiums
     {
       id: 'stage-bulletproof-podium',
       name: 'Grand Rally Stage & Bulletproof Glass Podium',
@@ -260,7 +251,7 @@ export const ITEM_CATALOG = {
       name: 'Rose & Hydrangea Floral Wall',
       price: 550,
       category: 'backdrops',
-      description: '8x10ft dense silk rose and hydrangea flower wall backdrop.',
+      description: '8x10ft dense silk rose and hydrangea flower wall photo backdrop.',
       imageUrl: '/images/zone_entrance_360.jpg',
       color: '#f43f5e'
     },
@@ -275,21 +266,19 @@ export const ITEM_CATALOG = {
     },
     {
       id: 'backdrop-shimmer-sequin',
-      name: 'Shimmer Sequined Photo Wall',
+      name: 'Shimmer Sequined Gold Photo Wall',
       price: 420,
       category: 'backdrops',
-      description: 'Interactive gold shimmer sequin wall that moves with breeze.',
+      description: 'Interactive gold shimmer sequin wall that reflects ambient stage lights.',
       imageUrl: '/images/zone_stage_360.jpg',
       color: '#f59e0b'
     },
-
-    // Indian Specific Backdrops
     {
       id: 'backdrop-marigold-garland',
       name: 'Fresh Yellow & Orange Marigold Garland Backdrop',
       price: 650,
       category: 'backdrops',
-      description: 'Traditional fresh marigold and jasmine flower curtain with temple bells.',
+      description: 'Traditional fresh marigold and jasmine flower curtain with temple brass bells.',
       imageUrl: '/images/india_function_360.jpg',
       color: '#f59e0b'
     },
@@ -341,8 +330,6 @@ export const ITEM_CATALOG = {
       imageUrl: '/images/zone_banquet_360.jpg',
       color: '#fafafa'
     },
-
-    // Indian Specific Lighting
     {
       id: 'lighting-rally-highmast',
       name: 'Rally Stadium High-Mast Floodlight Array',

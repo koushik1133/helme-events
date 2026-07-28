@@ -509,6 +509,18 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 0.7rem;
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.map-slot-clickable {
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.map-slot-clickable:hover {
+  background: var(--bg-surface);
+  color: var(--accent-gold);
 }
 
 .slot-label { color: var(--text-muted); }

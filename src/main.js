@@ -69,6 +69,10 @@ class Event360App {
     this.mapComponent = new InteractiveMap(
       this.mapContainer,
       (zoneId) => this.openStudio360(zoneId),
+      (zoneId, slotId) => {
+        this.openStudio360(zoneId);
+        setTimeout(() => this.openSwapperForSlot(slotId), 150);
+      },
       this.activeSelections
     );
 
@@ -270,11 +274,11 @@ class Event360App {
 
     const item = getItemById(newItemId);
     if (item) {
-      this.showToast(`Interchanged item to ${item.name}!`);
+      this.showToast(`Updated to ${item.name}!`);
       confetti({
-        particleCount: 40,
-        spread: 60,
-        origin: { y: 0.8 }
+        particleCount: 45,
+        spread: 70,
+        origin: { y: 0.75 }
       });
     }
   }
