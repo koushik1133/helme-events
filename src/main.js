@@ -47,6 +47,7 @@ import { InvoiceGenerator } from './components/InvoiceGenerator.js';
 import { BudgetOptimizer } from './components/BudgetOptimizer.js';
 import { EventBriefGenerator } from './components/EventBriefGenerator.js';
 import { CustomEventBriefWizard } from './components/CustomEventBriefWizard.js';
+import { ThreeDLiveSpaceEditor } from './components/ThreeDLiveSpaceEditor.js';
 
 class Event360App {
   constructor() {
@@ -128,6 +129,7 @@ class Event360App {
     this.budgetOptContainer = document.getElementById('budgetOptContainer');
     this.briefGenContainer = document.getElementById('briefGenContainer');
     this.customBriefWizardContainer = document.getElementById('customBriefWizardContainer');
+    this.threeDEditorContainer = document.getElementById('threeDEditorContainer');
 
     // Original tabs
     this.tabMapView = document.getElementById('tabMapView');
@@ -146,6 +148,7 @@ class Event360App {
     this.btnOpenCart = document.getElementById('btnOpenCart');
     this.btnAIBuilder = document.getElementById('btnAIBuilder');
     this.btnCustomBrief = document.getElementById('btnCustomBrief');
+    this.btnOpen3DEditor = document.getElementById('btnOpen3DEditor');
     this.btnSoundToggle = document.getElementById('btnSoundToggle');
     this.btnWatchTour360 = document.getElementById('btnWatchTour360');
     this.btnPresetDropdown = document.getElementById('btnPresetDropdown');
@@ -349,6 +352,15 @@ class Event360App {
       }
     );
 
+    this.threeDLiveSpaceEditor = new ThreeDLiveSpaceEditor(
+      this.threeDEditorContainer,
+      this.activeSelections,
+      (selections) => {
+        Object.assign(this.activeSelections, selections);
+        this.updateAllComponents(this.activeSelections);
+      }
+    );
+
     this.customEventBriefWizard = new CustomEventBriefWizard(
       this.customBriefWizardContainer,
       this.activeSelections,
@@ -357,7 +369,7 @@ class Event360App {
         this.updateAllComponents(this.activeSelections);
         this.showToast(`📋 Custom ${formData.category.toUpperCase()} event setup generated & applied!`);
         confetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
-        this.switchView('studio360');
+        this.threeDLiveSpaceEditor.open();
       }
     );
 
@@ -388,6 +400,10 @@ class Event360App {
 
     if (this.btnCustomBrief) {
       this.btnCustomBrief.addEventListener('click', () => this.customEventBriefWizard.open());
+    }
+
+    if (this.btnOpen3DEditor) {
+      this.btnOpen3DEditor.addEventListener('click', () => this.threeDLiveSpaceEditor.open());
     }
 
     if (this.btnSoundToggle) {
@@ -500,6 +516,7 @@ class Event360App {
         if (this.budgetOptimizer) this.budgetOptimizer.close();
         if (this.eventBriefGenerator) this.eventBriefGenerator.close();
         if (this.customEventBriefWizard) this.customEventBriefWizard.close();
+        if (this.threeDLiveSpaceEditor) this.threeDLiveSpaceEditor.close();
         if (this.swapperModal && this.swapperModal.close) this.swapperModal.close();
         if (this.venueMenuModal && this.venueMenuModal.close) this.venueMenuModal.close();
         if (this.cartPaymentModal && this.cartPaymentModal.close) this.cartPaymentModal.close();
