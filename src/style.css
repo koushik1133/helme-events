@@ -335,56 +335,107 @@ body {
 [data-theme="dark"] .icon-sun { display: none; }
 [data-theme="dark"] .icon-moon { display: inline; }
 
-/* Preset Dropdown Apple Pill */
-.preset-dropdown-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-}
-
-.preset-dropdown-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-
-.preset-select-container {
+/* Preset Dropdown Apple Glass Popover */
+.preset-popover-wrapper {
   position: relative;
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
 }
 
-.preset-select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
+.preset-trigger-btn {
   background: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  padding: 5px 28px 5px 12px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
   font-family: var(--font-attio);
   font-size: 0.76rem;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: var(--transition-fast);
   white-space: nowrap;
-  max-width: 155px;
-  text-overflow: ellipsis;
-  overflow: hidden;
 }
 
-.preset-select:hover {
+.preset-trigger-btn:hover {
   background-color: var(--bg-surface-hover);
   border-color: var(--border-strong);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.preset-label-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.preset-current-val {
+  color: var(--text-main);
+}
+
+.preset-chevron {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Floating Glass Popover Menu */
+.preset-popover-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 210px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.preset-popover-menu.hidden {
+  display: none;
+}
+
+.preset-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.preset-menu-item:hover {
+  background: var(--bg-surface-hover);
+}
+
+.preset-menu-item.active {
+  background: var(--bg-input);
+  font-weight: 700;
+  color: var(--accent-indigo);
+}
+
+.item-check {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-indigo);
 }
 
 .preset-chevron-icon {
@@ -3389,5 +3440,60 @@ body {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
 }
+
+/* AI Prompt Bar Box */
+.ai-prompt-bar-box {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.ai-prompt-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ai-sparkle-icon {
+  font-size: 1.2rem;
+}
+
+.ai-prompt-input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-main);
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.ai-prompt-input:focus {
+  border-color: var(--accent-indigo);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.wizard-btn-ai {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+}
+
+.wizard-btn-ai:hover {
+  opacity: 0.94;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.4);
+}
+
 
 

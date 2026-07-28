@@ -148,7 +148,9 @@ class Event360App {
     this.btnCustomBrief = document.getElementById('btnCustomBrief');
     this.btnSoundToggle = document.getElementById('btnSoundToggle');
     this.btnWatchTour360 = document.getElementById('btnWatchTour360');
-    this.presetSelect = document.getElementById('presetSelect');
+    this.btnPresetDropdown = document.getElementById('btnPresetDropdown');
+    this.presetPopoverMenu = document.getElementById('presetPopoverMenu');
+    this.presetCurrentName = document.getElementById('presetCurrentName');
     this.hudZoneTitle = document.getElementById('hudZoneTitle');
     this.hudSlotsList = document.getElementById('hudSlotsList');
     this.btnBackToMap = document.getElementById('btnBackToMap');
@@ -437,8 +439,47 @@ class Event360App {
       });
     });
 
-    if (this.presetSelect) {
-      this.presetSelect.addEventListener('change', (e) => this.applyThemePreset(e.target.value));
+    if (this.btnPresetDropdown && this.presetPopoverMenu) {
+      this.btnPresetDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.presetPopoverMenu.classList.toggle('hidden');
+      });
+
+      const menuItems = this.presetPopoverMenu.querySelectorAll('.preset-menu-item');
+      menuItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          menuItems.forEach(m => {
+            m.classList.remove('active');
+            const check = m.querySelector('.item-check');
+            if (check) check.textContent = '';
+          });
+
+          item.classList.add('active');
+          const check = item.querySelector('.item-check');
+          if (check) check.textContent = '✓';
+
+          const val = item.getAttribute('data-value');
+          const icon = item.querySelector('.item-icon')?.textContent || '';
+          const name = item.querySelector('.item-name')?.textContent || '';
+
+          if (this.presetCurrentName) {
+            const parts = name.split(' ');
+            this.presetCurrentName.textContent = `${icon} ${parts[0]} ${parts[1] || ''}`.trim();
+          }
+
+          this.presetPopoverMenu.classList.add('hidden');
+          this.applyThemePreset(val);
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (this.presetPopoverMenu && !this.presetPopoverMenu.classList.contains('hidden')) {
+          if (!this.btnPresetDropdown.contains(e.target) && !this.presetPopoverMenu.contains(e.target)) {
+            this.presetPopoverMenu.classList.add('hidden');
+          }
+        }
+      });
     }
 
     // Global Escape key modal close handler

@@ -12,7 +12,7 @@ export class CustomEventBriefWizard {
     // Form State
     this.formData = {
       category: 'social', // social, corporate, political, public
-      subCategory: 'wedding',
+      subCategory: 'reception',
       // Universal
       eventDate: new Date().toISOString().split('T')[0],
       altDate: '',
@@ -36,11 +36,11 @@ export class CustomEventBriefWizard {
       // Public
       soundSystem: 'line-array-towers',
       crowdFacilities: 'multi-gate-security',
-      // Custom Preference Text
-      customPreferences: ''
+      // AI Custom Prompt
+      aiPrompt: ''
     };
 
-    this.selectedConceptId = 'concept-royal';
+    this.selectedConceptId = 'concept-1';
   }
 
   open() {
@@ -68,66 +68,242 @@ export class CustomEventBriefWizard {
     return Math.round(diff * 10) / 10;
   }
 
-  generateConcepts() {
+  generateSubEventConcepts() {
+    const sub = this.formData.subCategory;
     const cat = this.formData.category;
     const guests = this.formData.guestCount;
     const hours = this.calculateTotalHours();
+    const promptText = this.formData.aiPrompt.toLowerCase();
 
     let baseCost = 5000 + (guests * 45) + (hours * 300);
-    if (cat === 'political') baseCost += 4000;
-    if (cat === 'corporate') baseCost += 3000;
 
-    return [
-      {
-        id: 'concept-royal',
-        title: '👑 Royal Gold & Grand Stage Edition',
-        badge: 'Top Pick for Grand Events',
-        panoramaUrl: '/images/zone_stage_360.jpg',
-        description: `Grand LED setup, velvet seating for ${guests} guests, high-output sound & luxury decor.`,
-        priceEstimate: Math.round(baseCost * 1.2),
-        selections: {
-          'slot-stage-main': 'stage-led-arch',
-          'slot-stage-backdrop': 'backdrop-shimmer-sequin',
-          'slot-stage-seating': 'chair-chiavari-gold',
-          'slot-banquet-table': 'table-round-standard',
-          'slot-fountain-water': 'fountain-dancing-jets'
+    // Default 3 4K Themes based on Sub-Event
+    let concepts = [];
+
+    if (sub === 'reception') {
+      concepts = [
+        {
+          id: 'concept-1',
+          title: '👑 Crystal Chandelier Gala Edition',
+          badge: '4K Ultra High-Res Luxury',
+          panoramaUrl: '/images/reception_crystal_gala_360.jpg',
+          description: `Grand ballroom with crystal chandeliers, gold chiavari chairs, tall orchid centerpieces & 5-course banquet.`,
+          priceEstimate: Math.round(baseCost * 1.3),
+          selections: {
+            'slot-stage-main': 'stage-led-arch',
+            'slot-stage-backdrop': 'backdrop-shimmer-sequin',
+            'slot-stage-seating': 'chair-chiavari-gold',
+            'slot-banquet-table': 'table-round-standard',
+            'slot-fountain-center': 'fountain-dancing-jets'
+          }
+        },
+        {
+          id: 'concept-2',
+          title: '🌌 Midnight Velvet Starlight Edition',
+          badge: '4K Night Sky Ambient',
+          panoramaUrl: '/images/reception_midnight_velvet_360.jpg',
+          description: `Deep navy blue velvet draping, LED starlight ceiling, silver chiavari seating & illuminated glass bar.`,
+          priceEstimate: Math.round(baseCost * 1.15),
+          selections: {
+            'slot-stage-main': 'stage-truss-canopy',
+            'slot-stage-backdrop': 'backdrop-shimmer-sequin',
+            'slot-stage-seating': 'chair-ghost-acrylic',
+            'slot-banquet-table': 'table-cocktail-high',
+            'slot-fountain-center': 'fountain-tiered-stone'
+          }
+        },
+        {
+          id: 'concept-3',
+          title: '🌿 Enchanted Garden Lawn Edition',
+          badge: '4K Scenic Outdoor Lawn',
+          panoramaUrl: '/images/zone_lounge_360.jpg',
+          description: `Outdoor floral lawn canopy, warm fairy lights, rustic wood dining tables & acoustic lounge music.`,
+          priceEstimate: Math.round(baseCost * 0.9),
+          selections: {
+            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-backdrop': 'backdrop-hedge-wall',
+            'slot-stage-seating': 'chair-folding-white',
+            'slot-banquet-table': 'table-rustic-wood',
+            'slot-fountain-center': 'fountain-dancing-jets'
+          }
         }
-      },
-      {
-        id: 'concept-tech',
-        title: '⚡ Cyber Tech & Press Production Edition',
-        badge: 'High-Tech & Broadcast Ready',
-        panoramaUrl: '/images/zone_banquet_360.jpg',
-        description: `4K Video Wall, digital poding, teleprompters, camera risers & line array sound towers.`,
-        priceEstimate: Math.round(baseCost * 1.05),
-        selections: {
-          'slot-stage-main': 'stage-truss-canopy',
-          'slot-stage-backdrop': 'backdrop-flower-marigold',
-          'slot-stage-seating': 'chair-folding-white',
-          'slot-banquet-table': 'table-cocktail-high',
-          'slot-fountain-water': 'fountain-stone-tiered'
+      ];
+    } else if (sub === 'wedding') {
+      concepts = [
+        {
+          id: 'concept-1',
+          title: '👑 Royal Gold Carved Mandap',
+          badge: '4K Royal Traditional',
+          panoramaUrl: '/images/zone_stage_360.jpg',
+          description: `Carved gold mandap pillars, marigold garlands, sacred fire kund & luxury front-row VIP sofa seating.`,
+          priceEstimate: Math.round(baseCost * 1.35),
+          selections: {
+            'slot-stage-main': 'stage-led-arch',
+            'slot-stage-backdrop': 'backdrop-flower-marigold',
+            'slot-stage-seating': 'chair-chiavari-gold',
+            'slot-banquet-table': 'table-round-standard',
+            'slot-fountain-center': 'fountain-dancing-jets'
+          }
+        },
+        {
+          id: 'concept-2',
+          title: '🌸 Royal Mughal Palace Setup',
+          badge: '4K Heritage Palace',
+          panoramaUrl: '/images/india_function_360.jpg',
+          description: `Intricate palace backdrop, regal red velvet drapes, traditional shehnai stage & royal guest seating.`,
+          priceEstimate: Math.round(baseCost * 1.2),
+          selections: {
+            'slot-stage-main': 'stage-led-arch',
+            'slot-stage-backdrop': 'backdrop-shimmer-sequin',
+            'slot-stage-seating': 'chair-chiavari-gold',
+            'slot-banquet-table': 'table-round-standard',
+            'slot-fountain-center': 'fountain-tiered-stone'
+          }
+        },
+        {
+          id: 'concept-3',
+          title: '🤍 Minimalist Platinum Floral Altar',
+          badge: '4K Contemporary White',
+          panoramaUrl: '/images/zone_banquet_360.jpg',
+          description: `Crisp white floral ceremony arch, ghost acrylic aisle chairs, subtle ambient lighting & grand piano.`,
+          priceEstimate: Math.round(baseCost * 0.95),
+          selections: {
+            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-backdrop': 'backdrop-floral-wall',
+            'slot-stage-seating': 'chair-ghost-acrylic',
+            'slot-banquet-table': 'table-round-standard',
+            'slot-fountain-center': 'fountain-dancing-jets'
+          }
         }
-      },
-      {
-        id: 'concept-heritage',
-        title: '🌿 Heritage Garden & Open Lawn Edition',
-        badge: 'Scenic Outdoor Aesthetic',
-        panoramaUrl: '/images/zone_lounge_360.jpg',
-        description: `Natural floral arches, ambient warm fairy lights, wood accents & relaxed seating.`,
-        priceEstimate: Math.round(baseCost * 0.85),
-        selections: {
-          'slot-stage-main': 'stage-wooden-rustic',
-          'slot-stage-backdrop': 'backdrop-hedge-greenery',
-          'slot-stage-seating': 'chair-ghost-acrylic',
-          'slot-banquet-table': 'table-round-standard',
-          'slot-fountain-water': 'fountain-dancing-jets'
+      ];
+    } else if (cat === 'political' || sub === 'rally') {
+      concepts = [
+        {
+          id: 'concept-1',
+          title: '📢 Presidential Rally Grounds',
+          badge: '4K Mass Gathering Scale',
+          panoramaUrl: '/images/political_presidential_rally_360.jpg',
+          description: `Massive 4K LED screen backdrop, bulletproof glass podium, dual teleprompters, state flags & camera risers.`,
+          priceEstimate: Math.round(baseCost * 1.4),
+          selections: {
+            'slot-stage-main': 'stage-truss-canopy',
+            'slot-stage-backdrop': 'backdrop-shimmer-sequin',
+            'slot-stage-seating': 'chair-folding-white',
+            'slot-banquet-table': 'table-round-standard',
+            'slot-fountain-center': 'fountain-tiered-stone'
+          }
+        },
+        {
+          id: 'concept-2',
+          title: '🏛️ National Civic Square Arena',
+          badge: '4K High Security Assembly',
+          panoramaUrl: '/images/india_election_360.jpg',
+          description: `Heavy security barricades, metal detector gates, audio mult-box risers & press broadcast bay.`,
+          priceEstimate: Math.round(baseCost * 1.15),
+          selections: {
+            'slot-stage-main': 'stage-led-arch',
+            'slot-stage-backdrop': 'backdrop-flower-marigold',
+            'slot-stage-seating': 'chair-folding-white',
+            'slot-banquet-table': 'table-cocktail-high',
+            'slot-fountain-center': 'fountain-dancing-jets'
+          }
+        },
+        {
+          id: 'concept-3',
+          title: '🎥 Press Broadcast & Media Meet',
+          badge: '4K National TV Broadcast',
+          panoramaUrl: '/images/india_meeting_360.jpg',
+          description: `Executive conference dais, satellite truck bay, high-resolution media backdrop & lapel mic array.`,
+          priceEstimate: Math.round(baseCost * 0.95),
+          selections: {
+            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-backdrop': 'backdrop-floral-wall',
+            'slot-stage-seating': 'chair-chiavari-gold',
+            'slot-banquet-table': 'table-round-standard',
+            'slot-fountain-center': 'fountain-tiered-stone'
+          }
         }
-      }
-    ];
+      ];
+    } else {
+      // General Fallback 3 Themes
+      concepts = [
+        {
+          id: 'concept-1',
+          title: '👑 Grand Executive Gold Edition',
+          badge: '4K Ultra High-Res',
+          panoramaUrl: '/images/zone_stage_360.jpg',
+          description: `Luxury LED stage, gold chiavari chairs, illuminated fountain & premium banquet setup.`,
+          priceEstimate: Math.round(baseCost * 1.25),
+          selections: {
+            'slot-stage-main': 'stage-led-arch',
+            'slot-stage-backdrop': 'backdrop-shimmer-sequin',
+            'slot-stage-seating': 'chair-chiavari-gold',
+            'slot-banquet-table': 'table-round-standard',
+            'slot-fountain-center': 'fountain-dancing-jets'
+          }
+        },
+        {
+          id: 'concept-2',
+          title: '⚡ Cyber Tech & Neon Gala Edition',
+          badge: '4K Futuristic Glow',
+          panoramaUrl: '/images/zone_banquet_360.jpg',
+          description: `4K Video wall, high-speed truss canopy, acrylic cocktail tables & moving spotlight array.`,
+          priceEstimate: Math.round(baseCost * 1.1),
+          selections: {
+            'slot-stage-main': 'stage-truss-canopy',
+            'slot-stage-backdrop': 'backdrop-shimmer-sequin',
+            'slot-stage-seating': 'chair-ghost-acrylic',
+            'slot-banquet-table': 'table-cocktail-high',
+            'slot-fountain-center': 'fountain-tiered-stone'
+          }
+        },
+        {
+          id: 'concept-3',
+          title: '🌿 Scenic Botanical Lawn Edition',
+          badge: '4K Outdoor Eco-Lawn',
+          panoramaUrl: '/images/zone_lounge_360.jpg',
+          description: `Lush green hedge wall, rustic wooden tables, warm string lights & relaxed seating.`,
+          priceEstimate: Math.round(baseCost * 0.85),
+          selections: {
+            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-backdrop': 'backdrop-hedge-wall',
+            'slot-stage-seating': 'chair-folding-white',
+            'slot-banquet-table': 'table-rustic-wood',
+            'slot-fountain-center': 'fountain-dancing-jets'
+          }
+        }
+      ];
+    }
+
+    // Apply AI Prompt Overrides if promptText exists
+    if (promptText) {
+      concepts = concepts.map((c, idx) => {
+        let titleSuffix = ' (Custom Prompt Modified)';
+        let descAdd = ` Customized via prompt: "${promptText}".`;
+        
+        if (promptText.includes('purple') || promptText.includes('violet')) {
+          c.title = c.title.replace(/Gold|Cyber|Heritage/, 'Royal Violet');
+          c.description += ` Updated lighting to deep violet ambient LEDs.`;
+        }
+        if (promptText.includes('marigold') || promptText.includes('garland')) {
+          c.selections['slot-stage-backdrop'] = 'backdrop-flower-marigold';
+          c.description += ` Added traditional marigold flower garlands to stage backdrop.`;
+        }
+        if (promptText.includes('sound') || promptText.includes('speaker') || promptText.includes('tower')) {
+          c.description += ` Added 4 high-output line-array sound towers.`;
+        }
+        if (promptText.includes('red carpet') || promptText.includes('carpet')) {
+          c.description += ` Added 100ft VIP red carpet entrance aisle.`;
+        }
+        return c;
+      });
+    }
+
+    return concepts;
   }
 
   applySelectedConcept() {
-    const concepts = this.generateConcepts();
+    const concepts = this.generateSubEventConcepts();
     const chosen = concepts.find(c => c.id === this.selectedConceptId) || concepts[0];
     
     if (this.onApplySelections && chosen.selections) {
@@ -156,6 +332,11 @@ export class CustomEventBriefWizard {
         catCards.forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         this.formData.category = card.getAttribute('data-category');
+        // Set default subcategory for category
+        if (this.formData.category === 'social') this.formData.subCategory = 'reception';
+        if (this.formData.category === 'corporate') this.formData.subCategory = 'conference';
+        if (this.formData.category === 'political') this.formData.subCategory = 'rally';
+        if (this.formData.category === 'public') this.formData.subCategory = 'festival';
         this.render(); // Re-render to update Step 2 fields
       });
     });
@@ -194,6 +375,18 @@ export class CustomEventBriefWizard {
     const btnStep3Launch = this.container.querySelector('#btnStep3Launch');
     if (btnStep3Launch) btnStep3Launch.addEventListener('click', () => this.applySelectedConcept());
 
+    // AI Prompt Regeneration Button
+    const btnAiRegen = this.container.querySelector('#btnAiRegen');
+    if (btnAiRegen) {
+      btnAiRegen.addEventListener('click', () => {
+        const promptInput = this.container.querySelector('#aiPromptInput');
+        if (promptInput) {
+          this.formData.aiPrompt = promptInput.value.trim();
+          this.render(); // Re-render step 3 with AI regenerated 4K themes
+        }
+      });
+    }
+
     // Concept Card Selection
     const conceptCards = this.container.querySelectorAll('.concept-showcase-card');
     conceptCards.forEach(card => {
@@ -216,7 +409,7 @@ export class CustomEventBriefWizard {
             <div class="cat-card-icon">💒</div>
             <div class="cat-card-info">
               <h4>Social & Marriage</h4>
-              <p>Weddings, Mandaps, Anniversaries, Galas & Receptions</p>
+              <p>Weddings, Mandaps, Receptions, Anniversaries & Galas</p>
             </div>
           </div>
 
@@ -249,22 +442,22 @@ export class CustomEventBriefWizard {
           <label class="wizard-label">Specific Sub-Event Type</label>
           <select class="wizard-input" data-bind="subCategory">
             ${this.formData.category === 'social' ? `
-              <option value="wedding">💍 Grand Wedding & Mandap Ceremony</option>
-              <option value="reception">🥂 Luxury Reception & Gala</option>
-              <option value="anniversary">✨ Milestone Anniversary</option>
-              <option value="birthday">🎂 Milestone Birthday Party</option>
+              <option value="reception" ${this.formData.subCategory === 'reception' ? 'selected' : ''}>🥂 Luxury Reception & Gala (3 4K Themes)</option>
+              <option value="wedding" ${this.formData.subCategory === 'wedding' ? 'selected' : ''}>💍 Grand Wedding & Mandap Ceremony (3 4K Themes)</option>
+              <option value="anniversary" ${this.formData.subCategory === 'anniversary' ? 'selected' : ''}>✨ Milestone Anniversary (3 4K Themes)</option>
+              <option value="birthday" ${this.formData.subCategory === 'birthday' ? 'selected' : ''}>🎂 Milestone Birthday Party (3 4K Themes)</option>
             ` : this.formData.category === 'corporate' ? `
-              <option value="conference">🎤 National Annual Conference</option>
-              <option value="product_launch">🚀 Keynote Product Launch</option>
-              <option value="trade_show">🏢 B2B Trade Show & Exhibition</option>
+              <option value="conference" ${this.formData.subCategory === 'conference' ? 'selected' : ''}>🎤 National Annual Conference (3 4K Themes)</option>
+              <option value="product_launch" ${this.formData.subCategory === 'product_launch' ? 'selected' : ''}>🚀 Keynote Product Launch (3 4K Themes)</option>
+              <option value="trade_show" ${this.formData.subCategory === 'trade_show' ? 'selected' : ''}>🏢 B2B Trade Show & Exhibition (3 4K Themes)</option>
             ` : this.formData.category === 'political' ? `
-              <option value="rally">📢 Public Rally & Mass Gathering</option>
-              <option value="town_hall">🏛️ Town Hall & Debates</option>
-              <option value="press_conf">🎥 Press Conference & Media Meet</option>
+              <option value="rally" ${this.formData.subCategory === 'rally' ? 'selected' : ''}>📢 Public Rally & Mass Gathering (3 4K Themes)</option>
+              <option value="town_hall" ${this.formData.subCategory === 'town_hall' ? 'selected' : ''}>🏛️ Town Hall & Assembly (3 4K Themes)</option>
+              <option value="press_conf" ${this.formData.subCategory === 'press_conf' ? 'selected' : ''}>🎥 Press Conference & Media Meet (3 4K Themes)</option>
             ` : `
-              <option value="festival">🎵 Music Festival & Concert</option>
-              <option value="charity_run">🏃 Charity Marathon / Run</option>
-              <option value="cultural_fair">🎨 Cultural Heritage Fair</option>
+              <option value="festival" ${this.formData.subCategory === 'festival' ? 'selected' : ''}>🎵 Music Festival & Concert (3 4K Themes)</option>
+              <option value="charity_run" ${this.formData.subCategory === 'charity_run' ? 'selected' : ''}>🏃 Charity Marathon / Run (3 4K Themes)</option>
+              <option value="cultural_fair" ${this.formData.subCategory === 'cultural_fair' ? 'selected' : ''}>🎨 Cultural Heritage Fair (3 4K Themes)</option>
             `}
           </select>
         </div>
@@ -283,12 +476,11 @@ export class CustomEventBriefWizard {
     const isSocial = this.formData.category === 'social';
     const isPolitical = this.formData.category === 'political';
     const isCorporate = this.formData.category === 'corporate';
-    const isPublic = this.formData.category === 'public';
 
     return `
       <div class="wizard-step-body">
         <h3 class="step-title">Step 2: Dynamic Event Specifications</h3>
-        <p class="step-subtitle">Specify dynamic details customized for your <strong>${this.formData.category.toUpperCase()}</strong> event.</p>
+        <p class="step-subtitle">Specify dynamic details customized for <strong>${this.formData.subCategory.toUpperCase()}</strong> (${this.formData.category.toUpperCase()}).</p>
 
         <!-- Category Specific Section -->
         <div class="wizard-section-box">
@@ -434,16 +626,27 @@ export class CustomEventBriefWizard {
   }
 
   renderStep3() {
-    const concepts = this.generateConcepts();
+    const concepts = this.generateSubEventConcepts();
 
     return `
       <div class="wizard-step-body">
-        <h3 class="step-title">Step 3: Interactive 360° 4K Concept Showcase</h3>
-        <p class="step-subtitle">Review generated 4K panoramic concepts tailored for <strong>${this.formData.guestCount} guests</strong> over <strong>${this.formData.totalHours} hours</strong>.</p>
+        <h3 class="step-title">Step 3: 3 Distinct 4K 360° Theme Options for ${this.formData.subCategory.toUpperCase()}</h3>
+        <p class="step-subtitle">Review the 3 generated high-res concepts below. Don't like them? Use the <strong>AI Prompt Customizer</strong> to instantly regenerate modified 4K themes!</p>
+
+        <!-- AI Prompt Theme Customizer Bar -->
+        <div class="ai-prompt-bar-box">
+          <div class="ai-prompt-input-row">
+            <span class="ai-sparkle-icon">✨</span>
+            <input type="text" id="aiPromptInput" class="ai-prompt-input" placeholder="Type prompt to customize 4K themes (e.g. 'Deep violet lighting with marigold entrance & red carpet')..." value="${this.formData.aiPrompt}" />
+            <button class="wizard-btn wizard-btn-ai" id="btnAiRegen">
+              ✨ Regenerate 4K Themes
+            </button>
+          </div>
+        </div>
 
         <div class="concepts-grid-3col">
-          ${concepts.map(c => `
-            <div class="concept-showcase-card ${this.selectedConceptId === c.id ? 'active' : ''}" data-concept-id="${c.id}">
+          ${concepts.map((c, idx) => `
+            <div class="concept-showcase-card ${this.selectedConceptId === c.id || (idx === 0 && !this.selectedConceptId) ? 'active' : ''}" data-concept-id="${c.id}">
               <div class="concept-badge-pill">${c.badge}</div>
               <div class="concept-img-wrapper">
                 <img src="${c.panoramaUrl}" alt="${c.title}" class="concept-img" />
@@ -461,19 +664,12 @@ export class CustomEventBriefWizard {
           `).join('')}
         </div>
 
-        <!-- Custom Preference Overlay Input -->
-        <div class="wizard-section-box mt-3">
-          <h4 class="section-box-title">🎨 Add Custom Preferences & Modifications</h4>
-          <p class="section-box-desc">Type any specific custom instructions (e.g. "Add 4 more microphones on stage", "Change table linens to navy blue velvet").</p>
-          <textarea class="wizard-textarea" placeholder="Type custom client preferences here..." data-bind="customPreferences">${this.formData.customPreferences}</textarea>
-        </div>
-
-        <div class="wizard-footer-actions">
+        <div class="wizard-footer-actions mt-3">
           <button class="wizard-btn wizard-btn-secondary" id="btnStep3Back">
             ⬅️ Back to Form
           </button>
           <button class="wizard-btn wizard-btn-success" id="btnStep3Launch">
-            🚀 Confirm Theme & Launch 3D Live Editor ➔
+            🚀 Apply Theme & Launch 3D Live Editor ➔
           </button>
         </div>
       </div>
@@ -506,7 +702,7 @@ export class CustomEventBriefWizard {
             <div class="progress-line ${this.currentStep >= 3 ? 'active' : ''}"></div>
             <div class="progress-step-item ${this.currentStep >= 3 ? 'active' : ''}">
               <span class="step-num">3</span>
-              <span class="step-name">360° Showcase</span>
+              <span class="step-name">4K 360° Showcase</span>
             </div>
           </div>
 

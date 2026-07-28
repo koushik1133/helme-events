@@ -82,20 +82,25 @@
         <span class="theme-mode-label">Dark</span>
       </button>
 
-      <div class="preset-dropdown-wrapper">
-        <span class="preset-dropdown-label">Theme:</span>
-        <div class="preset-select-container">
-          <select id="presetSelect" class="preset-select" aria-label="Select Theme Preset">
-            <option value="royal">👑 Royal Gold</option>
-            <option value="cyber">⚡ Cyber Neon</option>
-            <option value="garden">🌿 Garden Boho</option>
-            <option value="minimal">🤍 Minimalist</option>
-          </select>
-          <span class="preset-chevron-icon" aria-hidden="true">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </span>
+      <div class="preset-popover-wrapper" id="presetPopoverWrapper">
+        <button class="preset-trigger-btn" id="btnPresetDropdown" aria-label="Select Theme Preset" aria-haspopup="true">
+          <span class="preset-label-tag">Theme:</span>
+          <span id="presetCurrentName" class="preset-current-val">👑 Royal Gold</span>
+          <span class="preset-chevron">▾</span>
+        </button>
+        <div class="preset-popover-menu hidden" id="presetPopoverMenu">
+          <div class="preset-menu-item active" data-value="royal">
+            <span class="item-icon">👑</span> <span class="item-name">Royal Gold Wedding</span> <span class="item-check">✓</span>
+          </div>
+          <div class="preset-menu-item" data-value="cyber">
+            <span class="item-icon">⚡</span> <span class="item-name">Cyber Neon Gala</span> <span class="item-check"></span>
+          </div>
+          <div class="preset-menu-item" data-value="garden">
+            <span class="item-icon">🌿</span> <span class="item-name">Garden Boho Party</span> <span class="item-check"></span>
+          </div>
+          <div class="preset-menu-item" data-value="minimal">
+            <span class="item-icon">🤍</span> <span class="item-name">Minimalist Platinum</span> <span class="item-check"></span>
+          </div>
         </div>
       </div>
     </div>
