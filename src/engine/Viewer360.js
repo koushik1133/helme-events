@@ -6,6 +6,7 @@ export class Viewer360 {
     this.onSelectSlot = onSelectSlot;
     this.currentZone = null;
     this.activeSelections = new Map();
+    this.customWriting = new Map();
     this.viewer = null;
     this.autoRotate = false;
   }
@@ -27,19 +28,25 @@ export class Viewer360 {
     zoneData.slots.forEach(slot => {
       const itemId = activeSelectionsMap[slot.id] || slot.defaultItemId;
       this.activeSelections.set(slot.id, itemId);
+
+      const customTextKey = `custom_text_${slot.id}`;
+      if (activeSelectionsMap[customTextKey]) {
+        this.customWriting.set(slot.id, activeSelectionsMap[customTextKey]);
+      }
     });
 
     // Build Hotspots Configuration for Pannellum
     const hotSpotsConfig = zoneData.slots.map(slot => {
       const selectedItemId = this.activeSelections.get(slot.id);
       const item = getItemById(selectedItemId);
+      const writingText = this.customWriting.get(slot.id);
 
       return {
         pitch: slot.pos3D.pitch,
         yaw: slot.pos3D.yaw,
         cssClass: 'custom-pannellum-hotspot',
         createTooltipFunc: (hotSpotDiv) => {
-          this.createHotspotOverlay(hotSpotDiv, slot, item);
+          this.createHotspotOverlay(hotSpotDiv, slot, item, writingText);
         },
         clickHandlerFunc: () => {
           if (this.onSelectSlot) {
@@ -72,7 +79,7 @@ export class Viewer360 {
     }
   }
 
-  createHotspotOverlay(hotSpotDiv, slot, item) {
+  createHotspotOverlay(hotSpotDiv, slot, item, writingText) {
     hotSpotDiv.innerHTML = `
       <div class="hotspot-target-pill" data-slot-id="${slot.id}">
         <span class="pulse-beacon"></span>
@@ -81,6 +88,7 @@ export class Viewer360 {
           <div class="hotspot-text">
             <span class="slot-label">${slot.label} (${slot.quantity}x)</span>
             <strong class="item-name">${item ? item.name : 'None'}</strong>
+            ${writingText ? `<span class="writing-badge">✍️ "${writingText}"</span>` : ''}
             <span class="item-price">$${item ? item.price * slot.quantity : 0}</span>
           </div>
         </div>
@@ -95,9 +103,12 @@ export class Viewer360 {
     });
   }
 
-  swapObjectInSlot(slotId, newItemId) {
+  swapObjectInSlot(slotId, newItemId, writingText) {
     if (!this.currentZone) return;
     this.activeSelections.set(slotId, newItemId);
+    if (writingText !== undefined) {
+      this.customWriting.set(slotId, writingText);
+    }
     
     // Reload scene with updated hotspot item badges
     const currentYaw = this.viewer ? this.viewer.getYaw() : 0;
@@ -106,6 +117,7 @@ export class Viewer360 {
 
     const selectionsObj = {};
     this.activeSelections.forEach((val, key) => selectionsObj[key] = val);
+    this.customWriting.forEach((val, key) => selectionsObj[`custom_text_${key}`] = val);
 
     this.loadZone(this.currentZone, selectionsObj);
 

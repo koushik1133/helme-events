@@ -634,7 +634,8 @@ body {
 
 .hotspot-text .slot-label { font-size: 0.65rem; color: var(--text-muted); }
 .hotspot-text .item-name { font-size: 0.78rem; color: var(--text-main); font-weight: 700; }
-.hotspot-text .item-price { font-size: 0.72rem; color: var(--accent-gold); font-weight: 700; }
+.hotspot-text .writing-badge { font-size: 0.68rem; color: var(--accent-gold); font-weight: 700; }
+.hotspot-text .item-price { font-size: 0.72rem; color: var(--accent-emerald); font-weight: 700; }
 
 .hud-top-bar {
   position: absolute;
@@ -728,6 +729,13 @@ body {
   background: var(--bg-surface-hover);
 }
 
+.slot-writing-tag {
+  font-size: 0.68rem;
+  color: var(--accent-gold);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
 .slot-item-head {
   display: flex;
   justify-content: space-between;
@@ -770,7 +778,7 @@ body {
 }
 
 /* ==========================================================================
-   5. ATTIO ITEM SWAPPER MODAL
+   5. ATTIO ITEM SWAPPER MODAL & CUSTOM TEXT EDITOR
    ========================================================================== */
 
 .swapper-modal-overlay {
@@ -795,6 +803,73 @@ body {
   overflow-y: auto;
   padding: 1.4rem;
   box-shadow: var(--shadow-lg);
+}
+
+.custom-text-editor-box {
+  background: var(--bg-input);
+  border: 1px dashed var(--accent-gold);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.custom-text-editor-box label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.text-input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.custom-text-input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-attio);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.btn-apply-text {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.text-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.text-presets small {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.preset-tag-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
 }
 
 .swapper-header {

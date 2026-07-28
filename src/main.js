@@ -85,7 +85,7 @@ class Event360App {
     // 3. Item Swapper Modal
     this.swapperModal = new ItemSwapperModal(
       this.swapperContainer,
-      (slotId, newItemId, quantity) => this.handleObjectSwap(slotId, newItemId, quantity)
+      (slotId, newItemId, quantity, customText) => this.handleObjectSwap(slotId, newItemId, quantity, customText)
     );
 
     // 4. Overall Cost Card
@@ -229,6 +229,7 @@ class Event360App {
     this.hudSlotsList.innerHTML = zone.slots.map(slot => {
       const selectedItemId = this.activeSelections[slot.id] || slot.defaultItemId;
       const item = getItemById(selectedItemId);
+      const customText = this.activeSelections[`custom_text_${slot.id}`];
 
       return `
         <div class="slot-item-card" data-slot-id="${slot.id}">
@@ -240,6 +241,7 @@ class Event360App {
             <strong>${item ? item.name : 'None'}</strong>
             <span class="slot-item-price">$${item ? item.price * slot.quantity : 0}</span>
           </div>
+          ${customText ? `<div class="slot-writing-tag">✍️ "${customText}"</div>` : ''}
         </div>
       `;
     }).join('');
@@ -262,9 +264,13 @@ class Event360App {
     this.swapperModal.open(zone, slot, this.activeSelections);
   }
 
-  handleObjectSwap(slotId, newItemId, quantity) {
+  handleObjectSwap(slotId, newItemId, quantity, customText) {
     this.activeSelections[slotId] = newItemId;
-    this.viewer360.swapObjectInSlot(slotId, newItemId);
+    if (customText !== undefined) {
+      this.activeSelections[`custom_text_${slotId}`] = customText;
+    }
+
+    this.viewer360.swapObjectInSlot(slotId, newItemId, customText);
 
     const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
     if (zone) this.renderInventoryDrawer(zone);
@@ -274,7 +280,8 @@ class Event360App {
 
     const item = getItemById(newItemId);
     if (item) {
-      this.showToast(`Updated to ${item.name}!`);
+      const msg = customText ? `Updated ${item.name} with writing "${customText}"!` : `Updated to ${item.name}!`;
+      this.showToast(msg);
       confetti({
         particleCount: 45,
         spread: 70,

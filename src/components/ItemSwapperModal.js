@@ -26,6 +26,9 @@ export class ItemSwapperModal {
     const currentItemId = this.currentSelections[this.activeSlot.id] || this.activeSlot.defaultItemId;
     const currentItem = getItemById(currentItemId);
     const availableItems = ITEM_CATALOG[this.activeSlot.category] || [];
+    const isStageOrPodium = this.activeSlot.category === 'stages' || this.activeSlot.category === 'backdrops';
+    const customTextKey = `custom_text_${this.activeSlot.id}`;
+    const savedCustomText = this.currentSelections[customTextKey] || '';
 
     this.container.innerHTML = `
       <div class="swapper-modal-overlay">
@@ -34,7 +37,7 @@ export class ItemSwapperModal {
             <div>
               <span class="swapper-badge">${this.activeZone.name}</span>
               <h3>Customize: ${this.activeSlot.label}</h3>
-              <p class="swapper-subtitle">Choose a photorealistic replacement item to interchange directly in the 360° view.</p>
+              <p class="swapper-subtitle">Select photorealistic replacements or customize writing & slogan seals for the 360° view.</p>
             </div>
             <button class="btn-close-modal" id="closeSwapperBtn">&times;</button>
           </div>
@@ -52,6 +55,23 @@ export class ItemSwapperModal {
               <small>Subtotal (${this.activeSlot.quantity}x)</small>
             </div>
           </div>
+
+          <!-- Custom Writing / Slogan Editor Field (For Podiums, Stages & Banners) -->
+          ${isStageOrPodium ? `
+            <div class="custom-text-editor-box">
+              <label for="inputCustomText">✍️ Custom Podium & Banner Writing / Slogan:</label>
+              <div class="text-input-group">
+                <input type="text" id="inputCustomText" class="custom-text-input" placeholder="e.g. VISHAL JANSABHA 2026 / WELCOME GUESTS" value="${savedCustomText}" />
+                <button class="btn-apply-text" id="btnApplyCustomText">Apply Writing</button>
+              </div>
+              <div class="text-presets">
+                <small>Quick Presets:</small>
+                <button class="preset-tag-btn" data-preset="VISHAL JANSABHA 2026">🗳️ Vishal Jansabha 2026</button>
+                <button class="preset-tag-btn" data-preset="ROYAL WEDDING SANGEET">🌺 Royal Wedding Sangeet</button>
+                <button class="preset-tag-btn" data-preset="GLOBAL TECH SUMMIT">💼 Global Tech Summit</button>
+              </div>
+            </div>
+          ` : ''}
 
           <!-- Photorealistic Options Grid -->
           <div class="swapper-options-grid photo-options-grid">
@@ -105,12 +125,36 @@ export class ItemSwapperModal {
       });
     }
 
+    const applyTextBtn = this.container.querySelector('#btnApplyCustomText');
+    const inputCustomText = this.container.querySelector('#inputCustomText');
+    if (applyTextBtn && inputCustomText) {
+      applyTextBtn.addEventListener('click', () => {
+        const textVal = inputCustomText.value.trim();
+        const customTextKey = `custom_text_${this.activeSlot.id}`;
+        const currentItemId = this.currentSelections[this.activeSlot.id] || this.activeSlot.defaultItemId;
+
+        if (this.onSwap && this.activeSlot) {
+          this.onSwap(this.activeSlot.id, currentItemId, this.activeSlot.quantity, textVal);
+          this.close();
+        }
+      });
+    }
+
+    const presetBtns = this.container.querySelectorAll('.preset-tag-btn');
+    presetBtns.forEach(pBtn => {
+      pBtn.addEventListener('click', () => {
+        const presetVal = pBtn.getAttribute('data-preset');
+        if (inputCustomText) inputCustomText.value = presetVal;
+      });
+    });
+
     const swapBtns = this.container.querySelectorAll('.btn-select-swap, .photo-option-card');
     swapBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
         const itemId = btn.getAttribute('data-item-id');
+        const textVal = inputCustomText ? inputCustomText.value.trim() : '';
         if (itemId && this.onSwap && this.activeSlot) {
-          this.onSwap(this.activeSlot.id, itemId, this.activeSlot.quantity);
+          this.onSwap(this.activeSlot.id, itemId, this.activeSlot.quantity, textVal);
           this.close();
         }
       });
