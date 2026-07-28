@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attio Event 360° | India Events & Venue Visualizer</title>
+
+  <!-- Google Fonts: Inter (Attio Official Font Stack) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Pannellum 360 Panorama Viewer CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css" />
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- Attio Navbar Header -->
+  <header class="app-navbar">
+    <div class="nav-brand">
+      <div class="logo-badge">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+          <path d="M2 12h20" />
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1 class="logo-title">Attio Event 360</h1>
+        <span class="logo-subtitle">Venue & India Events Studio</span>
+      </div>
+    </div>
+
+    <div class="nav-controls">
+      <!-- Navigation View Switcher (Aerial Map | 360° Studio | 🇮🇳 India Events) -->
+      <div class="view-toggle-group">
+        <button class="nav-tab active" id="tabMapView">
+          <span>📍 Aerial Map</span>
+        </button>
+        <button class="nav-tab" id="tab360View">
+          <span>🌀 360° Studio</span>
+        </button>
+        <button class="nav-tab nav-tab-india" id="tabIndiaView">
+          <span>🇮🇳 India Events</span>
+        </button>
+      </div>
+
+      <!-- Time of Day Switcher -->
+      <div class="time-toggle-group">
+        <button class="time-btn" data-time="day" title="Day Light">☀️ Day</button>
+        <button class="time-btn" data-time="sunset" title="Sunset Glow">🌅 Sunset</button>
+        <button class="time-btn active" data-time="night" title="Night Mode">🌙 Night</button>
+      </div>
+
+      <!-- Light / Dark Mode Toggle Button -->
+      <button class="theme-mode-toggle" id="themeModeToggle" aria-label="Toggle Theme">
+        <span class="icon-sun">☀️</span>
+        <span class="icon-moon">🌙</span>
+        <span class="theme-mode-label">Dark</span>
+      </button>
+
+      <!-- Preset Theme Selector -->
+      <div class="preset-dropdown-wrapper">
+        <select id="presetSelect" class="preset-select" aria-label="Select Theme Preset">
+          <option value="royal">👑 Royal Gold Wedding</option>
+          <option value="cyber">⚡ Cyber Neon Gala</option>
+          <option value="garden">🌿 Garden Boho Party</option>
+          <option value="minimal">🤍 Minimalist Platinum</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Secondary Sub-Bar for India Events Mode Selection -->
+  <div id="indiaSubBar" class="india-sub-bar hidden">
+    <div class="sub-bar-content">
+      <span class="sub-bar-label">Select Event Type:</span>
+      <div class="india-mode-toggle-group">
+        <button class="india-mode-btn active" data-mode="election">
+          <span>🗳️ Election Rally</span>
+        </button>
+        <button class="india-mode-btn" data-mode="function">
+          <span>🌺 Grand Function / Mandap</span>
+        </button>
+        <button class="india-mode-btn" data-mode="meeting">
+          <span>💼 Public Summit Meeting</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Viewport -->
+  <main class="app-viewport">
+    <!-- View 1: Interactive Aerial Venue Map -->
+    <section id="mapViewContainer" class="view-section active"></section>
+
+    <!-- View 2: Full 360° Photo WebGL Studio -->
+    <section id="studio360Container" class="view-section hidden">
+      <!-- Pannellum 360 Holder -->
+      <div id="canvas360Holder" class="canvas-360-holder"></div>
+
+      <!-- 360 Overlay Controls HUD -->
+      <div class="hud-top-bar">
+        <button class="btn-hud-back" id="btnBackToMap">
+          ← Back to Map
+        </button>
+        <div class="zone-active-pill" id="hudZoneTitle">
+          Main Stage & Performance Lawn
+        </div>
+        <div class="hud-actions">
+          <button class="btn-hud-toggle" id="btnAutoRotate">
+            🔄 Auto Rotate
+          </button>
+        </div>
+      </div>
+
+      <!-- Left Side Object Slot Selector Panel -->
+      <aside class="hud-inventory-drawer">
+        <div class="drawer-title">
+          <span>360° Customizable Objects</span>
+          <small>Click any item to interchange</small>
+        </div>
+        <div class="slots-list" id="hudSlotsList"></div>
+      </aside>
+
+      <!-- Bottom Hint Toolbar -->
+      <div class="hud-bottom-bar">
+        <span class="hud-hint">
+          🖱️ <strong>Drag mouse / Touch</strong> to rotate 360° • 📜 <strong>Scroll</strong> to zoom • 🎯 <strong>Click Hotspots</strong> to interchange
+        </span>
+      </div>
+    </section>
+  </main>
+
+  <!-- Persistent Floating Cost Card -->
+  <div id="costCardContainer"></div>
+
+  <!-- Item Swapper Modal Container -->
+  <div id="swapperModalContainer"></div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

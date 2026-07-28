@@ -1,0 +1,1075 @@
+/* ==========================================================================
+   ATTIO DESIGN SYSTEM - EVENT 360° EDITION
+   Official Attio Colors, Typography, Light/Dark Modes & Micro-Borders
+   ========================================================================== */
+
+/* 1. ATTIO DESIGN TOKENS */
+
+:root {
+  --font-attio: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Attio Light Theme */
+[data-theme="light"] {
+  --bg-app: #fbfbfb;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f4f4f5;
+  --bg-nav: rgba(255, 255, 255, 0.92);
+  --bg-input: #f4f4f5;
+  --bg-pill: #f4f4f5;
+
+  --border-subtle: #e5e7eb;
+  --border-strong: #d4d4d8;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #94a3b8;
+
+  --btn-primary-bg: #000000;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #18181b;
+
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-text: #0f172a;
+  --btn-secondary-border: #e5e7eb;
+  --btn-secondary-hover: #f4f4f5;
+
+  --accent-indigo: #6366f1;
+  --accent-gold: #d97706;
+  --accent-emerald: #059669;
+  --accent-rose: #e11d48;
+
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Attio Dark Theme */
+[data-theme="dark"] {
+  --bg-app: #0c0d12;
+  --bg-surface: #13141c;
+  --bg-surface-hover: #1c1e2b;
+  --bg-nav: rgba(12, 13, 18, 0.92);
+  --bg-input: #181a24;
+  --bg-pill: #1c1e2b;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
+  --text-dim: #6b7280;
+
+  --btn-primary-bg: #ffffff;
+  --btn-primary-text: #000000;
+  --btn-primary-hover: #f3f4f6;
+
+  --btn-secondary-bg: #181a24;
+  --btn-secondary-text: #f9fafb;
+  --btn-secondary-border: rgba(255, 255, 255, 0.08);
+  --btn-secondary-hover: #222533;
+
+  --accent-indigo: #818cf8;
+  --accent-gold: #fbbf24;
+  --accent-emerald: #34d399;
+  --accent-rose: #fb7185;
+
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Base Setup */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-attio);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  overflow-x: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   2. ATTIO NAVBAR & INDIA SUB-BAR
+   ========================================================================== */
+
+.app-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1.5rem;
+  background: var(--bg-nav);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 100;
+  transition: var(--transition-normal);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-card);
+}
+
+.logo-title {
+  font-family: var(--font-attio);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-main);
+}
+
+.logo-subtitle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.view-toggle-group, .time-toggle-group {
+  display: flex;
+  background: var(--bg-input);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.nav-tab, .time-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 5px 12px;
+  font-family: var(--font-attio);
+  font-weight: 600;
+  font-size: 0.78rem;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.nav-tab:hover, .time-btn:hover { color: var(--text-main); }
+
+.nav-tab.active, .time-btn.active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-subtle);
+}
+
+.nav-tab-india.active {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+/* India Events Secondary Sub-Bar */
+.india-sub-bar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.5rem 1.5rem;
+  z-index: 90;
+  transition: var(--transition-fast);
+}
+
+.india-sub-bar.hidden {
+  display: none;
+}
+
+.sub-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.sub-bar-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.india-mode-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.india-mode-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-attio);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.india-mode-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-main);
+}
+
+.india-mode-btn.active {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border-color: var(--btn-primary-bg);
+}
+
+.theme-mode-toggle {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-attio);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-fast);
+}
+
+.theme-mode-toggle:hover {
+  background: var(--btn-secondary-hover);
+}
+
+[data-theme="light"] .icon-moon { display: none; }
+[data-theme="light"] .icon-sun { display: inline; }
+
+[data-theme="dark"] .icon-sun { display: none; }
+[data-theme="dark"] .icon-moon { display: inline; }
+
+.preset-select {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-attio);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+/* ==========================================================================
+   3. AERIAL MAP DASHBOARD
+   ========================================================================== */
+
+.app-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.view-section {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.view-section.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.99);
+}
+
+.view-section.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.map-wrapper.realistic-map-theme {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: var(--bg-app);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.photo-map-container {
+  width: 100%;
+  max-width: 1240px;
+  height: 100%;
+  max-height: 750px;
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.photo-map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.map-overlay-title {
+  position: absolute;
+  top: 1.5rem;
+  left: 2rem;
+  background: var(--bg-nav);
+  backdrop-filter: blur(16px);
+  padding: 0.75rem 1.1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  pointer-events: none;
+  z-index: 40;
+  box-shadow: var(--shadow-card);
+}
+
+.map-overlay-title h3 {
+  font-family: var(--font-attio);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-main);
+}
+
+.map-overlay-title p {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Map Nodes & Photo Cards */
+.photo-node-wrapper {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 30;
+}
+
+.photo-node-button {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--accent-indigo);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px 3px 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: var(--transition-fast);
+}
+
+.photo-node-button:hover {
+  transform: scale(1.06);
+  border-color: var(--accent-gold);
+}
+
+.node-thumb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.node-price-tag {
+  font-family: var(--font-attio);
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--accent-gold);
+}
+
+.photo-zone-card {
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  width: 290px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition-normal);
+  box-shadow: var(--shadow-lg);
+  z-index: 60;
+}
+
+.photo-node-wrapper:hover .photo-zone-card {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.card-media {
+  position: relative;
+  height: 125px;
+  width: 100%;
+}
+
+.card-banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--accent-emerald);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+}
+
+.card-content {
+  padding: 0.8rem;
+}
+
+.tooltip-header h4 {
+  font-family: var(--font-attio);
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+.tooltip-price {
+  font-weight: 700;
+  color: var(--accent-gold);
+  font-size: 0.82rem;
+}
+
+.zone-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.photo-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: var(--bg-input);
+  padding: 0.45rem;
+  border-radius: var(--radius-xs);
+  margin-bottom: 0.6rem;
+}
+
+.tooltip-slot-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+}
+
+.slot-label { color: var(--text-muted); }
+.slot-val { color: var(--accent-indigo); font-weight: 600; }
+
+.btn-photo-launch {
+  width: 100%;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: none;
+  padding: 7px 12px;
+  border-radius: var(--radius-xs);
+  font-weight: 600;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-photo-launch:hover {
+  background: var(--btn-primary-hover);
+}
+
+/* ==========================================================================
+   4. PANNELLUM 360° STUDIO VIEW HUD & HOTSPOTS
+   ========================================================================== */
+
+#studio360Container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-360-holder {
+  width: 100%;
+  height: 100%;
+}
+
+.pnm-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.custom-pannellum-hotspot {
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  margin-top: -15px;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 50;
+}
+
+.hotspot-target-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-beacon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  box-shadow: 0 0 14px var(--accent-gold);
+  border: 2px solid #fff;
+  display: block;
+  animation: beaconPulse 2s infinite ease-out;
+}
+
+@keyframes beaconPulse {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.hotspot-badge-card {
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-card);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.hotspot-badge-card:hover {
+  border-color: var(--accent-indigo);
+  transform: translateX(-50%) scale(1.05);
+}
+
+.hotspot-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  object-fit: cover;
+}
+
+.hotspot-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.hotspot-text .slot-label { font-size: 0.65rem; color: var(--text-muted); }
+.hotspot-text .item-name { font-size: 0.78rem; color: var(--text-main); font-weight: 700; }
+.hotspot-text .item-price { font-size: 0.72rem; color: var(--accent-gold); font-weight: 700; }
+
+.hud-top-bar {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.btn-hud-back, .btn-hud-toggle {
+  pointer-events: auto;
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-attio);
+  font-weight: 600;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-card);
+}
+
+.btn-hud-back:hover, .btn-hud-toggle:hover {
+  background: var(--btn-secondary-hover);
+}
+
+.zone-active-pill {
+  background: var(--bg-nav);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--accent-gold);
+  color: var(--accent-gold);
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-attio);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.hud-inventory-drawer {
+  position: absolute;
+  top: 4.2rem;
+  left: 1rem;
+  width: 260px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.8rem;
+  z-index: 30;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+  box-shadow: var(--shadow-card);
+}
+
+.drawer-title span {
+  display: block;
+  font-family: var(--font-attio);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-main);
+}
+
+.drawer-title small {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.slot-item-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  padding: 0.6rem;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.slot-item-card:hover {
+  border-color: var(--accent-indigo);
+  background: var(--bg-surface-hover);
+}
+
+.slot-item-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.slot-item-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.slot-item-body strong {
+  font-size: 0.78rem;
+  color: var(--text-main);
+}
+
+.slot-item-price {
+  font-weight: 700;
+  color: var(--accent-gold);
+  font-size: 0.78rem;
+}
+
+.hud-bottom-bar {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-nav);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  padding: 5px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* ==========================================================================
+   5. ATTIO ITEM SWAPPER MODAL
+   ========================================================================== */
+
+.swapper-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 1rem;
+}
+
+.realistic-swapper-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 700px;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 1.4rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.swapper-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.85rem;
+}
+
+.swapper-badge {
+  background: var(--bg-input);
+  color: var(--accent-indigo);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.swapper-header h3 {
+  font-family: var(--font-attio);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-main);
+}
+
+.swapper-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.photo-current-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--bg-input);
+  border: 1px dashed var(--accent-indigo);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.current-item-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-xs);
+  object-fit: cover;
+}
+
+.photo-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+
+.photo-option-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-option-card:hover {
+  border-color: var(--accent-indigo);
+  transform: translateY(-2px);
+}
+
+.photo-option-card.selected {
+  border-color: var(--accent-gold);
+}
+
+.option-photo-wrap {
+  position: relative;
+  height: 140px;
+  width: 100%;
+}
+
+.option-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.option-price-tag {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: var(--bg-nav);
+  color: var(--accent-gold);
+  font-weight: 700;
+  font-size: 0.76rem;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+}
+
+.option-details {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.option-title {
+  font-family: var(--font-attio);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.option-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+}
+
+.option-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.price-diff {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface);
+}
+
+.price-diff.higher { color: var(--accent-rose); }
+.price-diff.lower { color: var(--accent-emerald); }
+
+.btn-select-swap {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-xs);
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn-select-swap.active {
+  background: var(--accent-gold);
+  color: #000;
+}
+
+/* ==========================================================================
+   6. ATTIO FLOATING COST CARD
+   ========================================================================== */
+
+.cost-card-wrapper {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  width: 350px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 150;
+  transition: var(--transition-normal);
+}
+
+.cost-card-header {
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.grand-price {
+  font-family: var(--font-attio);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.budget-progress-bar {
+  width: 85px;
+  height: 4px;
+  background: var(--bg-input);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(to right, var(--accent-emerald), var(--accent-gold));
+}
+
+.btn-toggle-expand {
+  background: transparent;
+  border: none;
+  color: var(--accent-indigo);
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.cost-card-drawer {
+  display: none;
+  padding: 0 0.9rem 0.9rem 0.9rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.cost-card-wrapper.expanded .cost-card-drawer {
+  display: block;
+}
+
+.zones-breakdown-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.breakdown-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.breakdown-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.item-line-total { font-weight: 700; color: var(--accent-gold); }
+
+/* ==========================================================================
+   7. RESPONSIVE BREAKPOINTS (ALL SCREEN SIZES)
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .app-navbar { padding: 0.6rem 1rem; }
+  .nav-controls { gap: 0.5rem; }
+  .hud-inventory-drawer { width: 240px; top: 4rem; left: 0.8rem; }
+  .cost-card-wrapper { width: 310px; bottom: 0.8rem; right: 0.8rem; }
+}
+
+@media (max-width: 768px) {
+  .app-navbar { flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 0.5rem 0.8rem; }
+  .nav-controls { justify-content: space-between; }
+  .logo-title { font-size: 0.95rem; }
+  .logo-subtitle { display: none; }
+  .india-sub-bar { padding: 0.4rem 0.8rem; }
+  .sub-bar-content { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+  .india-mode-toggle-group { flex-wrap: wrap; }
+  .map-wrapper.realistic-map-theme { padding: 0.5rem; }
+  .photo-map-container { max-height: calc(100vh - 140px); }
+  .photo-zone-card { width: 250px; }
+  .hud-inventory-drawer { position: fixed; bottom: 3.8rem; left: 0.8rem; right: 0.8rem; top: auto; width: auto; max-height: 200px; }
+  .cost-card-wrapper { width: calc(100% - 1.6rem); left: 0.8rem; right: 0.8rem; bottom: 0.8rem; }
+  .hud-bottom-bar { display: none; }
+  .swapper-modal-card { padding: 0.85rem; max-height: 92vh; }
+  .photo-options-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .nav-tab, .time-btn, .india-mode-btn { padding: 4px 8px; font-size: 0.7rem; }
+  .preset-select { font-size: 0.72rem; padding: 4px 8px; }
+  .node-price-tag { font-size: 0.7rem; }
+  .photo-node-button { padding: 2px 5px 2px 2px; }
+  .node-thumb { width: 26px; height: 26px; }
+}
