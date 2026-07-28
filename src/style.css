@@ -533,19 +533,44 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  background: var(--bg-app);
+  box-sizing: border-box;
 }
 
 .view-section.hidden {
+  display: none !important;
   opacity: 0;
   pointer-events: none;
-  transform: scale(0.99);
+  z-index: -1;
 }
 
 .view-section.active {
+  display: block !important;
   opacity: 1;
   pointer-events: auto;
-  transform: scale(1);
+  z-index: 10;
+  overflow-y: auto;
+}
+
+/* Full View Panel Wrappers */
+.seating-wrapper,
+.timeline-wrapper,
+.vendor-wrapper,
+.inventory-wrapper,
+.calendar-wrapper,
+.revenue-wrapper,
+.testimonial-wrapper,
+.playlist-wrapper,
+.floor-plan-wrapper,
+.analytics-wrapper,
+.proposals-wrapper {
+  width: 100%;
+  min-height: 100%;
+  background: var(--bg-app);
+  color: var(--text-main);
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .map-wrapper.realistic-map-theme {
