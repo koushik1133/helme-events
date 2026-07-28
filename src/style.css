@@ -321,27 +321,66 @@ body {
 [data-theme="dark"] .icon-sun { display: none; }
 [data-theme="dark"] .icon-moon { display: inline; }
 
-/* Preset Dropdown Pill */
+/* Preset Dropdown Apple Pill */
+.preset-dropdown-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preset-dropdown-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.preset-select-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .preset-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   background: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  padding: 6px 30px 6px 14px;
+  padding: 6px 32px 6px 14px;
   border-radius: var(--radius-pill);
   font-family: var(--font-attio);
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="%2386868b" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>');
-  background-repeat: no-repeat;
-  background-position: right 12px center;
   transition: var(--transition-fast);
+  white-space: nowrap;
 }
 
 .preset-select:hover {
   background-color: var(--bg-surface-hover);
   border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.preset-chevron-icon {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: var(--transition-fast);
+}
+
+.preset-select-container:hover .preset-chevron-icon {
+  color: var(--text-main);
 }
 
 /* India Events Secondary Sub-Bar */

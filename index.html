@@ -79,12 +79,20 @@
       </button>
 
       <div class="preset-dropdown-wrapper">
-        <select id="presetSelect" class="preset-select" aria-label="Select Theme Preset">
-          <option value="royal">👑 Royal Gold Wedding</option>
-          <option value="cyber">⚡ Cyber Neon Gala</option>
-          <option value="garden">🌿 Garden Boho Party</option>
-          <option value="minimal">🤍 Minimalist Platinum</option>
-        </select>
+        <span class="preset-dropdown-label">Theme:</span>
+        <div class="preset-select-container">
+          <select id="presetSelect" class="preset-select" aria-label="Select Theme Preset">
+            <option value="royal">👑 Royal Gold Wedding</option>
+            <option value="cyber">⚡ Cyber Neon Gala</option>
+            <option value="garden">🌿 Garden Boho Party</option>
+            <option value="minimal">🤍 Minimalist Platinum</option>
+          </select>
+          <span class="preset-chevron-icon" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </span>
+        </div>
       </div>
     </div>
   </header>
