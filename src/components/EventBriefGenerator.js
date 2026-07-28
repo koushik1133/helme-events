@@ -133,6 +133,13 @@ export class EventBriefGenerator {
   bindEvents() {
     this.container.querySelector('.btn-close').addEventListener('click', () => this.close());
     
+    const overlay = this.container.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) this.close();
+      });
+    }
+    
     const nextBtn = this.container.querySelector('.btn-next');
     if (nextBtn) {
       nextBtn.addEventListener('click', () => {

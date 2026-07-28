@@ -2136,7 +2136,7 @@ body {
 }
 
 /* Modals Content */
-.modal-content, .theme-designer-modal, .compare-modal, .collab-modal, .style-lib-modal, .vendor-modal, .vendor-modal-content, .notes-modal, .qr-modal, .brief-modal, .budget-modal, .contract-modal, .invoice-modal, .walkthrough-modal, .moodboard-modal, .notification-panel {
+.modal-content, .theme-designer-modal, .compare-modal, .collab-modal, .style-lib-modal, .vendor-modal, .vendor-modal-content, .notes-modal, .qr-modal, .brief-modal, .budget-modal, .contract-modal, .invoice-modal, .walkthrough-modal, .moodboard-modal {
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -2148,6 +2148,25 @@ body {
   flex-direction: column;
   overflow: hidden;
   animation: slideUp 0.3s ease-out;
+}
+
+/* Notification Dropdown Panel */
+.notification-panel {
+  position: fixed;
+  top: 4.2rem;
+  right: 1.5rem;
+  width: 360px;
+  max-width: 92vw;
+  max-height: 480px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.2s ease-out;
 }
 
 /* Larger Modals */
@@ -2562,7 +2581,6 @@ body {
 
 /* 1. Large Monitors & 4K Displays (> 1400px) */
 @media (min-width: 1401px) {
-  .app-viewport,
   .timeline-wrapper,
   .seating-wrapper,
   .vendor-wrapper,
@@ -2574,7 +2592,7 @@ body {
   .floor-plan-wrapper,
   .analytics-wrapper,
   .proposals-wrapper {
-    max-width: 1400px;
+    max-width: 1360px;
     margin: 0 auto;
   }
 }

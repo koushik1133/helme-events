@@ -58,6 +58,13 @@ export class ESignatureFlow {
     const closeBtn = this.container.querySelector('.btn-close');
     closeBtn.addEventListener('click', () => this.close());
 
+    const overlay = this.container.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) this.close();
+      });
+    }
+
     const canvas = this.container.querySelector('#signature-pad');
     const ctx = canvas.getContext('2d');
     let isDrawing = false;

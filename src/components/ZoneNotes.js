@@ -18,11 +18,12 @@ export class ZoneNotes {
   
   render() {
     this.container.innerHTML = `
-      <div class="notes-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:500px; background:white; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); z-index:2000; display:flex; flex-direction:column; max-height:80vh;">
-        <div style="padding:15px 20px; background:#1e293b; color:white; border-radius:8px 8px 0 0; display:flex; justify-content:space-between; align-items:center;">
-          <h2 style="margin:0; font-size:18px;">💬 Zone Notes & Comments</h2>
-          <button id="close-notes-btn" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">&times;</button>
-        </div>
+      <div class="modal-overlay notes-modal-overlay">
+        <div class="notes-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:520px; background:var(--bg-surface); color:var(--text-main); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:2000; display:flex; flex-direction:column; max-height:85vh; border:1px solid var(--border-subtle);">
+          <div style="padding:15px 20px; background:var(--bg-elevated); color:var(--text-main); border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle);">
+            <h2 style="margin:0; font-size:18px;">💬 Zone Notes & Comments</h2>
+            <button id="close-notes-btn" style="background:none; border:none; color:var(--text-muted); font-size:24px; cursor:pointer;">&times;</button>
+          </div>
         
         <div style="padding:20px; overflow-y:auto; flex:1;" id="notes-list-container">
           <!-- Notes List -->
@@ -96,7 +97,7 @@ export class ZoneNotes {
   
   bindEvents() {
     this.container.addEventListener('click', async e => {
-      if (e.target.id === 'close-notes-btn') {
+      if (e.target.id === 'close-notes-btn' || e.target.classList.contains('notes-modal-overlay')) {
         this.close();
       } else if (e.target.classList.contains('delete-note-btn')) {
         const id = e.target.dataset.id;

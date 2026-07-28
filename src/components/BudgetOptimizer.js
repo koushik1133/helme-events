@@ -98,6 +98,13 @@ export class BudgetOptimizer {
   bindEvents() {
     this.container.querySelector('.btn-close').addEventListener('click', () => this.close());
     
+    const overlay = this.container.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) this.close();
+      });
+    }
+    
     let optimizedSelections = null;
 
     this.container.querySelector('.btn-optimize').addEventListener('click', () => {

@@ -21,7 +21,8 @@ export class MoodBoardMatcher {
   
   render() {
     this.container.innerHTML = `
-      <div class="moodboard-modal" style="position:fixed; top:10%; left:10%; right:10%; bottom:10%; background:white; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.5); z-index:2000; display:flex; flex-direction:column; overflow:hidden;">
+      <div class="modal-overlay moodboard-modal-overlay">
+        <div class="moodboard-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:92%; max-width:1000px; height:85vh; background:var(--bg-surface); color:var(--text-main); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.5); z-index:2000; display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--border-subtle);">
         
         <!-- Header -->
         <div style="padding:20px; background:#1e293b; color:white; display:flex; justify-content:space-between; align-items:center;">
@@ -199,7 +200,7 @@ export class MoodBoardMatcher {
     });
     
     this.container.addEventListener('click', e => {
-      if (e.target.id === 'close-mb-btn') {
+      if (e.target.id === 'close-mb-btn' || e.target.classList.contains('moodboard-modal-overlay')) {
         this.close();
       } else if (e.target.classList.contains('mb-del-img')) {
         const idx = parseInt(e.target.dataset.idx);

@@ -421,6 +421,29 @@ class Event360App {
       this.presetSelect.addEventListener('change', (e) => this.applyThemePreset(e.target.value));
     }
 
+    // Global Escape key modal close handler
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.notificationCenter) this.notificationCenter.close();
+        if (this.colorThemeDesigner) this.colorThemeDesigner.close();
+        if (this.beforeAfterCompare) this.beforeAfterCompare.close();
+        if (this.collaborationMode) this.collaborationMode.close();
+        if (this.styleLibrary) this.styleLibrary.close();
+        if (this.zoneNotes) this.zoneNotes.close();
+        if (this.weatherSimulator) this.weatherSimulator.close();
+        if (this.walkthroughExporter) this.walkthroughExporter.close();
+        if (this.arQRGenerator) this.arQRGenerator.close();
+        if (this.moodBoardMatcher) this.moodBoardMatcher.close();
+        if (this.eSignatureFlow) this.eSignatureFlow.close();
+        if (this.invoiceGenerator) this.invoiceGenerator.close();
+        if (this.budgetOptimizer) this.budgetOptimizer.close();
+        if (this.eventBriefGenerator) this.eventBriefGenerator.close();
+        if (this.swapperModal && this.swapperModal.close) this.swapperModal.close();
+        if (this.venueMenuModal && this.venueMenuModal.close) this.venueMenuModal.close();
+        if (this.cartPaymentModal && this.cartPaymentModal.close) this.cartPaymentModal.close();
+      }
+    });
+
     // Feature toolbar toggle
     if (this.btnToggleFeatures) {
       this.btnToggleFeatures.addEventListener('click', () => {

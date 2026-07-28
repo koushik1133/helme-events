@@ -113,6 +113,13 @@ export class InvoiceGenerator {
   bindEvents() {
     this.container.querySelector('.btn-close').addEventListener('click', () => this.close());
     
+    const overlay = this.container.querySelector('.modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) this.close();
+      });
+    }
+    
     this.container.querySelector('.currency-selector').addEventListener('change', (e) => {
       this.currency = e.target.value;
       this.render();

@@ -16,7 +16,8 @@ export class ARQRGenerator {
   
   render() {
     this.container.innerHTML = `
-      <div class="qr-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:650px; background:white; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.4); z-index:2000; overflow:hidden; display:flex;">
+      <div class="modal-overlay qr-modal-overlay">
+        <div class="qr-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:650px; background:var(--bg-surface); color:var(--text-main); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.4); z-index:2000; overflow:hidden; display:flex; border:1px solid var(--border-subtle);">
         
         <div style="flex:1; padding:30px; display:flex; flex-direction:column; align-items:center; border-right:1px solid #e2e8f0;">
           <h2 style="margin:0 0 5px 0; text-align:center;">✨ AR Preview</h2>
@@ -114,7 +115,7 @@ export class ARQRGenerator {
   
   bindEvents() {
     this.container.addEventListener('click', e => {
-      if (e.target.id === 'close-qr-btn') {
+      if (e.target.id === 'close-qr-btn' || e.target.classList.contains('qr-modal-overlay')) {
         this.close();
       } else if (e.target.id === 'download-qr-btn') {
         const canvas = this.container.querySelector('#qr-canvas');
