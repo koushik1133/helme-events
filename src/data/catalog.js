@@ -6,7 +6,7 @@ export const ITEM_CATALOG = {
       price: 8,
       category: 'chairs',
       description: 'Durable white resin folding chair with padded vinyl seat for outdoor event seating.',
-      imageUrl: '/images/chair_chiavari_gold.jpg',
+      imageUrl: '/images/chair_folding_white.jpg',
       panoramaUrl: '/images/zone_entrance_360.jpg',
       color: '#e2e8f0'
     },
@@ -26,7 +26,7 @@ export const ITEM_CATALOG = {
       price: 45,
       category: 'chairs',
       description: 'Plush emerald green velvet lounge armchair with polished brass frame.',
-      imageUrl: '/images/zone_lounge_360.jpg',
+      imageUrl: '/images/chair_velvet_armchair.jpg',
       panoramaUrl: '/images/zone_lounge_360.jpg',
       color: '#059669'
     },
@@ -36,7 +36,7 @@ export const ITEM_CATALOG = {
       price: 25,
       category: 'chairs',
       description: 'Sleek transparent polycarbonate ghost designer chair for minimalist modern events.',
-      imageUrl: '/images/zone_entrance_360.jpg',
+      imageUrl: '/images/chair_ghost_acrylic.jpg',
       panoramaUrl: '/images/zone_entrance_360.jpg',
       color: '#38bdf8'
     },
@@ -46,7 +46,7 @@ export const ITEM_CATALOG = {
       price: 85,
       category: 'chairs',
       description: 'High-back carved mahogany throne chair with hand-applied gold leaf accents.',
-      imageUrl: '/images/chair_chiavari_gold.jpg',
+      imageUrl: '/images/chair_throne_mahogany.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#9333ea'
     },
