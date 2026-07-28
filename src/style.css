@@ -127,13 +127,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 1.5rem;
+  padding: 0.5rem 1.25rem;
   background: var(--bg-nav);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--border-subtle);
   z-index: 100;
+  gap: 0.75rem;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   transition: var(--transition-normal);
+}
+
+.app-navbar::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-brand {
@@ -183,20 +192,21 @@ body {
   display: flex;
   align-items: center;
   background: var(--bg-input);
-  padding: 4px;
+  padding: 3px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .nav-tab {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  padding: 6px 14px;
+  padding: 5px 12px;
   font-family: var(--font-attio);
   font-weight: 500;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   border-radius: var(--radius-pill);
   cursor: pointer;
   transition: var(--transition-fast);
@@ -222,26 +232,28 @@ body {
 .nav-actions-group {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-action-btn {
   background: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
   font-family: var(--font-attio);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: var(--transition-fast);
   white-space: nowrap;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
 .nav-action-btn:hover {
@@ -268,11 +280,12 @@ body {
 /* Bell Notification Circular Button */
 .btn-notification-bell {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   justify-content: center;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .notif-badge {
@@ -297,17 +310,18 @@ body {
   background: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
   font-family: var(--font-attio);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: var(--transition-fast);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
 .theme-mode-toggle:hover {
@@ -325,7 +339,8 @@ body {
 .preset-dropdown-wrapper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
 .preset-dropdown-label {
@@ -341,6 +356,7 @@ body {
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .preset-select {
@@ -350,15 +366,18 @@ body {
   background: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  padding: 6px 32px 6px 14px;
+  padding: 5px 28px 5px 12px;
   border-radius: var(--radius-pill);
   font-family: var(--font-attio);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: var(--transition-fast);
   white-space: nowrap;
+  max-width: 155px;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .preset-select:hover {
