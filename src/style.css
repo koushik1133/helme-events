@@ -1,97 +1,108 @@
 /* ==========================================================================
-   HELME EVENTS DESIGN SYSTEM - EVENT 360° EDITION
-   Official Helme Events Colors, Typography, Light/Dark Modes & Micro-Borders
+   HELME EVENTS DESIGN SYSTEM - APPLE EDITION (https://www.apple.com)
+   Ultra-Sleek Glassmorphism, Segmented Pill Controls, SF Typography & Soft Elevation
    ========================================================================== */
 
-/* 1. HELME EVENTS DESIGN TOKENS */
+/* 1. APPLE DESIGN TOKENS */
 
 :root {
-  --font-attio: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-attio: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Inter, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
 
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
   --radius-pill: 9999px;
 
-  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Helme Events Light Theme */
+/* Apple Light Theme (Informed by apple.com clean canvas) */
 [data-theme="light"] {
-  --bg-app: #fbfbfb;
+  --bg-app: #f5f5f7;
   --bg-surface: #ffffff;
-  --bg-surface-hover: #f4f4f5;
-  --bg-nav: rgba(255, 255, 255, 0.92);
-  --bg-input: #f4f4f5;
-  --bg-pill: #f4f4f5;
+  --bg-surface-hover: #ebebeb;
+  --bg-nav: rgba(255, 255, 255, 0.82);
+  --bg-input: #e4e4e8;
+  --bg-pill: #e8e8ed;
 
-  --border-subtle: #e5e7eb;
-  --border-strong: #d4d4d8;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
 
-  --text-main: #0f172a;
-  --text-muted: #475569;
-  --text-dim: #94a3b8;
+  --text-main: #1d1d1f;
+  --text-muted: #6e6e73;
+  --text-dim: #86868b;
 
-  --btn-primary-bg: #000000;
+  --btn-primary-bg: #0071e3;
   --btn-primary-text: #ffffff;
-  --btn-primary-hover: #18181b;
+  --btn-primary-hover: #0077ed;
 
   --btn-secondary-bg: #ffffff;
-  --btn-secondary-text: #0f172a;
-  --btn-secondary-border: #e5e7eb;
-  --btn-secondary-hover: #f4f4f5;
+  --btn-secondary-text: #1d1d1f;
+  --btn-secondary-border: rgba(0, 0, 0, 0.1);
+  --btn-secondary-hover: #f5f5f7;
 
-  --accent-indigo: #6366f1;
-  --accent-gold: #d97706;
-  --accent-emerald: #059669;
-  --accent-rose: #e11d48;
+  --accent-indigo: #0071e3;
+  --accent-gold: #e5a93b;
+  --accent-emerald: #34c759;
+  --accent-rose: #ff3b30;
 
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-/* Helme Events Dark Theme */
+/* Apple Dark Theme (Informed by macOS Dark / iPhone OLED) */
 [data-theme="dark"] {
-  --bg-app: #0c0d12;
-  --bg-surface: #13141c;
-  --bg-surface-hover: #1c1e2b;
-  --bg-nav: rgba(12, 13, 18, 0.92);
-  --bg-input: #181a24;
-  --bg-pill: #1c1e2b;
+  --bg-app: #000000;
+  --bg-surface: #1c1c1e;
+  --bg-surface-hover: #2c2c2e;
+  --bg-nav: rgba(28, 28, 30, 0.82);
+  --bg-input: #2c2c2e;
+  --bg-pill: #2c2c2e;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
 
-  --text-main: #f9fafb;
-  --text-muted: #9ca3af;
-  --text-dim: #6b7280;
+  --text-main: #f5f5f7;
+  --text-muted: #a1a1a6;
+  --text-dim: #6e6e73;
 
-  --btn-primary-bg: #ffffff;
-  --btn-primary-text: #000000;
-  --btn-primary-hover: #f3f4f6;
+  --btn-primary-bg: #0a84ff;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #409cff;
 
-  --btn-secondary-bg: #181a24;
-  --btn-secondary-text: #f9fafb;
-  --btn-secondary-border: rgba(255, 255, 255, 0.08);
-  --btn-secondary-hover: #222533;
+  --btn-secondary-bg: #2c2c2e;
+  --btn-secondary-text: #f5f5f7;
+  --btn-secondary-border: rgba(255, 255, 255, 0.1);
+  --btn-secondary-hover: #3a3a3c;
 
-  --accent-indigo: #818cf8;
-  --accent-gold: #fbbf24;
-  --accent-emerald: #34d399;
-  --accent-rose: #fb7185;
+  --accent-indigo: #0a84ff;
+  --accent-gold: #ffd60a;
+  --accent-emerald: #30d158;
+  --accent-rose: #ff453a;
 
-  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-/* Base Setup */
+/* Base Reset */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* Apple Global Button / Input Reset */
+button, select, input, textarea {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-family: inherit;
+  outline: none;
+  border: none;
+  background: transparent;
 }
 
 body {
@@ -102,21 +113,24 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 }
 
 /* ==========================================================================
-   2. HELME EVENTS NAVBAR & INDIA SUB-BAR
+   2. APPLE-GRADE NAVBAR & NAVIGATION
    ========================================================================== */
 
 .app-navbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.7rem 1.5rem;
+  padding: 0.6rem 1.5rem;
   background: var(--bg-nav);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--border-subtle);
   z-index: 100;
   transition: var(--transition-normal);
@@ -126,18 +140,25 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .logo-badge {
   width: 34px;
   height: 34px;
-  border-radius: var(--radius-sm);
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--btn-primary-bg), #0077ed);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.25);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .logo-title {
@@ -146,132 +167,152 @@ body {
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--text-main);
+  white-space: nowrap;
+  line-height: 1.15;
 }
 
 .logo-subtitle {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
-  display: block;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.nav-controls {
+/* Center Apple Segmented Control */
+.view-toggle-group {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.view-toggle-group, .time-toggle-group {
-  display: flex;
   background: var(--bg-input);
-  padding: 3px;
-  border-radius: var(--radius-sm);
+  padding: 4px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.nav-tab, .time-btn {
+.nav-tab {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  padding: 5px 12px;
+  padding: 6px 14px;
   font-family: var(--font-attio);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.78rem;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: var(--transition-fast);
+  white-space: nowrap;
 }
 
-.nav-tab:hover, .time-btn:hover { color: var(--text-main); }
+.nav-tab:hover {
+  color: var(--text-main);
+}
 
-.nav-tab.active, .time-btn.active {
+.nav-tab.active {
   background: var(--bg-surface);
   color: var(--text-main);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-subtle);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .nav-tab-india.active {
   color: var(--accent-gold);
-  border-color: var(--accent-gold);
 }
 
-/* India Events Secondary Sub-Bar */
-.india-sub-bar {
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 0.5rem 1.5rem;
-  z-index: 90;
-  transition: var(--transition-fast);
-}
-
-.india-sub-bar.hidden {
-  display: none;
-}
-
-.sub-bar-content {
+/* Right Apple Action Button Group */
+.nav-actions-group {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  max-width: 1240px;
-  margin: 0 auto;
-}
-
-.sub-bar-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.india-mode-toggle-group {
-  display: flex;
   gap: 0.5rem;
+  flex-wrap: nowrap;
 }
 
-.india-mode-btn {
-  background: var(--bg-input);
+.nav-action-btn {
+  background: var(--bg-surface);
+  color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  padding: 5px 14px;
+  padding: 6px 14px;
   border-radius: var(--radius-pill);
   font-family: var(--font-attio);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   transition: var(--transition-fast);
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.india-mode-btn:hover {
+.nav-action-btn:hover {
   background: var(--bg-surface-hover);
-  color: var(--text-main);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--border-strong);
 }
 
-.india-mode-btn.active {
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border-color: var(--btn-primary-bg);
+/* AI Builder Pill */
+.btn-ai-builder {
+  background: linear-gradient(135deg, #0071e3, #3892f6);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35);
 }
 
+.btn-ai-builder:hover {
+  opacity: 0.94;
+  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.45);
+}
+
+/* Bell Notification Circular Button */
+.btn-notification-bell {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.notif-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--accent-rose);
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-surface);
+}
+
+/* Theme Toggle Button */
 .theme-mode-toggle {
-  background: var(--btn-secondary-bg);
-  color: var(--btn-secondary-text);
-  border: 1px solid var(--btn-secondary-border);
-  padding: 5px 12px;
-  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
   font-family: var(--font-attio);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
   transition: var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .theme-mode-toggle:hover {
-  background: var(--btn-secondary-hover);
+  background: var(--bg-surface-hover);
+  transform: translateY(-1px);
 }
 
 [data-theme="light"] .icon-moon { display: none; }
@@ -280,17 +321,27 @@ body {
 [data-theme="dark"] .icon-sun { display: none; }
 [data-theme="dark"] .icon-moon { display: inline; }
 
+/* Preset Dropdown Pill */
 .preset-select {
   background: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
+  padding: 6px 30px 6px 14px;
+  border-radius: var(--radius-pill);
   font-family: var(--font-attio);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  outline: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="%2386868b" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: var(--transition-fast);
+}
+
+.preset-select:hover {
+  background-color: var(--bg-surface-hover);
+  border-color: var(--border-strong);
 }
 
 /* ==========================================================================
@@ -2063,38 +2114,44 @@ body {
 
 /* ===== PHASE 1: COMPONENT STYLES ===== */
 
-/* Feature Toolbar */
+/* Feature Toolbar - Apple Glass Style */
 .feature-toolbar {
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-default);
-  padding: 6px 16px;
+  background: var(--bg-nav);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px 1.5rem;
   overflow-x: auto;
   transition: var(--transition-normal);
 }
 .feature-toolbar.hidden { display: none; }
 .feature-toolbar-scroll {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
   padding: 2px 0;
+  -webkit-overflow-scrolling: touch;
 }
 .feature-btn {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 5px 12px;
-  font-size: 0.72rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 0.76rem;
   font-weight: 500;
   font-family: var(--font-attio);
-  color: var(--text-secondary);
+  color: var(--text-muted);
   cursor: pointer;
-  transition: var(--transition-normal);
+  transition: var(--transition-fast);
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 .feature-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+  color: var(--text-main);
   border-color: var(--accent-indigo);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 .nav-action-btn { position: relative; }
 .btn-features-toggle.active { background: var(--accent-indigo); color: #fff; }
@@ -2607,7 +2664,7 @@ body {
 /* 3. Tablets & Small Laptops (769px - 1024px) */
 @media (max-width: 1024px) {
   .app-navbar { padding: 0.6rem 1rem; }
-  .nav-controls { gap: 0.5rem; flex-wrap: wrap; }
+  .nav-actions-group { gap: 0.4rem; flex-wrap: wrap; }
   .view-toggle-group {
     overflow-x: auto;
     white-space: nowrap;
@@ -2631,7 +2688,7 @@ body {
 /* 4. Mobile Devices & Tablet Portrait (<= 768px) */
 @media (max-width: 768px) {
   .app-navbar { flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 0.6rem 0.8rem; }
-  .nav-controls { justify-content: space-between; flex-wrap: wrap; gap: 0.4rem; }
+  .nav-actions-group { justify-content: flex-start; flex-wrap: wrap; gap: 0.4rem; width: 100%; }
   .logo-title { font-size: 0.95rem; }
   .logo-subtitle { display: none; }
   

@@ -14,8 +14,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css" />
   <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 
-  <script type="module" crossorigin src="/assets/index-CxScNksN.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-8B9U1Ix9.css">
+  <script type="module" crossorigin src="/assets/index-So_E2obA.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-aCm0dD_2.css">
 </head>
 <body>
   <!-- Helme Events Navbar Header -->
@@ -29,63 +29,56 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1 class="logo-title">Helme Events 360</h1>
+        <h1 class="logo-title">Helme Events 360°</h1>
         <span class="logo-subtitle">Venue & India Events Studio</span>
       </div>
     </div>
 
-    <div class="nav-controls">
-      <!-- Navigation View Switcher -->
-      <div class="view-toggle-group">
-        <button class="nav-tab active" id="tabMapView"><span>📍 Map</span></button>
-        <button class="nav-tab" id="tab360View"><span>🌀 360°</span></button>
-        <button class="nav-tab nav-tab-india" id="tabIndiaView"><span>🇮🇳 India</span></button>
-        <button class="nav-tab" id="tabFloorPlanView"><span>📐 Floor Plan</span></button>
-        <button class="nav-tab" id="tabAnalyticsView"><span>📊 Analytics</span></button>
-        <button class="nav-tab" id="tabProposalsView"><span>📁 Proposals</span></button>
-        <button class="nav-tab" id="tabTimelineView"><span>📅 Timeline</span></button>
-        <button class="nav-tab" id="tabSeatingView"><span>👥 Seating</span></button>
-      </div>
+    <!-- Navigation View Switcher (Center Segmented Pill) -->
+    <div class="view-toggle-group">
+      <button class="nav-tab active" id="tabMapView"><span>📍 Map</span></button>
+      <button class="nav-tab" id="tab360View"><span>🌀 360°</span></button>
+      <button class="nav-tab nav-tab-india" id="tabIndiaView"><span>🇮🇳 India</span></button>
+      <button class="nav-tab" id="tabFloorPlanView"><span>📐 Floor Plan</span></button>
+      <button class="nav-tab" id="tabAnalyticsView"><span>📊 Analytics</span></button>
+      <button class="nav-tab" id="tabProposalsView"><span>📁 Proposals</span></button>
+      <button class="nav-tab" id="tabTimelineView"><span>📅 Timeline</span></button>
+      <button class="nav-tab" id="tabSeatingView"><span>👥 Seating</span></button>
+    </div>
 
-      <!-- AI Auto-Builder Button -->
+    <!-- Action Buttons Group (Right Pill Bar) -->
+    <div class="nav-actions-group">
       <button class="nav-action-btn btn-ai-builder" id="btnAIBuilder" title="1-Click Mega Event Auto-Builder">
         <span>⚡ AI Builder</span>
       </button>
 
-      <!-- More Features Toggle -->
       <button class="nav-action-btn btn-features-toggle" id="btnToggleFeatures" title="More Features">
         <span>🧩 Features</span>
       </button>
 
-      <!-- Venue Options Menu Button -->
       <button class="nav-action-btn btn-venue-menu" id="btnOpenVenueMenu">
         <span>📖 Menu</span>
       </button>
 
-      <!-- Cart & Checkout Button -->
       <button class="nav-action-btn btn-cart-nav" id="btnOpenCart">
         <span>🛒 Cart</span>
       </button>
 
-      <!-- Notification Bell -->
-      <button class="nav-action-btn btn-notification-bell" id="btnNotifications">
+      <button class="nav-action-btn btn-notification-bell" id="btnNotifications" title="Notifications">
         <span>🔔</span>
         <span class="notif-badge" id="notifBadge">3</span>
       </button>
 
-      <!-- Audio Soundscape Toggle Button -->
       <button class="nav-action-btn btn-sound-toggle" id="btnSoundToggle">
         <span id="soundIcon">🔊</span> <span id="soundLabel">Sound: OFF</span>
       </button>
 
-      <!-- Light / Dark Mode Toggle Button -->
       <button class="theme-mode-toggle" id="themeModeToggle" aria-label="Toggle Theme">
         <span class="icon-sun">☀️</span>
         <span class="icon-moon">🌙</span>
         <span class="theme-mode-label">Dark</span>
       </button>
 
-      <!-- Preset Theme Selector -->
       <div class="preset-dropdown-wrapper">
         <select id="presetSelect" class="preset-select" aria-label="Select Theme Preset">
           <option value="royal">👑 Royal Gold Wedding</option>
