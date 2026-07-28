@@ -46,6 +46,7 @@ import { InvoiceGenerator } from './components/InvoiceGenerator.js';
 // Phase 5: AI
 import { BudgetOptimizer } from './components/BudgetOptimizer.js';
 import { EventBriefGenerator } from './components/EventBriefGenerator.js';
+import { CustomEventBriefWizard } from './components/CustomEventBriefWizard.js';
 
 class Event360App {
   constructor() {
@@ -126,6 +127,7 @@ class Event360App {
     this.invoiceContainer = document.getElementById('invoiceContainer');
     this.budgetOptContainer = document.getElementById('budgetOptContainer');
     this.briefGenContainer = document.getElementById('briefGenContainer');
+    this.customBriefWizardContainer = document.getElementById('customBriefWizardContainer');
 
     // Original tabs
     this.tabMapView = document.getElementById('tabMapView');
@@ -143,6 +145,7 @@ class Event360App {
     this.btnOpenVenueMenu = document.getElementById('btnOpenVenueMenu');
     this.btnOpenCart = document.getElementById('btnOpenCart');
     this.btnAIBuilder = document.getElementById('btnAIBuilder');
+    this.btnCustomBrief = document.getElementById('btnCustomBrief');
     this.btnSoundToggle = document.getElementById('btnSoundToggle');
     this.btnWatchTour360 = document.getElementById('btnWatchTour360');
     this.presetSelect = document.getElementById('presetSelect');
@@ -344,6 +347,18 @@ class Event360App {
       }
     );
 
+    this.customEventBriefWizard = new CustomEventBriefWizard(
+      this.customBriefWizardContainer,
+      this.activeSelections,
+      (selections, formData) => {
+        Object.assign(this.activeSelections, selections);
+        this.updateAllComponents(this.activeSelections);
+        this.showToast(`📋 Custom ${formData.category.toUpperCase()} event setup generated & applied!`);
+        confetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
+        this.switchView('studio360');
+      }
+    );
+
     // Update notification badge
     this.updateNotifBadge();
   }
@@ -367,6 +382,10 @@ class Event360App {
 
     if (this.btnAIBuilder) {
       this.btnAIBuilder.addEventListener('click', () => this.runAIAutoBuilder());
+    }
+
+    if (this.btnCustomBrief) {
+      this.btnCustomBrief.addEventListener('click', () => this.customEventBriefWizard.open());
     }
 
     if (this.btnSoundToggle) {
@@ -439,6 +458,7 @@ class Event360App {
         if (this.invoiceGenerator) this.invoiceGenerator.close();
         if (this.budgetOptimizer) this.budgetOptimizer.close();
         if (this.eventBriefGenerator) this.eventBriefGenerator.close();
+        if (this.customEventBriefWizard) this.customEventBriefWizard.close();
         if (this.swapperModal && this.swapperModal.close) this.swapperModal.close();
         if (this.venueMenuModal && this.venueMenuModal.close) this.venueMenuModal.close();
         if (this.cartPaymentModal && this.cartPaymentModal.close) this.cartPaymentModal.close();
