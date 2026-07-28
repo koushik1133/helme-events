@@ -47,7 +47,7 @@ class Event360App {
   toggleTheme() {
     const nextTheme = this.theme === 'light' ? 'dark' : 'light';
     this.applyTheme(nextTheme);
-    this.showToast(`Switched to Attio ${nextTheme.toUpperCase()} theme!`);
+    this.showToast(`Switched to Helme Events ${nextTheme.toUpperCase()} theme!`);
   }
 
   initUI() {

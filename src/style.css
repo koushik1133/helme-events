@@ -1,9 +1,9 @@
 /* ==========================================================================
-   ATTIO DESIGN SYSTEM - EVENT 360° EDITION
-   Official Attio Colors, Typography, Light/Dark Modes & Micro-Borders
+   HELME EVENTS DESIGN SYSTEM - EVENT 360° EDITION
+   Official Helme Events Colors, Typography, Light/Dark Modes & Micro-Borders
    ========================================================================== */
 
-/* 1. ATTIO DESIGN TOKENS */
+/* 1. HELME EVENTS DESIGN TOKENS */
 
 :root {
   --font-attio: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -19,7 +19,7 @@
   --transition-normal: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Attio Light Theme */
+/* Helme Events Light Theme */
 [data-theme="light"] {
   --bg-app: #fbfbfb;
   --bg-surface: #ffffff;
@@ -53,7 +53,7 @@
   --shadow-lg: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
-/* Attio Dark Theme */
+/* Helme Events Dark Theme */
 [data-theme="dark"] {
   --bg-app: #0c0d12;
   --bg-surface: #13141c;
@@ -107,7 +107,7 @@ body {
 }
 
 /* ==========================================================================
-   2. ATTIO NAVBAR & INDIA SUB-BAR
+   2. HELME EVENTS NAVBAR & INDIA SUB-BAR
    ========================================================================== */
 
 .app-navbar {
@@ -815,7 +815,7 @@ body {
 }
 
 /* ==========================================================================
-   5. ATTIO ITEM SWAPPER MODAL & CUSTOM TEXT EDITOR
+   5. HELME EVENTS ITEM SWAPPER MODAL & CUSTOM TEXT EDITOR
    ========================================================================== */
 
 .swapper-modal-overlay {
@@ -1071,7 +1071,7 @@ body {
 }
 
 /* ==========================================================================
-   6. ATTIO FLOATING COST CARD
+   6. HELME EVENTS FLOATING COST CARD
    ========================================================================== */
 
 .cost-card-wrapper {

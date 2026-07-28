@@ -48,7 +48,7 @@ export class InteractiveMap {
                     <span class="node-price-tag">$${cost.toLocaleString()}</span>
                   </button>
 
-                  <!-- Attio-Style Photo Zone Card -->
+                  <!-- Helme Events Photo Zone Card -->
                   <div class="dot-tooltip photo-zone-card">
                     <div class="card-media">
                       <img src="${zone.panoramaUrl}" alt="${zone.name}" class="card-banner-img" />
