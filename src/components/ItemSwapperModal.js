@@ -25,28 +25,41 @@ export class ItemSwapperModal {
 
     const currentItemId = this.currentSelections[this.activeSlot.id] || this.activeSlot.defaultItemId;
     const currentItem = getItemById(currentItemId);
-    const availableItems = ITEM_CATALOG[this.activeSlot.category] || [];
-    const isStageOrPodium = this.activeSlot.category === 'stages' || this.activeSlot.category === 'backdrops';
+
+    // Resolve available items for slot category
+    let availableItems = ITEM_CATALOG[this.activeSlot.category] || [];
+    if (!availableItems.length) {
+      if (this.activeSlot.category.includes('podium') || this.activeSlot.category.includes('stage')) {
+        availableItems = ITEM_CATALOG.stages || [];
+      } else if (this.activeSlot.category.includes('sound')) {
+        availableItems = ITEM_CATALOG.lighting || [];
+      } else {
+        availableItems = ITEM_CATALOG.stages || [];
+      }
+    }
+
+    const isStageOrPodium = this.activeSlot.category === 'stages' || this.activeSlot.category === 'backdrops' || this.activeSlot.id.includes('podium') || this.activeSlot.id.includes('stage');
     const customTextKey = `custom_text_${this.activeSlot.id}`;
     const savedCustomText = this.currentSelections[customTextKey] || '';
 
     this.container.innerHTML = `
       <div class="swapper-modal-overlay">
         <div class="swapper-modal-card realistic-swapper-card">
+          <!-- Header -->
           <div class="swapper-header">
             <div>
-              <span class="swapper-badge">${this.activeZone.name}</span>
-              <h3>Customize: ${this.activeSlot.label}</h3>
-              <p class="swapper-subtitle">Select photorealistic replacements or customize writing & slogan seals for the 360° view.</p>
+              <span class="swapper-badge">📍 ${this.activeZone ? this.activeZone.name : '360° Studio'}</span>
+              <h3>🎯 Interchange: ${this.activeSlot.label} (${availableItems.length} Options Available)</h3>
+              <p class="swapper-subtitle">Click any item below to swap ONLY this ${this.activeSlot.label.toLowerCase()} in the 360° view. All other venue setups remain untouched!</p>
             </div>
             <button class="btn-close-modal" id="closeSwapperBtn">&times;</button>
           </div>
 
-          <!-- Current Selection Summary -->
+          <!-- Current Active Setup Banner -->
           <div class="current-item-banner photo-current-banner">
             <img src="${currentItem ? currentItem.imageUrl : ''}" alt="${currentItem ? currentItem.name : ''}" class="current-item-thumb" />
             <div class="current-item-info">
-              <span class="current-tag">Currently Active Setup</span>
+              <span class="current-tag">👑 Currently Active in 360° View</span>
               <strong>${currentItem ? currentItem.name : 'None'}</strong>
               <p>${currentItem ? currentItem.description : ''}</p>
             </div>
@@ -56,10 +69,10 @@ export class ItemSwapperModal {
             </div>
           </div>
 
-          <!-- Custom Writing / Slogan Editor Field (For Podiums, Stages & Banners) -->
+          <!-- Custom Writing / Slogan Editor Field -->
           ${isStageOrPodium ? `
             <div class="custom-text-editor-box">
-              <label for="inputCustomText">✍️ Custom Podium & Banner Writing / Slogan:</label>
+              <label for="inputCustomText">✍️ Custom Slogan / Official Seal / Podium Writing:</label>
               <div class="text-input-group">
                 <input type="text" id="inputCustomText" class="custom-text-input" placeholder="e.g. VISHAL JANSABHA 2026 / WELCOME GUESTS" value="${savedCustomText}" />
                 <button class="btn-apply-text" id="btnApplyCustomText">Apply Writing</button>
@@ -73,7 +86,7 @@ export class ItemSwapperModal {
             </div>
           ` : ''}
 
-          <!-- Photorealistic Options Grid -->
+          <!-- Available Options Grid -->
           <div class="swapper-options-grid photo-options-grid">
             ${availableItems.map(item => {
               const isSelected = item.id === currentItemId;
@@ -87,6 +100,7 @@ export class ItemSwapperModal {
                   <div class="option-photo-wrap">
                     <img src="${item.imageUrl}" alt="${item.name}" class="option-img" />
                     <span class="option-price-tag">$${item.price} <small>/ unit</small></span>
+                    ${isSelected ? `<span class="badge-active-tag">✓ Active</span>` : ''}
                   </div>
 
                   <div class="option-details">
@@ -97,7 +111,7 @@ export class ItemSwapperModal {
                     <div class="option-footer">
                       <span class="price-diff ${diff > 0 ? 'higher' : (diff < 0 ? 'lower' : '')}">${diffText}</span>
                       <button class="btn-select-swap ${isSelected ? 'active' : ''}" data-item-id="${item.id}">
-                        ${isSelected ? '✓ In 360 View' : 'Interchange Item'}
+                        ${isSelected ? '✓ In 360 View' : '🔄 Interchange Item'}
                       </button>
                     </div>
                   </div>
@@ -114,9 +128,7 @@ export class ItemSwapperModal {
 
   bindEvents() {
     const closeBtn = this.container.querySelector('#closeSwapperBtn');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.close());
-    }
+    if (closeBtn) closeBtn.addEventListener('click', () => this.close());
 
     const backdrop = this.container.querySelector('.swapper-modal-overlay');
     if (backdrop) {
@@ -125,12 +137,12 @@ export class ItemSwapperModal {
       });
     }
 
-    const applyTextBtn = this.container.querySelector('#btnApplyCustomText');
     const inputCustomText = this.container.querySelector('#inputCustomText');
+    const applyTextBtn = this.container.querySelector('#btnApplyCustomText');
+
     if (applyTextBtn && inputCustomText) {
       applyTextBtn.addEventListener('click', () => {
         const textVal = inputCustomText.value.trim();
-        const customTextKey = `custom_text_${this.activeSlot.id}`;
         const currentItemId = this.currentSelections[this.activeSlot.id] || this.activeSlot.defaultItemId;
 
         if (this.onSwap && this.activeSlot) {
@@ -148,11 +160,12 @@ export class ItemSwapperModal {
       });
     });
 
-    const swapBtns = this.container.querySelectorAll('.btn-select-swap, .photo-option-card');
-    swapBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const itemId = btn.getAttribute('data-item-id');
+    const optionCards = this.container.querySelectorAll('.swapper-option-card');
+    optionCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const itemId = card.getAttribute('data-item-id');
         const textVal = inputCustomText ? inputCustomText.value.trim() : '';
+
         if (itemId && this.onSwap && this.activeSlot) {
           this.onSwap(this.activeSlot.id, itemId, this.activeSlot.quantity, textVal);
           this.close();
