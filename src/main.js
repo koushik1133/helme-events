@@ -756,10 +756,18 @@ class Event360App {
       this.activeSelections[`custom_text_${slotId}`] = customText;
     }
 
-    this.viewer360.swapObjectInSlot(slotId, newItemId, customText);
+    const item = getItemById(newItemId);
+    if (item && item.panoramaUrl) {
+      this.activeSelections['theme_panorama'] = item.panoramaUrl;
+    }
+
+    const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId) || VENUE_ZONES[0];
+    if (zone && this.viewer360) {
+      this.viewer360.loadZone(zone, this.activeSelections);
+    }
+
     this.updateAllComponents(this.activeSelections);
 
-    const item = getItemById(newItemId);
     if (item) {
       this.showToast(customText ? `Updated ${item.name} with "${customText}"!` : `Updated to ${item.name}!`);
       confetti({ particleCount: 45, spread: 70, origin: { y: 0.75 } });
@@ -821,8 +829,11 @@ class Event360App {
     switch (presetKey) {
       case 'royal':
         presetMap = {
+          'theme_panorama': '/images/zone_stage_360.jpg',
           'slot-stage-main': 'stage-royal-mandap',
-          'slot-stage-seating': 'chair-throne',
+          'slot-stage-backdrop': 'backdrop-flower-marigold',
+          'slot-stage-seating': 'chair-chiavari-gold',
+          'slot-banquet-table': 'table-round-standard',
           'slot-banquet-chairs': 'chair-chiavari-gold',
           'slot-banquet-lighting': 'lighting-chandeliers',
           'slot-fountain-center': 'fountain-royal-marble'
@@ -830,18 +841,33 @@ class Event360App {
         break;
       case 'cyber':
         presetMap = {
+          'theme_panorama': '/images/reception_midnight_velvet_360.jpg',
           'slot-stage-main': 'stage-led-arch',
+          'slot-stage-backdrop': 'backdrop-shimmer-sequin',
           'slot-stage-seating': 'chair-ghost',
-          'slot-banquet-table': 'table-led-glass',
+          'slot-banquet-table': 'table-cocktail-high',
+          'slot-banquet-chairs': 'chair-ghost',
           'slot-fountain-center': 'fountain-dancing-jets'
         };
         break;
       case 'garden':
         presetMap = {
+          'theme_panorama': '/images/zone_lounge_360.jpg',
+          'slot-stage-main': 'stage-wooden-rustic',
           'slot-stage-backdrop': 'backdrop-hedge-wall',
+          'slot-stage-seating': 'chair-folding-white',
           'slot-banquet-table': 'table-rustic-wood',
           'slot-fountain-center': 'fountain-tiered-stone',
           'slot-entrance-arch': 'backdrop-floral-wall'
+        };
+        break;
+      case 'minimal':
+        presetMap = {
+          'theme_panorama': '/images/reception_crystal_gala_360.jpg',
+          'slot-stage-main': 'stage-led-arch',
+          'slot-stage-backdrop': 'backdrop-floral-wall',
+          'slot-stage-seating': 'chair-ghost',
+          'slot-banquet-table': 'table-round-standard'
         };
         break;
     }
@@ -849,10 +875,12 @@ class Event360App {
     Object.assign(this.activeSelections, presetMap);
     this.updateAllComponents(this.activeSelections);
 
-    if (this.activeView === 'studio360' || this.activeView === 'india') {
-      const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
-      if (zone) this.viewer360.loadZone(zone, this.activeSelections);
+    const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId) || VENUE_ZONES[0];
+    if (zone && this.viewer360) {
+      this.viewer360.loadZone(zone, this.activeSelections);
     }
+
+    this.showToast(`✨ Applied ${presetKey.toUpperCase()} Theme Preset!`);
   }
 
   showToast(message) {

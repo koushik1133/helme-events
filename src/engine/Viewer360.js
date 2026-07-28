@@ -25,8 +25,23 @@ export class Viewer360 {
       }
     });
 
-    // Lock the base venue panorama URL (The room space remains 100% constant)
-    const basePanoramaUrl = zoneData.panoramaUrl;
+    // Determine background panorama URL based on active theme or selected item
+    let basePanoramaUrl = activeSelectionsMap.theme_panorama;
+
+    if (!basePanoramaUrl) {
+      for (const slot of zoneData.slots) {
+        const selectedItemId = this.activeSelections.get(slot.id);
+        const item = getItemById(selectedItemId);
+        if (item && item.panoramaUrl && selectedItemId !== slot.defaultItemId) {
+          basePanoramaUrl = item.panoramaUrl;
+          break;
+        }
+      }
+    }
+
+    if (!basePanoramaUrl) {
+      basePanoramaUrl = zoneData.panoramaUrl;
+    }
 
     // Destroy existing Pannellum instance if present
     if (this.viewer) {
