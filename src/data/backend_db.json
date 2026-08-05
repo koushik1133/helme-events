@@ -8,12 +8,64 @@
       "slot-lighting-main": "lighting-chandeliers",
       "slot-fountain-main": "fountain-royal-marble",
       "slot-sofa-lounge": "sofa-royal-maharani",
-      "slot-podium-main": "stage-digital-podium"
+      "slot-podium-main": "stage-digital-podium",
+      "slot-entrance-arch": "backdrop-floral-wall",
+      "slot-stage-backdrop": "backdrop-shimmer-sequin",
+      "slot-stage-seating": "chair-chiavari-gold",
+      "slot-banquet-table": "table-round-standard",
+      "slot-banquet-chairs": "chair-chiavari-gold",
+      "slot-banquet-lighting": "lighting-chandeliers",
+      "slot-fountain-center": "fountain-royal-marble",
+      "slot-fountain-lighting": "lighting-fairy-canopy",
+      "slot-lounge-table": "table-cocktail",
+      "slot-lounge-seating": "chair-velvet-armchair",
+      "slot-lounge-lighting": "lighting-rgb-uplighting",
+      "slot-entrance-water": "fountain-glass-waterfall",
+      "slot-entrance-seating": "chair-ghost",
+      "slot-election-podium": "stage-bulletproof-podium",
+      "slot-election-hoarding": "backdrop-hedge-wall",
+      "slot-election-audio": "fountain-horn-speakers",
+      "slot-election-seating": "chair-chiavari-gold",
+      "slot-function-mandap": "stage-royal-mandap",
+      "slot-function-marigold": "backdrop-marigold-garland",
+      "slot-function-throne": "chair-maharaja-throne",
+      "slot-function-jhula": "table-antique-jhula",
+      "slot-meeting-podium": "stage-digital-podium",
+      "slot-meeting-screen": "backdrop-seamless-led",
+      "slot-meeting-desk": "table-summit-desk"
     },
-    "currentZoneId": "zone-stage",
-    "lastUpdated": "2026-08-05T14:29:50.492Z"
+    "currentZoneId": "zone-india-election",
+    "lastUpdated": "2026-08-05T15:41:42.926Z"
   },
-  "swapHistory": [],
+  "swapHistory": [
+    {
+      "id": "swap_1785944502925",
+      "slotId": "slot-election-seating",
+      "itemId": "chair-chiavari-gold",
+      "itemTitle": "Gold Chiavari Chair",
+      "category": "chairs",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-05T15:41:42.925Z"
+    },
+    {
+      "id": "swap_1785944495095",
+      "slotId": "slot-election-hoarding",
+      "itemId": "backdrop-hedge-wall",
+      "itemTitle": "Greenery Boxwood Hedge Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-05T15:41:35.095Z"
+    },
+    {
+      "id": "swap_1785944468610",
+      "slotId": "slot-entrance-arch",
+      "itemId": "backdrop-hedge-wall",
+      "itemTitle": "Greenery Boxwood Hedge Wall",
+      "category": "backdrops",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-05T15:41:08.610Z"
+    }
+  ],
   "proposals": [],
   "vendors": [],
   "bookings": []

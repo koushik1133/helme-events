@@ -182,7 +182,8 @@ class Event360App {
 
     this.viewer360 = new Viewer360(
       this.canvasHolder,
-      (slotId) => this.openSwapperForSlot(slotId)
+      (slotId) => this.openSwapperForSlot(slotId),
+      (targetZoneId) => this.openStudio360(targetZoneId)
     );
 
     this.tourWatcher = new TourWatcher(this.viewer360, () => {
