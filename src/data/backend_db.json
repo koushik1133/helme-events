@@ -1,0 +1,20 @@
+{
+  "state": {
+    "activeSelections": {
+      "slot-stage-main": "stage-led-arch",
+      "slot-table-banquet": "table-round-standard",
+      "slot-chair-banquet": "chair-chiavari-gold",
+      "slot-backdrop-photo": "backdrop-marigold-garland",
+      "slot-lighting-main": "lighting-chandeliers",
+      "slot-fountain-main": "fountain-royal-marble",
+      "slot-sofa-lounge": "sofa-royal-maharani",
+      "slot-podium-main": "stage-digital-podium"
+    },
+    "currentZoneId": "zone-stage",
+    "lastUpdated": "2026-08-05T14:29:50.492Z"
+  },
+  "swapHistory": [],
+  "proposals": [],
+  "vendors": [],
+  "bookings": []
+}

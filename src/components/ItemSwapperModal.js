@@ -56,7 +56,7 @@ export class ItemSwapperModal {
     const curItem  = getItemById(curId);
     const curPrice = curItem ? curItem.price * slot.quantity : 0;
 
-    const emoji = { stages:'🎭', chairs:'🪑', tables:'🍽️', fountains:'⛲', backdrops:'🖼️', lighting:'💡' };
+    const emoji = { stages:'🎭', chairs:'🪑', tables:'🍽️', fountains:'⛲', backdrops:'🖼️', lighting:'💡', sofas:'🛋️', podiums:'🎙️' };
 
     this.container.innerHTML = `
       <div class="ism-overlay" id="ismOverlay">

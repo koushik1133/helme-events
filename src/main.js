@@ -3,6 +3,7 @@ import { VENUE_ZONES } from './data/zones.js';
 import { getItemById } from './data/catalog.js';
 import { Viewer360 } from './engine/Viewer360.js';
 import { AudioEngine } from './engine/AudioEngine.js';
+import { ApiService } from './services/apiService.js';
 
 // Original Components
 import { InteractiveMap } from './components/InteractiveMap.js';
@@ -777,6 +778,15 @@ class Event360App {
     const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
     const slot = zone?.slots.find(s => s.id === slotId);
 
+    // Sync to backend REST API environment
+    ApiService.recordSwap({
+      slotId,
+      itemId: newItemId,
+      itemTitle: item ? item.name : newItemId,
+      zoneId: this.currentZoneId,
+      category: slot ? slot.category : 'furniture'
+    });
+
     // 2. ONLY update 360° panorama for backdrops category (walls/photo walls).
     //    Chairs, tables, fountains, stages, lighting do NOT change the background scene.
     if (slot?.category === 'backdrops' && item?.panoramaUrl && this.viewer360?.updatePanorama) {
@@ -814,6 +824,7 @@ class Event360App {
 
   updateAllComponents(newSelections) {
     this.activeSelections = newSelections;
+    ApiService.syncState(this.activeSelections, this.currentZoneId);
 
     const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
     if (zone) this.renderInventoryDrawer(zone);

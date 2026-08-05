@@ -82,6 +82,82 @@ export const ITEM_CATALOG = {
     }
   ],
 
+  sofas: [
+    {
+      id: 'sofa-royal-maharani',
+      name: 'Royal Maharani Gold Velvet Sofa',
+      price: 350,
+      category: 'sofas',
+      description: 'Hand-carved royal gold leaf sofa with plush crimson velvet seating for brides & VIP guests.',
+      imageUrl: '/images/chair_maharaja_throne.jpg',
+      panoramaUrl: '/images/india_function_360.jpg',
+      color: '#dc2626'
+    },
+    {
+      id: 'sofa-modern-chesterfield',
+      name: 'Luxury Leather Chesterfield Sofa',
+      price: 280,
+      category: 'sofas',
+      description: 'Deep-button tufted Italian cognac leather 3-seater Chesterfield sofa.',
+      imageUrl: '/images/chair_velvet_armchair.jpg',
+      panoramaUrl: '/images/zone_lounge_360.jpg',
+      color: '#78350f'
+    },
+    {
+      id: 'sofa-velvet-lounge',
+      name: 'Velvet VIP Modular Lounge Sofa',
+      price: 220,
+      category: 'sofas',
+      description: 'Curved sapphire blue velvet modular sectional sofa for high-end VIP lounges.',
+      imageUrl: '/images/chair_velvet_armchair.jpg',
+      panoramaUrl: '/images/zone_lounge_360.jpg',
+      color: '#2563eb'
+    }
+  ],
+
+  podiums: [
+    {
+      id: 'stage-digital-podium',
+      name: 'Acrylic LED Digital Summit Podium',
+      price: 1200,
+      category: 'podiums',
+      description: 'High-tech digital podium with 24-inch HD teleprompter screen and goose-neck mic array.',
+      imageUrl: '/images/stage_digital_podium.jpg',
+      panoramaUrl: '/images/india_meeting_360.jpg',
+      color: '#2563eb'
+    },
+    {
+      id: 'stage-bulletproof-podium',
+      name: 'Grand Rally Stage & Bulletproof Glass Podium',
+      price: 2800,
+      category: 'podiums',
+      description: 'Elevated political rally stage with bulletproof glass podium and official seals.',
+      imageUrl: '/images/stage_bulletproof_podium.jpg',
+      panoramaUrl: '/images/india_election_360.jpg',
+      color: '#f97316'
+    },
+    {
+      id: 'podium-wooden-presidential',
+      name: 'Carved Mahogany Presidential Podium',
+      price: 450,
+      category: 'podiums',
+      description: 'Classic solid mahogany wooden podium with carved seal emblem and brass reading light.',
+      imageUrl: '/images/stage_wooden_riser.jpg',
+      panoramaUrl: '/images/india_meeting_360.jpg',
+      color: '#78350f'
+    },
+    {
+      id: 'podium-acrylic-modern',
+      name: 'Sleek Clear Acrylic VIP Podium',
+      price: 380,
+      category: 'podiums',
+      description: 'Ultra-clear minimalist acrylic podium with integrated LED edge lighting.',
+      imageUrl: '/images/chair_ghost_acrylic.jpg',
+      panoramaUrl: '/images/zone_entrance_360.jpg',
+      color: '#38bdf8'
+    }
+  ],
+
   tables: [
     {
       id: 'table-round-standard',
