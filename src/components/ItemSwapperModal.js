@@ -1,176 +1,175 @@
 import { ITEM_CATALOG, getItemById } from '../data/catalog.js';
 
+/**
+ * ItemSwapperModal
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Opens when a hotspot card or inventory drawer slot is clicked.
+ * Shows ALL catalog options for that slot's category.
+ * Selecting one calls onSwap(slotId, newItemId, quantity, customText) —
+ * which triggers updateSlotDisplay() (no panorama reload).
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 export class ItemSwapperModal {
-  constructor(containerElement, onSwap) {
-    this.container = containerElement;
-    this.onSwap = onSwap;
+  constructor(containerEl, onSwap) {
+    this.container  = containerEl;
+    this.onSwap     = onSwap;
     this.activeSlot = null;
     this.activeZone = null;
-    this.currentSelections = {};
+    this.selections = {};
+    this._handleKey = this._handleKey.bind(this);
   }
 
   open(zone, slot, currentSelections) {
     this.activeZone = zone;
     this.activeSlot = slot;
-    this.currentSelections = currentSelections;
-    this.render();
+    this.selections = currentSelections || {};
+    this._render();
+    document.addEventListener('keydown', this._handleKey);
   }
 
   close() {
     this.container.innerHTML = '';
+    document.removeEventListener('keydown', this._handleKey);
   }
 
-  render() {
-    if (!this.activeSlot) return;
+  _handleKey(e) {
+    if (e.key === 'Escape') this.close();
+  }
 
-    const currentItemId = this.currentSelections[this.activeSlot.id] || this.activeSlot.defaultItemId;
-    const currentItem = getItemById(currentItemId);
-
-    // Resolve available items for slot category
-    let availableItems = ITEM_CATALOG[this.activeSlot.category] || [];
-    if (!availableItems.length) {
-      if (this.activeSlot.category.includes('podium') || this.activeSlot.category.includes('stage')) {
-        availableItems = ITEM_CATALOG.stages || [];
-      } else if (this.activeSlot.category.includes('sound')) {
-        availableItems = ITEM_CATALOG.lighting || [];
-      } else {
-        availableItems = ITEM_CATALOG.stages || [];
-      }
+  // ── Resolve catalog items for this slot category ─────────────────────────
+  _getItems() {
+    const cat = this.activeSlot.category;
+    let items = ITEM_CATALOG[cat] || [];
+    if (!items.length) {
+      const map = { podium:'stages', speaker:'lighting', sound:'lighting', arch:'backdrops', banner:'backdrops', swing:'tables' };
+      const k = Object.keys(map).find(k => cat.includes(k));
+      if (k) items = ITEM_CATALOG[map[k]] || [];
     }
+    return items.length ? items : (ITEM_CATALOG.stages || []);
+  }
 
-    const isStageOrPodium = this.activeSlot.category === 'stages' || this.activeSlot.category === 'backdrops' || this.activeSlot.id.includes('podium') || this.activeSlot.id.includes('stage');
-    const customTextKey = `custom_text_${this.activeSlot.id}`;
-    const savedCustomText = this.currentSelections[customTextKey] || '';
+  // ── Main render ───────────────────────────────────────────────────────────
+  _render() {
+    const slot     = this.activeSlot;
+    const items    = this._getItems();
+    const curId    = this.selections[slot.id] || slot.defaultItemId;
+    const curItem  = getItemById(curId);
+    const curPrice = curItem ? curItem.price * slot.quantity : 0;
+
+    const emoji = { stages:'🎭', chairs:'🪑', tables:'🍽️', fountains:'⛲', backdrops:'🖼️', lighting:'💡' };
 
     this.container.innerHTML = `
-      <div class="swapper-modal-overlay">
-        <div class="swapper-modal-card realistic-swapper-card">
-          <!-- Header -->
-          <div class="swapper-header">
-            <div>
-              <span class="swapper-badge">📍 ${this.activeZone ? this.activeZone.name : '360° Studio'}</span>
-              <h3>🎯 Interchange: ${this.activeSlot.label} (${availableItems.length} Options Available)</h3>
-              <p class="swapper-subtitle">Click any item below to swap ONLY this ${this.activeSlot.label.toLowerCase()} in the 360° view. All other venue setups remain untouched!</p>
+      <div class="ism-overlay" id="ismOverlay">
+        <div class="ism-panel" role="dialog" aria-modal="true" aria-label="Choose ${slot.label}">
+
+          <!-- HEADER -->
+          <div class="ism-header">
+            <div class="ism-header-meta">
+              <span class="ism-zone-tag">📍 ${this.activeZone?.name || 'Venue'}</span>
+              <h2 class="ism-title">${emoji[slot.category] || '📦'} ${slot.label}</h2>
+              <p class="ism-subtitle">Choose a replacement · ${items.length} options available</p>
             </div>
-            <button class="btn-close-modal" id="closeSwapperBtn">&times;</button>
+            <button class="ism-close" id="ismClose" aria-label="Close">✕</button>
           </div>
 
-          <!-- Current Active Setup Banner -->
-          <div class="current-item-banner photo-current-banner">
-            <img src="${currentItem ? currentItem.imageUrl : ''}" alt="${currentItem ? currentItem.name : ''}" class="current-item-thumb" />
-            <div class="current-item-info">
-              <span class="current-tag">👑 Currently Active in 360° View</span>
-              <strong>${currentItem ? currentItem.name : 'None'}</strong>
-              <p>${currentItem ? currentItem.description : ''}</p>
+          <!-- CURRENT SELECTION BANNER -->
+          <div class="ism-current">
+            <img class="ism-current-img" src="${curItem?.imageUrl || ''}" alt="${curItem?.name || ''}" />
+            <div class="ism-current-info">
+              <span class="ism-current-label">Currently Selected</span>
+              <strong class="ism-current-name">${curItem?.name || '—'}</strong>
+              <span class="ism-current-desc">${curItem?.description || ''}</span>
             </div>
-            <div class="current-price-box">
-              <span class="price-val">$${currentItem ? currentItem.price * this.activeSlot.quantity : 0}</span>
-              <small>Subtotal (${this.activeSlot.quantity}x)</small>
+            <div class="ism-current-price">
+              <span class="ism-price-unit">$${curItem?.price?.toLocaleString() || 0}/unit</span>
+              <span class="ism-price-total">$${curPrice.toLocaleString()} total</span>
+              <span class="ism-qty">${slot.quantity}× qty</span>
             </div>
           </div>
 
-          <!-- Custom Writing / Slogan Editor Field -->
-          ${isStageOrPodium ? `
-            <div class="custom-text-editor-box">
-              <label for="inputCustomText">✍️ Custom Slogan / Official Seal / Podium Writing:</label>
-              <div class="text-input-group">
-                <input type="text" id="inputCustomText" class="custom-text-input" placeholder="e.g. VISHAL JANSABHA 2026 / WELCOME GUESTS" value="${savedCustomText}" />
-                <button class="btn-apply-text" id="btnApplyCustomText">Apply Writing</button>
-              </div>
-              <div class="text-presets">
-                <small>Quick Presets:</small>
-                <button class="preset-tag-btn" data-preset="VISHAL JANSABHA 2026">🗳️ Vishal Jansabha 2026</button>
-                <button class="preset-tag-btn" data-preset="ROYAL WEDDING SANGEET">🌺 Royal Wedding Sangeet</button>
-                <button class="preset-tag-btn" data-preset="GLOBAL TECH SUMMIT">💼 Global Tech Summit</button>
-              </div>
-            </div>
-          ` : ''}
-
-          <!-- Available Options Grid -->
-          <div class="swapper-options-grid photo-options-grid">
-            ${availableItems.map(item => {
-              const isSelected = item.id === currentItemId;
-              const priceTotal = item.price * this.activeSlot.quantity;
-              const currentTotal = currentItem ? currentItem.price * this.activeSlot.quantity : 0;
-              const diff = priceTotal - currentTotal;
-              const diffText = diff > 0 ? `+$${diff}` : (diff < 0 ? `-$${Math.abs(diff)}` : 'Same Price');
+          <!-- OPTIONS GRID -->
+          <div class="ism-options-label">All Available Options</div>
+          <div class="ism-grid" id="ismGrid">
+            ${items.map(item => {
+              const isCurrent = item.id === curId;
+              const total     = item.price * slot.quantity;
+              const diff      = total - curPrice;
+              const diffHtml  = diff !== 0
+                ? `<span class="ism-diff ${diff > 0 ? 'pos' : 'neg'}">${diff > 0 ? '+' : ''}$${Math.abs(diff).toLocaleString()}</span>`
+                : `<span class="ism-diff same">Same price</span>`;
 
               return `
-                <div class="swapper-option-card photo-option-card ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
-                  <div class="option-photo-wrap">
-                    <img src="${item.imageUrl}" alt="${item.name}" class="option-img" />
-                    <span class="option-price-tag">$${item.price} <small>/ unit</small></span>
-                    ${isSelected ? `<span class="badge-active-tag">✓ Active</span>` : ''}
-                  </div>
-
-                  <div class="option-details">
-                    <div class="option-header">
-                      <span class="option-title">${item.name}</span>
-                    </div>
-                    <p class="option-desc">${item.description}</p>
-                    <div class="option-footer">
-                      <span class="price-diff ${diff > 0 ? 'higher' : (diff < 0 ? 'lower' : '')}">${diffText}</span>
-                      <button class="btn-select-swap ${isSelected ? 'active' : ''}" data-item-id="${item.id}">
-                        ${isSelected ? '✓ In 360 View' : '🔄 Interchange Item'}
-                      </button>
+                <div class="ism-option${isCurrent ? ' ism-option-active' : ''}" data-item-id="${item.id}"
+                     tabindex="0" role="button" aria-pressed="${isCurrent}"
+                     title="${item.description || item.name}">
+                  ${isCurrent ? '<span class="ism-active-badge">✓ Current</span>' : ''}
+                  <img class="ism-option-img" src="${item.imageUrl || ''}" alt="${item.name}"
+                       onerror="this.style.background='#1a1a2e';this.style.display='flex'" />
+                  <div class="ism-option-body">
+                    <strong class="ism-option-name">${item.name}</strong>
+                    <p class="ism-option-desc">${item.description || ''}</p>
+                    <div class="ism-option-pricing">
+                      <span class="ism-option-price">$${total.toLocaleString()}</span>
+                      ${diffHtml}
                     </div>
                   </div>
-                </div>
-              `;
+                  <button class="ism-select-btn${isCurrent ? ' ism-select-btn-active' : ''}"
+                          data-item-id="${item.id}">
+                    ${isCurrent ? '✓ Selected' : 'Select'}
+                  </button>
+                </div>`;
             }).join('')}
+          </div>
+
+          <!-- CUSTOM TEXT (for stages/backdrops) -->
+          ${['stages','backdrops'].includes(slot.category) ? `
+          <div class="ism-custom-row">
+            <span class="ism-custom-label">✍️ Custom text overlay (banner / slogan)</span>
+            <input class="ism-custom-input" id="ismCustomText"
+                   placeholder='e.g. "Vikas Yatra 2025" or "Mr & Mrs Sharma"'
+                   value="${this.selections[`custom_text_${slot.id}`] || ''}" />
+          </div>` : ''}
+
+          <!-- FOOTER -->
+          <div class="ism-footer">
+            <button class="ism-btn-cancel" id="ismCancel">Cancel</button>
           </div>
         </div>
       </div>
     `;
 
-    this.bindEvents();
+    // Wire up close buttons
+    document.getElementById('ismClose')?.addEventListener('click',  () => this.close());
+    document.getElementById('ismCancel')?.addEventListener('click', () => this.close());
+    document.getElementById('ismOverlay')?.addEventListener('click', e => {
+      if (e.target.id === 'ismOverlay') this.close();
+    });
+
+    // Wire option cards + select buttons
+    this.container.querySelectorAll('.ism-option').forEach(card => {
+      const selectFn = () => {
+        const itemId = card.getAttribute('data-item-id');
+        const customInput = document.getElementById('ismCustomText');
+        this._select(itemId, customInput?.value?.trim() || undefined);
+      };
+      card.addEventListener('click', selectFn);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') selectFn(); });
+    });
+
+    this.container.querySelectorAll('.ism-select-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const itemId = btn.getAttribute('data-item-id');
+        const customInput = document.getElementById('ismCustomText');
+        this._select(itemId, customInput?.value?.trim() || undefined);
+      });
+    });
   }
 
-  bindEvents() {
-    const closeBtn = this.container.querySelector('#closeSwapperBtn');
-    if (closeBtn) closeBtn.addEventListener('click', () => this.close());
-
-    const backdrop = this.container.querySelector('.swapper-modal-overlay');
-    if (backdrop) {
-      backdrop.addEventListener('click', (e) => {
-        if (e.target === backdrop) this.close();
-      });
-    }
-
-    const inputCustomText = this.container.querySelector('#inputCustomText');
-    const applyTextBtn = this.container.querySelector('#btnApplyCustomText');
-
-    if (applyTextBtn && inputCustomText) {
-      applyTextBtn.addEventListener('click', () => {
-        const textVal = inputCustomText.value.trim();
-        const currentItemId = this.currentSelections[this.activeSlot.id] || this.activeSlot.defaultItemId;
-
-        if (this.onSwap && this.activeSlot) {
-          this.onSwap(this.activeSlot.id, currentItemId, this.activeSlot.quantity, textVal);
-          this.close();
-        }
-      });
-    }
-
-    const presetBtns = this.container.querySelectorAll('.preset-tag-btn');
-    presetBtns.forEach(pBtn => {
-      pBtn.addEventListener('click', () => {
-        const presetVal = pBtn.getAttribute('data-preset');
-        if (inputCustomText) inputCustomText.value = presetVal;
-      });
-    });
-
-    const optionCards = this.container.querySelectorAll('.swapper-option-card');
-    optionCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const itemId = card.getAttribute('data-item-id');
-        const textVal = inputCustomText ? inputCustomText.value.trim() : '';
-
-        if (itemId && this.onSwap && this.activeSlot) {
-          this.onSwap(this.activeSlot.id, itemId, this.activeSlot.quantity, textVal);
-          this.close();
-        }
-      });
-    });
+  _select(itemId, customText) {
+    const slot = this.activeSlot;
+    if (!slot) return;
+    this.close();
+    if (this.onSwap) this.onSwap(slot.id, itemId, slot.quantity, customText);
   }
 }

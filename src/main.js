@@ -612,6 +612,22 @@ class Event360App {
       case 'map':
         this.activateSection(this.mapContainer, this.tabMapView);
         break;
+
+      // FIXED: explicit studio360 case — just shows the container,
+      // does NOT reload the zone (preventing double renders)
+      case 'studio360': {
+        this.activateSection(this.studioContainer, this.tab360View);
+        // Only load zone if we don't already have one loaded
+        if (!this.viewer360.currentZone || this.viewer360.currentZone.id !== this.currentZoneId) {
+          this.openStudio360(this.currentZoneId);
+        } else {
+          // Just re-render the inventory drawer to keep it in sync
+          const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
+          if (zone) this.renderInventoryDrawer(zone);
+        }
+        break;
+      }
+
       case 'india':
         if (this.indiaSubBar) this.indiaSubBar.classList.remove('hidden');
         if (this.tabIndiaView) this.tabIndiaView.classList.add('active');
@@ -751,31 +767,50 @@ class Event360App {
   }
 
   handleObjectSwap(slotId, newItemId, quantity, customText) {
+    // 1. Update state
     this.activeSelections[slotId] = newItemId;
     if (customText !== undefined) {
       this.activeSelections[`custom_text_${slotId}`] = customText;
-      if (this.threeDLiveSpaceEditor && this.threeDLiveSpaceEditor.updateSloganText) {
-        this.threeDLiveSpaceEditor.updateSloganText(customText);
-      }
     }
 
     const item = getItemById(newItemId);
-    if (item && item.panoramaUrl) {
-      this.activeSelections['theme_panorama'] = item.panoramaUrl;
+    const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
+    const slot = zone?.slots.find(s => s.id === slotId);
+
+    // 2. ONLY update 360° panorama for backdrops category (walls/photo walls).
+    //    Chairs, tables, fountains, stages, lighting do NOT change the background scene.
+    if (slot?.category === 'backdrops' && item?.panoramaUrl && this.viewer360?.updatePanorama) {
+      // Only reload panorama if it's actually a different image
+      const currentPanorama = this.viewer360._currentPanorama || zone?.panoramaUrl;
+      if (item.panoramaUrl !== currentPanorama) {
+        this.viewer360.updatePanorama(item.panoramaUrl);
+      }
     }
 
-    const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId) || VENUE_ZONES[0];
-    if (zone && this.viewer360) {
-      this.viewer360.loadZone(zone, this.activeSelections);
+    // 3. Update the hotspot card on the 360° panorama (just DOM swap, no reload)
+    if (this.viewer360?.updateSlotDisplay) {
+      this.viewer360.updateSlotDisplay(slotId, newItemId, customText);
     }
 
+    // 4. Update 3D editor slogan text if applicable
+    if (customText !== undefined && this.threeDLiveSpaceEditor?.updateSloganText) {
+      this.threeDLiveSpaceEditor.updateSloganText(customText);
+    }
+
+    // 5. Re-render the inventory drawer to show new item name
+    if (zone) this.renderInventoryDrawer(zone);
+
+    // 6. Sync all other UI panels (price card, analytics, map, etc.)
     this.updateAllComponents(this.activeSelections);
 
+    // 7. Feedback
     if (item) {
-      this.showToast(customText ? `Updated ${item.name} with "${customText}"!` : `Updated to ${item.name}!`);
-      confetti({ particleCount: 45, spread: 70, origin: { y: 0.75 } });
+      const label = customText ? `${item.name} — "${customText}"` : item.name;
+      this.showToast(`✅ Updated to ${label}`);
+      confetti({ particleCount: 55, spread: 75, origin: { y: 0.75 }, colors: ['#f59e0b', '#a855f7', '#06b6d4'] });
     }
   }
+
 
   updateAllComponents(newSelections) {
     this.activeSelections = newSelections;
@@ -834,7 +869,7 @@ class Event360App {
         presetMap = {
           'theme_panorama': '/images/zone_stage_360.jpg',
           'slot-stage-main': 'stage-royal-mandap',
-          'slot-stage-backdrop': 'backdrop-flower-marigold',
+          'slot-stage-backdrop': 'backdrop-marigold-garland',   // FIXED: was backdrop-flower-marigold
           'slot-stage-seating': 'chair-chiavari-gold',
           'slot-banquet-table': 'table-round-standard',
           'slot-banquet-chairs': 'chair-chiavari-gold',
@@ -848,7 +883,7 @@ class Event360App {
           'slot-stage-main': 'stage-led-arch',
           'slot-stage-backdrop': 'backdrop-shimmer-sequin',
           'slot-stage-seating': 'chair-ghost',
-          'slot-banquet-table': 'table-cocktail-high',
+          'slot-banquet-table': 'table-cocktail',               // FIXED: was table-cocktail-high
           'slot-banquet-chairs': 'chair-ghost',
           'slot-fountain-center': 'fountain-dancing-jets'
         };
@@ -856,9 +891,9 @@ class Event360App {
       case 'garden':
         presetMap = {
           'theme_panorama': '/images/zone_lounge_360.jpg',
-          'slot-stage-main': 'stage-wooden-rustic',
+          'slot-stage-main': 'stage-wooden-riser',              // FIXED: was stage-wooden-rustic
           'slot-stage-backdrop': 'backdrop-hedge-wall',
-          'slot-stage-seating': 'chair-folding-white',
+          'slot-stage-seating': 'chair-folding',                // FIXED: was chair-folding-white
           'slot-banquet-table': 'table-rustic-wood',
           'slot-fountain-center': 'fountain-tiered-stone',
           'slot-entrance-arch': 'backdrop-floral-wall'

@@ -56,7 +56,7 @@ export const ITEM_CATALOG = {
       price: 250,
       category: 'chairs',
       description: 'Hand-carved teakwood wedding throne with gold foil and red velvet cushions.',
-      imageUrl: '/images/india_function_360.jpg',
+      imageUrl: '/images/chair_maharaja_throne.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#dc2626'
     },
@@ -66,7 +66,7 @@ export const ITEM_CATALOG = {
       price: 120,
       category: 'chairs',
       description: 'Low-floor royal gaddi seating with brocade bolsters and floor cushions.',
-      imageUrl: '/images/india_function_360.jpg',
+      imageUrl: '/images/chair_gaddi_baithak.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#b91c1c'
     },
@@ -76,7 +76,7 @@ export const ITEM_CATALOG = {
       price: 65,
       category: 'chairs',
       description: 'Heavy-duty VVIP high-back stage chair for political dignitaries & guest speakers.',
-      imageUrl: '/images/india_election_360.jpg',
+      imageUrl: '/images/chair_vvip_executive.jpg',
       panoramaUrl: '/images/india_election_360.jpg',
       color: '#1e293b'
     }
@@ -89,7 +89,7 @@ export const ITEM_CATALOG = {
       price: 40,
       category: 'tables',
       description: '60-inch round banquet dining table with white floor-length linen.',
-      imageUrl: '/images/zone_banquet_360.jpg',
+      imageUrl: '/images/table_round_standard.jpg',
       panoramaUrl: '/images/zone_banquet_360.jpg',
       color: '#f8fafc'
     },
@@ -99,7 +99,7 @@ export const ITEM_CATALOG = {
       price: 120,
       category: 'tables',
       description: '8-foot handcrafted solid oak harvest table with matte protective finish.',
-      imageUrl: '/images/zone_fountain_360.jpg',
+      imageUrl: '/images/table_rustic_wood.jpg',
       panoramaUrl: '/images/zone_fountain_360.jpg',
       color: '#78350f'
     },
@@ -109,7 +109,7 @@ export const ITEM_CATALOG = {
       price: 250,
       category: 'tables',
       description: 'Tempered glass table with programmable RGB ambient under-lighting.',
-      imageUrl: '/images/zone_lounge_360.jpg',
+      imageUrl: '/images/table_led_glass.jpg',
       panoramaUrl: '/images/zone_lounge_360.jpg',
       color: '#06b6d4'
     },
@@ -119,7 +119,7 @@ export const ITEM_CATALOG = {
       price: 85,
       category: 'tables',
       description: 'Carrara white marble top cocktail table with brushed brass pedestal base.',
-      imageUrl: '/images/zone_fountain_360.jpg',
+      imageUrl: '/images/table_cocktail.jpg',
       panoramaUrl: '/images/zone_fountain_360.jpg',
       color: '#cbd5e1'
     },
@@ -129,7 +129,7 @@ export const ITEM_CATALOG = {
       price: 450,
       category: 'tables',
       description: 'Handcrafted antique wooden swing setup with brass chains & fresh marigold garlands.',
-      imageUrl: '/images/india_function_360.jpg',
+      imageUrl: '/images/table_antique_jhula.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#d97706'
     },
@@ -139,7 +139,7 @@ export const ITEM_CATALOG = {
       price: 850,
       category: 'tables',
       description: 'Curved wood veneer conference table with integrated mic units and digital monitors.',
-      imageUrl: '/images/india_meeting_360.jpg',
+      imageUrl: '/images/table_summit_desk.jpg',
       panoramaUrl: '/images/india_meeting_360.jpg',
       color: '#334155'
     }
@@ -162,7 +162,7 @@ export const ITEM_CATALOG = {
       price: 950,
       category: 'fountains',
       description: '8ft architectural tempered glass water wall with underwater LED illumination.',
-      imageUrl: '/images/zone_entrance_360.jpg',
+      imageUrl: '/images/zone_fountain_360.jpg',
       panoramaUrl: '/images/zone_entrance_360.jpg',
       color: '#0284c7'
     },
@@ -192,7 +192,7 @@ export const ITEM_CATALOG = {
       price: 600,
       category: 'fountains',
       description: 'Heavy-duty 360-degree horn loudspeaker towers for election crowd sound projection.',
-      imageUrl: '/images/india_election_360.jpg',
+      imageUrl: '/images/lighting_rally_highmast.jpg',
       panoramaUrl: '/images/india_election_360.jpg',
       color: '#f59e0b'
     },
@@ -202,7 +202,7 @@ export const ITEM_CATALOG = {
       price: 450,
       category: 'fountains',
       description: 'Multi-tiered floating lotus Urli with oil diyas and floating rose petals.',
-      imageUrl: '/images/india_function_360.jpg',
+      imageUrl: '/images/lighting_temple_lanterns.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#eab308'
     }
@@ -215,7 +215,7 @@ export const ITEM_CATALOG = {
       price: 350,
       category: 'stages',
       description: '16x12ft carpeted wooden stage platform with skirt for presentations.',
-      imageUrl: '/images/zone_stage_360.jpg',
+      imageUrl: '/images/stage_wooden_riser.jpg',
       panoramaUrl: '/images/zone_stage_360.jpg',
       color: '#475569'
     },
@@ -225,7 +225,7 @@ export const ITEM_CATALOG = {
       price: 1850,
       category: 'stages',
       description: 'Professional aluminum truss stage with curved LED video arch and spotlights.',
-      imageUrl: '/images/zone_stage_360.jpg',
+      imageUrl: '/images/stage_led_arch.jpg',
       panoramaUrl: '/images/zone_stage_360.jpg',
       color: '#3b82f6'
     },
@@ -235,7 +235,7 @@ export const ITEM_CATALOG = {
       price: 2400,
       category: 'stages',
       description: 'Elevated stage pavilion with velvet drapes, gold pillars, and crystal backdrop.',
-      imageUrl: '/images/zone_stage_360.jpg',
+      imageUrl: '/images/stage_royal_pavilion.jpg',
       panoramaUrl: '/images/zone_stage_360.jpg',
       color: '#800020'
     },
@@ -245,7 +245,7 @@ export const ITEM_CATALOG = {
       price: 2800,
       category: 'stages',
       description: 'Elevated political rally stage with bulletproof glass podium and official seals.',
-      imageUrl: '/images/india_election_360.jpg',
+      imageUrl: '/images/stage_bulletproof_podium.jpg',
       panoramaUrl: '/images/india_election_360.jpg',
       color: '#f97316'
     },
@@ -255,7 +255,7 @@ export const ITEM_CATALOG = {
       price: 3500,
       category: 'stages',
       description: 'Four-pillar carved wooden mandap stage with Haveli archways and sacred havan kund.',
-      imageUrl: '/images/india_function_360.jpg',
+      imageUrl: '/images/stage_royal_mandap.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#dc2626'
     },
@@ -265,7 +265,7 @@ export const ITEM_CATALOG = {
       price: 1200,
       category: 'stages',
       description: 'High-tech digital podium with 24-inch HD teleprompter screen and goose-neck mic array.',
-      imageUrl: '/images/india_meeting_360.jpg',
+      imageUrl: '/images/stage_digital_podium.jpg',
       panoramaUrl: '/images/india_meeting_360.jpg',
       color: '#2563eb'
     }
@@ -278,7 +278,7 @@ export const ITEM_CATALOG = {
       price: 550,
       category: 'backdrops',
       description: '8x10ft dense silk rose and hydrangea flower wall photo backdrop.',
-      imageUrl: '/images/zone_entrance_360.jpg',
+      imageUrl: '/images/backdrop_floral_wall.jpg',
       panoramaUrl: '/images/zone_entrance_360.jpg',
       color: '#f43f5e'
     },
@@ -288,7 +288,7 @@ export const ITEM_CATALOG = {
       price: 380,
       category: 'backdrops',
       description: 'Lush living greenery boxwood hedge backdrop with neon marquee sign.',
-      imageUrl: '/images/zone_hedge_wall_360.jpg',
+      imageUrl: '/images/backdrop_hedge_wall.jpg',
       panoramaUrl: '/images/zone_hedge_wall_360.jpg',
       color: '#16a34a'
     },
@@ -298,7 +298,7 @@ export const ITEM_CATALOG = {
       price: 420,
       category: 'backdrops',
       description: 'Interactive gold shimmer sequin wall that reflects ambient stage lights.',
-      imageUrl: '/images/zone_shimmer_wall_360.jpg',
+      imageUrl: '/images/backdrop_shimmer_sequin.jpg',
       panoramaUrl: '/images/zone_shimmer_wall_360.jpg',
       color: '#f59e0b'
     },
@@ -308,7 +308,7 @@ export const ITEM_CATALOG = {
       price: 650,
       category: 'backdrops',
       description: 'Traditional fresh marigold and jasmine flower curtain with temple brass bells.',
-      imageUrl: '/images/zone_marigold_wall_360.jpg',
+      imageUrl: '/images/backdrop_marigold_garland.jpg',
       panoramaUrl: '/images/zone_marigold_wall_360.jpg',
       color: '#f59e0b'
     },
@@ -318,7 +318,7 @@ export const ITEM_CATALOG = {
       price: 750,
       category: 'backdrops',
       description: 'High-impact political rally marquee backdrop with party flags and slogan hoardings.',
-      imageUrl: '/images/india_election_360.jpg',
+      imageUrl: '/images/backdrop_election_flags.jpg',
       panoramaUrl: '/images/india_election_360.jpg',
       color: '#16a34a'
     },
@@ -328,7 +328,7 @@ export const ITEM_CATALOG = {
       price: 2500,
       category: 'backdrops',
       description: '40ft ultra-fine pitch LED video wall backdrop for live broadcasts and presentations.',
-      imageUrl: '/images/india_meeting_360.jpg',
+      imageUrl: '/images/backdrop_seamless_led.jpg',
       panoramaUrl: '/images/india_meeting_360.jpg',
       color: '#1e40af'
     }
@@ -341,7 +341,7 @@ export const ITEM_CATALOG = {
       price: 450,
       category: 'lighting',
       description: '1,000 warm-white micro LED string lights draped into a ceiling canopy.',
-      imageUrl: '/images/zone_fountain_360.jpg',
+      imageUrl: '/images/lighting_fairy_canopy.jpg',
       panoramaUrl: '/images/zone_fountain_360.jpg',
       color: '#fef08a'
     },
@@ -351,7 +351,7 @@ export const ITEM_CATALOG = {
       price: 280,
       category: 'lighting',
       description: '12 wireless DMX battery uplights to wash perimeter walls in custom colors.',
-      imageUrl: '/images/zone_lounge_360.jpg',
+      imageUrl: '/images/lighting_rgb_uplighting.jpg',
       panoramaUrl: '/images/zone_lounge_360.jpg',
       color: '#a855f7'
     },
@@ -361,7 +361,7 @@ export const ITEM_CATALOG = {
       price: 850,
       category: 'lighting',
       description: 'Trio of grand Swarovski crystal chandeliers on dimmable brass rigging.',
-      imageUrl: '/images/zone_banquet_360.jpg',
+      imageUrl: '/images/lighting_chandeliers.jpg',
       panoramaUrl: '/images/zone_banquet_360.jpg',
       color: '#fafafa'
     },
@@ -371,7 +371,7 @@ export const ITEM_CATALOG = {
       price: 950,
       category: 'lighting',
       description: 'Professional high-mast LED floodlights for illuminating night election rallies.',
-      imageUrl: '/images/india_election_360.jpg',
+      imageUrl: '/images/lighting_rally_highmast.jpg',
       panoramaUrl: '/images/india_election_360.jpg',
       color: '#e2e8f0'
     },
@@ -381,7 +381,7 @@ export const ITEM_CATALOG = {
       price: 700,
       category: 'lighting',
       description: 'Handcrafted antique brass hanging lanterns with warm amber candle glow.',
-      imageUrl: '/images/india_function_360.jpg',
+      imageUrl: '/images/lighting_temple_lanterns.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#d97706'
     }
