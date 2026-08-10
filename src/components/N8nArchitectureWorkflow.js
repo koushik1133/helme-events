@@ -9,7 +9,7 @@
 export class N8nArchitectureWorkflow {
   constructor(containerElement) {
     this.container = containerElement;
-    this.activeTab = 'flow'; // 'flow' | 'simulator' | 'n8n-nodes' | 'roi'
+    this.activeTab = 'advantages'; // 'advantages' | 'flow' | 'simulator' | 'n8n-nodes' | 'roi'
     this.simRunning = false;
     this.simStep = 0;
     this.simTimer = null;
@@ -70,6 +70,9 @@ export class N8nArchitectureWorkflow {
 
         <!-- Segmented Tab Navigation -->
         <nav class="n8n-tabs-nav">
+          <button class="n8n-tab-btn ${this.activeTab === 'advantages' ? 'active' : ''}" data-tab="advantages">
+            <span>🌟 15+ Core System Advantages</span>
+          </button>
           <button class="n8n-tab-btn ${this.activeTab === 'flow' ? 'active' : ''}" data-tab="flow">
             <span>🔄 Operation Flow (Type 1 & 2)</span>
           </button>
@@ -96,6 +99,8 @@ export class N8nArchitectureWorkflow {
 
   renderTabContent() {
     switch (this.activeTab) {
+      case 'advantages':
+        return this.renderAdvantagesTab();
       case 'flow':
         return this.renderFlowTab();
       case 'simulator':
@@ -105,8 +110,90 @@ export class N8nArchitectureWorkflow {
       case 'roi':
         return this.renderRoiTab();
       default:
-        return this.renderFlowTab();
+        return this.renderAdvantagesTab();
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TAB 0: 15+ Core System Advantages & Benefits Breakdown
+  // ─────────────────────────────────────────────────────────────────────────
+  renderAdvantagesTab() {
+    return `
+      <div class="advantages-tab-container">
+        <div class="adv-hero-card">
+          <div class="adv-hero-badge">🌟 DEEP RESEARCH & ARCHITECTURAL BENEFITS</div>
+          <h3>15+ Comprehensive System Advantages of Helme n8n AI Operations</h3>
+          <p>Complete breakdown of cost savings, elimination of middleman overhead, zero task overlapping, real-time GPS visual maps, and AI-driven anti-bluffing verification.</p>
+        </div>
+
+        <div class="advantages-grid">
+          <!-- PILLAR 1: COST & MIDDLEMEN -->
+          <div class="adv-card gold-border">
+            <div class="adv-card-header">
+              <span class="adv-icon">💰</span>
+              <h4>1. Work-Based Fair Payouts & 80% Budget Allocation</h4>
+            </div>
+            <ul class="adv-list">
+              <li><strong>Direct Work-Based Payout:</strong> Workers are paid strictly according to verified work completed. The AI System calculates and suggests fair post-event payment logs based on verified photo timestamps.</li>
+              <li><strong>Eliminates 100 to 250 Middlemen:</strong> Replaces up to 250 unnecessary middleman supervisors ($200k manager + $75k supervisor fees).</li>
+              <li><strong>80% Direct Ground Payout:</strong> 80% of total budget goes straight to actual ground workers doing the work, while communication costs drop to ~2k Meta API fees.</li>
+            </ul>
+          </div>
+
+          <!-- PILLAR 2: REAL-TIME GPS & MAP VISUALS -->
+          <div class="adv-card emerald-border">
+            <div class="adv-card-header">
+              <span class="adv-icon">🗺️</span>
+              <h4>2. Live GPS Map Tracking & Zero Overlapping</h4>
+            </div>
+            <ul class="adv-list">
+              <li><strong>Live Colored Dots on Maps:</strong> Visual venue map tracks worker availability in real time (<span class="dot green">●</span> Free / Available, <span class="dot red">●</span> Busy / On Task, <span class="dot yellow">●</span> En Route).</li>
+              <li><strong>Zero Task Overlapping:</strong> Auto-cancellation of backup calls prevents multiple workers from blindly rushing to fix the exact same issue at the same time.</li>
+              <li><strong>Crowd Scale Ready (10,000+ Attendees):</strong> Organizes ground operations seamlessly for massive public rallies and political events with zero confusion.</li>
+            </ul>
+          </div>
+
+          <!-- PILLAR 3: RESPONSE SPEED & ZERO HALLUCINATION -->
+          <div class="adv-card blue-border">
+            <div class="adv-card-header">
+              <span class="adv-icon">⚡</span>
+              <h4>3. 5-Second Response & Zero Hallucination</h4>
+            </div>
+            <ul class="adv-list">
+              <li><strong>5-Second Ultra-Fast Response:</strong> Reduces emergency resolution time from 20+ minutes down to 5 seconds.</li>
+              <li><strong>Zero Hallucination / False Assumptions:</strong> Eliminates supervisors assuming <em>"someone else must have gone to fix it"</em> — system maintains 100% telemetry status.</li>
+              <li><strong>Staggered 10s Call Cascade:</strong> Top 3 closest workers called in parallel with 10s buffers; auto-escalates to P4-P6 if P1-P3 reject (~1m 20s max).</li>
+            </ul>
+          </div>
+
+          <!-- PILLAR 4: NAVIGATION & ZERO APP INSTALLATION -->
+          <div class="adv-card purple-border">
+            <div class="adv-card-header">
+              <span class="adv-icon">📍</span>
+              <h4>4. Turn-by-Turn Navigation & WhatsApp Native</h4>
+            </div>
+            <ul class="adv-list">
+              <li><strong>Turn-by-Turn Route Guidance:</strong> Sends Google Maps route pins directly to WhatsApp, removing directional confusion on massive grounds.</li>
+              <li><strong>Zero App Downloads Required:</strong> Operates 100% on WhatsApp & phone calls, which every worker already uses daily.</li>
+              <li><strong>Hands-Free Voice & Siri Command:</strong> Stage Manager speaks naturally (<em>"Hey Siri..."</em>); Voice Agent parses domain, priority, and location in seconds.</li>
+            </ul>
+          </div>
+
+          <!-- PILLAR 5: ANTI-BLUFFING & AUTOMATED REMINDERS -->
+          <div class="adv-card rose-border">
+            <div class="adv-card-header">
+              <span class="adv-icon">📸</span>
+              <h4>5. Anti-Bluffing Vision AI & Automated Reminders</h4>
+            </div>
+            <ul class="adv-list">
+              <li><strong>Anti-Bluffing Photo AI Verification:</strong> Requires photo upload via WhatsApp upon completion. AI Vision inspects proof before marking job done & approving payment.</li>
+              <li><strong>Automated 20-Min Follow-Ups:</strong> System automatically sends text reminders every 20 minutes for ongoing tasks to prevent forgotten jobs.</li>
+              <li><strong>Social Media & Marketing Agent:</strong> Integrated social media AI agent manages live audience engagement while crew ops run in parallel.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   // ─────────────────────────────────────────────────────────────────────────

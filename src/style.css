@@ -5966,4 +5966,122 @@ body {
   pointer-events: none;
 }
 
+/* 15+ Core System Advantages Tab Styling */
+.advantages-tab-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.adv-hero-card {
+  background: var(--bg-surface, rgba(22, 27, 34, 0.85));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  padding: 1.75rem 2rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.adv-hero-badge {
+  display: inline-block;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #d97706;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-bottom: 0.75rem;
+}
+
+.adv-hero-card h3 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+  color: var(--text-main, #ffffff);
+}
+
+.adv-hero-card p {
+  font-size: 0.95rem;
+  color: var(--text-muted, #94a3b8);
+  margin: 0;
+  max-width: 900px;
+  line-height: 1.5;
+}
+
+.advantages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.adv-card {
+  background: var(--bg-surface, rgba(22, 27, 34, 0.85));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.25s ease;
+}
+
+.adv-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.adv-card.gold-border { border-top: 4px solid #f59e0b; }
+.adv-card.emerald-border { border-top: 4px solid #10b981; }
+.adv-card.blue-border { border-top: 4px solid #3b82f6; }
+.adv-card.purple-border { border-top: 4px solid #a855f7; }
+.adv-card.rose-border { border-top: 4px solid #f43f5e; }
+
+.adv-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adv-icon {
+  font-size: 1.6rem;
+}
+
+.adv-card-header h4 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text-main, #ffffff);
+}
+
+.adv-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-muted, #94a3b8);
+}
+
+.adv-list li {
+  position: relative;
+  padding-left: 18px;
+}
+
+.adv-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #10b981;
+  font-weight: 900;
+}
+
+.adv-list li strong {
+  color: var(--text-main, #ffffff);
+}
+
 
