@@ -1,7 +1,7 @@
 {
   "state": {
     "activeSelections": {
-      "slot-stage-main": "stage-led-arch",
+      "slot-stage-main": "stage-royal-pavilion",
       "slot-table-banquet": "table-round-standard",
       "slot-chair-banquet": "chair-chiavari-gold",
       "slot-backdrop-photo": "backdrop-marigold-garland",
@@ -10,7 +10,7 @@
       "slot-sofa-lounge": "sofa-royal-maharani",
       "slot-podium-main": "stage-digital-podium",
       "slot-entrance-arch": "backdrop-floral-wall",
-      "slot-stage-backdrop": "backdrop-shimmer-sequin",
+      "slot-stage-backdrop": "backdrop-marigold-garland",
       "slot-stage-seating": "chair-chiavari-gold",
       "slot-banquet-table": "table-round-standard",
       "slot-banquet-chairs": "chair-chiavari-gold",
@@ -23,21 +23,762 @@
       "slot-entrance-water": "fountain-glass-waterfall",
       "slot-entrance-seating": "chair-ghost",
       "slot-election-podium": "stage-bulletproof-podium",
-      "slot-election-hoarding": "backdrop-hedge-wall",
+      "slot-election-hoarding": "backdrop-shimmer-sequin",
       "slot-election-audio": "fountain-horn-speakers",
-      "slot-election-seating": "chair-chiavari-gold",
+      "slot-election-seating": "chair-vvip-executive",
       "slot-function-mandap": "stage-royal-mandap",
       "slot-function-marigold": "backdrop-marigold-garland",
       "slot-function-throne": "chair-maharaja-throne",
       "slot-function-jhula": "table-antique-jhula",
       "slot-meeting-podium": "stage-digital-podium",
-      "slot-meeting-screen": "backdrop-seamless-led",
-      "slot-meeting-desk": "table-summit-desk"
+      "slot-meeting-screen": "screen-layout-center",
+      "slot-meeting-desk": "table-summit-desk",
+      "slot-living-sofa": {
+        "itemId": "sofa-velvet-lounge",
+        "quantity": 1
+      },
+      "slot-living-table": {
+        "itemId": "table-rustic-wood",
+        "quantity": 1
+      },
+      "slot-living-lighting": {
+        "itemId": "lighting-rgb-uplighting",
+        "quantity": 1
+      },
+      "slot-bedroom-sofa": {
+        "itemId": "chair-vvip-executive",
+        "quantity": 2
+      },
+      "slot-bedroom-throne": {
+        "itemId": "chair-gaddi-baithak",
+        "quantity": 1
+      },
+      "slot-bedroom-lighting": {
+        "itemId": "lighting-rgb-uplighting",
+        "quantity": 1
+      },
+      "slot-kitchen-barstools": {
+        "itemId": "chair-ghost",
+        "quantity": 4
+      },
+      "slot-kitchen-table": {
+        "itemId": "table-rustic-wood",
+        "quantity": 1
+      },
+      "slot-kitchen-lighting": {
+        "itemId": "lighting-rgb-uplighting",
+        "quantity": 1
+      },
+      "theme_panorama": "/images/zone_stage_360.jpg",
+      "custom_text_slot-election-podium": "VISHAL JANSABHA 2026",
+      "custom_text_slot-meeting-podium": "GLOBAL TECH SUMMIT"
     },
-    "currentZoneId": "zone-india-election",
-    "lastUpdated": "2026-08-05T15:41:42.926Z"
+    "currentZoneId": "zone-india-function",
+    "lastUpdated": "2026-08-10T17:42:35.436Z"
   },
   "swapHistory": [
+    {
+      "id": "swap_1786383689487",
+      "slotId": "slot-election-hoarding",
+      "itemId": "backdrop-shimmer-sequin",
+      "itemTitle": "Shimmer Sequined Gold Photo Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T17:41:29.487Z"
+    },
+    {
+      "id": "swap_1786383686021",
+      "slotId": "slot-election-hoarding",
+      "itemId": "backdrop-floral-wall",
+      "itemTitle": "Rose & Hydrangea Floral Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T17:41:26.021Z"
+    },
+    {
+      "id": "swap_1786383682472",
+      "slotId": "slot-election-hoarding",
+      "itemId": "backdrop-seamless-led",
+      "itemTitle": "Curved 4K Seamless Video Screen Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T17:41:22.472Z"
+    },
+    {
+      "id": "swap_1786383678773",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-bulletproof-podium",
+      "itemTitle": "Grand Rally Stage & Bulletproof Glass Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T17:41:18.773Z"
+    },
+    {
+      "id": "swap_1786383676187",
+      "slotId": "slot-election-podium",
+      "itemId": "podium-acrylic-modern",
+      "itemTitle": "Sleek Clear Acrylic VIP Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T17:41:16.187Z"
+    },
+    {
+      "id": "swap_1786383672786",
+      "slotId": "slot-election-podium",
+      "itemId": "podium-wooden-presidential",
+      "itemTitle": "Carved Mahogany Presidential Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T17:41:12.786Z"
+    },
+    {
+      "id": "swap_1786383669105",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-digital-podium",
+      "itemTitle": "Acrylic LED Digital Summit Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T17:41:09.105Z"
+    },
+    {
+      "id": "swap_1786383663213",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-wooden-riser",
+      "itemTitle": "Modular Wooden Riser Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T17:41:03.213Z"
+    },
+    {
+      "id": "swap_1786383659306",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-led-arch",
+      "itemTitle": "Concert LED Arch Truss Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T17:40:59.306Z"
+    },
+    {
+      "id": "swap_1786383655207",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-royal-pavilion",
+      "itemTitle": "Royal Velvet Pavilion Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T17:40:55.207Z"
+    },
+    {
+      "id": "swap_1786375007605",
+      "slotId": "slot-election-podium",
+      "itemId": "podium-acrylic-modern",
+      "itemTitle": "Sleek Clear Acrylic VIP Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T15:16:47.605Z"
+    },
+    {
+      "id": "swap_1786374997138",
+      "slotId": "slot-election-podium",
+      "itemId": "podium-wooden-presidential",
+      "itemTitle": "Carved Mahogany Presidential Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T15:16:37.138Z"
+    },
+    {
+      "id": "swap_1786374994388",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-digital-podium",
+      "itemTitle": "Acrylic LED Digital Summit Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T15:16:34.388Z"
+    },
+    {
+      "id": "swap_1786374665441",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-wooden-riser",
+      "itemTitle": "Modular Wooden Riser Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T15:11:05.441Z"
+    },
+    {
+      "id": "swap_1786374662033",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-led-arch",
+      "itemTitle": "Concert LED Arch Truss Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T15:11:02.033Z"
+    },
+    {
+      "id": "swap_1786374659969",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-royal-pavilion",
+      "itemTitle": "Royal Velvet Pavilion Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T15:10:59.969Z"
+    },
+    {
+      "id": "swap_1786374657117",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-gaddi-baithak",
+      "itemTitle": "Traditional Velvet Gaddi Baithak",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T15:10:57.117Z"
+    },
+    {
+      "id": "swap_1786374641901",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-brass-lotus",
+      "itemTitle": "Brass Lotus Urli Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T15:10:41.901Z"
+    },
+    {
+      "id": "swap_1786374638295",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-steel-sphere",
+      "itemTitle": "Stainless Steel Sphere Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T15:10:38.295Z"
+    },
+    {
+      "id": "swap_1786374632087",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-black-granite",
+      "itemTitle": "Black Granite Cube Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T15:10:32.087Z"
+    },
+    {
+      "id": "swap_1786374628551",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-dancing-jets",
+      "itemTitle": "LED Dancing Water Jet Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T15:10:28.551Z"
+    },
+    {
+      "id": "swap_1786374624770",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-glass-waterfall",
+      "itemTitle": "Modern Glass Waterfall Wall",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T15:10:24.770Z"
+    },
+    {
+      "id": "swap_1786374621454",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-tiered-stone",
+      "itemTitle": "Classic Tiered Stone Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T15:10:21.454Z"
+    },
+    {
+      "id": "swap_1786368657030",
+      "slotId": "slot-meeting-desk",
+      "itemId": "table-rustic-wood",
+      "itemTitle": "Rustic Solid Oak Farmhouse Table",
+      "category": "tables",
+      "zoneId": "zone-india-meeting",
+      "timestamp": "2026-08-10T13:30:57.030Z"
+    },
+    {
+      "id": "swap_1786368654639",
+      "slotId": "slot-meeting-desk",
+      "itemId": "table-summit-desk",
+      "itemTitle": "Curved International Summit Desk",
+      "category": "tables",
+      "zoneId": "zone-india-meeting",
+      "timestamp": "2026-08-10T13:30:54.639Z"
+    },
+    {
+      "id": "swap_1786368652571",
+      "slotId": "slot-meeting-desk",
+      "itemId": "table-led-glass",
+      "itemTitle": "Glass LED Illuminated Cocktail Table",
+      "category": "tables",
+      "zoneId": "zone-india-meeting",
+      "timestamp": "2026-08-10T13:30:52.571Z"
+    },
+    {
+      "id": "swap_1786368641610",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-brass-lotus",
+      "itemTitle": "Brass Lotus Urli Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:30:41.610Z"
+    },
+    {
+      "id": "swap_1786368637840",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-steel-sphere",
+      "itemTitle": "Stainless Steel Sphere Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:30:37.840Z"
+    },
+    {
+      "id": "swap_1786368634622",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-black-granite",
+      "itemTitle": "Black Granite Cube Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:30:34.622Z"
+    },
+    {
+      "id": "swap_1786368632001",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-tiered-stone",
+      "itemTitle": "Classic Tiered Stone Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:30:32.001Z"
+    },
+    {
+      "id": "swap_1786367960916",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-dancing-jets",
+      "itemTitle": "LED Dancing Water Jet Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:19:20.916Z"
+    },
+    {
+      "id": "swap_1786367957284",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-glass-waterfall",
+      "itemTitle": "Modern Glass Waterfall Wall",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:19:17.284Z"
+    },
+    {
+      "id": "swap_1786367953884",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-tiered-stone",
+      "itemTitle": "Classic Tiered Stone Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:19:13.884Z"
+    },
+    {
+      "id": "swap_1786367655618",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-dancing-jets",
+      "itemTitle": "LED Dancing Water Jet Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:14:15.618Z"
+    },
+    {
+      "id": "swap_1786367650502",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-tiered-stone",
+      "itemTitle": "Classic Tiered Stone Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:14:10.502Z"
+    },
+    {
+      "id": "swap_1786367648121",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-royal-marble",
+      "itemTitle": "Royal Sculpted White Marble Fountain",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:14:08.121Z"
+    },
+    {
+      "id": "swap_1786367637552",
+      "slotId": "slot-fountain-center",
+      "itemId": "fountain-glass-waterfall",
+      "itemTitle": "Modern Glass Waterfall Wall",
+      "category": "fountains",
+      "zoneId": "zone-fountain",
+      "timestamp": "2026-08-10T13:13:57.552Z"
+    },
+    {
+      "id": "swap_1786367629184",
+      "slotId": "slot-function-marigold",
+      "itemId": "backdrop-shimmer-sequin",
+      "itemTitle": "Shimmer Sequined Gold Photo Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:49.184Z"
+    },
+    {
+      "id": "swap_1786367625186",
+      "slotId": "slot-function-marigold",
+      "itemId": "backdrop-floral-wall",
+      "itemTitle": "Rose & Hydrangea Floral Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:45.186Z"
+    },
+    {
+      "id": "swap_1786367618089",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-wooden-riser",
+      "itemTitle": "Modular Wooden Riser Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:38.089Z"
+    },
+    {
+      "id": "swap_1786367613652",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-led-arch",
+      "itemTitle": "Concert LED Arch Truss Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:33.652Z"
+    },
+    {
+      "id": "swap_1786367610872",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-royal-pavilion",
+      "itemTitle": "Royal Velvet Pavilion Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:30.872Z"
+    },
+    {
+      "id": "swap_1786367608284",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-vvip-executive",
+      "itemTitle": "Rally VVIP Cushioned Armchair",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:28.284Z"
+    },
+    {
+      "id": "swap_1786367605684",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-throne",
+      "itemTitle": "VIP Royal Mahogany Throne Chair",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:25.684Z"
+    },
+    {
+      "id": "swap_1786367603767",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-maharaja-throne",
+      "itemTitle": "Royal Maharaja Gold Throne Pair",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:23.767Z"
+    },
+    {
+      "id": "swap_1786367601454",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-gaddi-baithak",
+      "itemTitle": "Traditional Velvet Gaddi Baithak",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T13:13:21.454Z"
+    },
+    {
+      "id": "swap_1786367590154",
+      "slotId": "slot-entrance-arch",
+      "itemId": "backdrop-shimmer-sequin",
+      "itemTitle": "Shimmer Sequined Gold Photo Wall",
+      "category": "backdrops",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-10T13:13:10.154Z"
+    },
+    {
+      "id": "swap_1786367581968",
+      "slotId": "slot-entrance-arch",
+      "itemId": "backdrop-hedge-wall",
+      "itemTitle": "Greenery Boxwood Hedge Wall",
+      "category": "backdrops",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-10T13:13:01.968Z"
+    },
+    {
+      "id": "swap_1786366658796",
+      "slotId": "slot-election-podium",
+      "itemId": "podium-acrylic-modern",
+      "itemTitle": "Sleek Clear Acrylic VIP Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T12:57:38.796Z"
+    },
+    {
+      "id": "swap_1786366653712",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-bulletproof-podium",
+      "itemTitle": "Grand Rally Stage & Bulletproof Glass Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T12:57:33.712Z"
+    },
+    {
+      "id": "swap_1786366650445",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-digital-podium",
+      "itemTitle": "Acrylic LED Digital Summit Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T12:57:30.445Z"
+    },
+    {
+      "id": "swap_1786366642344",
+      "slotId": "slot-election-podium",
+      "itemId": "podium-wooden-presidential",
+      "itemTitle": "Carved Mahogany Presidential Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T12:57:22.344Z"
+    },
+    {
+      "id": "swap_1786366637562",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-digital-podium",
+      "itemTitle": "Acrylic LED Digital Summit Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T12:57:17.562Z"
+    },
+    {
+      "id": "swap_1786366597000",
+      "slotId": "slot-function-jhula",
+      "itemId": "table-summit-desk",
+      "itemTitle": "Curved International Summit Desk",
+      "category": "tables",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:56:37.000Z"
+    },
+    {
+      "id": "swap_1786366588694",
+      "slotId": "slot-function-marigold",
+      "itemId": "backdrop-hedge-wall",
+      "itemTitle": "Greenery Boxwood Hedge Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:56:28.694Z"
+    },
+    {
+      "id": "swap_1786366584840",
+      "slotId": "slot-function-marigold",
+      "itemId": "backdrop-shimmer-sequin",
+      "itemTitle": "Shimmer Sequined Gold Photo Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:56:24.840Z"
+    },
+    {
+      "id": "swap_1786366581667",
+      "slotId": "slot-function-marigold",
+      "itemId": "backdrop-floral-wall",
+      "itemTitle": "Rose & Hydrangea Floral Wall",
+      "category": "backdrops",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:56:21.667Z"
+    },
+    {
+      "id": "swap_1786366573779",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-gaddi-baithak",
+      "itemTitle": "Traditional Velvet Gaddi Baithak",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:56:13.779Z"
+    },
+    {
+      "id": "swap_1786366558095",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-wooden-riser",
+      "itemTitle": "Modular Wooden Riser Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:55:58.095Z"
+    },
+    {
+      "id": "swap_1786366554613",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-led-arch",
+      "itemTitle": "Concert LED Arch Truss Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:55:54.613Z"
+    },
+    {
+      "id": "swap_1786366552078",
+      "slotId": "slot-function-mandap",
+      "itemId": "stage-royal-pavilion",
+      "itemTitle": "Royal Velvet Pavilion Stage",
+      "category": "stages",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:55:52.078Z"
+    },
+    {
+      "id": "swap_1786366549328",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-throne",
+      "itemTitle": "VIP Royal Mahogany Throne Chair",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:55:49.328Z"
+    },
+    {
+      "id": "swap_1786366541896",
+      "slotId": "slot-function-throne",
+      "itemId": "chair-gaddi-baithak",
+      "itemTitle": "Traditional Velvet Gaddi Baithak",
+      "category": "chairs",
+      "zoneId": "zone-india-function",
+      "timestamp": "2026-08-10T12:55:41.896Z"
+    },
+    {
+      "id": "swap_1786366342779",
+      "slotId": "slot-banquet-chairs",
+      "itemId": "chair-velvet-armchair",
+      "itemTitle": "Luxury Emerald Velvet Armchair",
+      "category": "chairs",
+      "zoneId": "zone-banquet",
+      "timestamp": "2026-08-10T12:52:22.779Z"
+    },
+    {
+      "id": "swap_1786366340279",
+      "slotId": "slot-banquet-chairs",
+      "itemId": "chair-folding",
+      "itemTitle": "Standard Folding Chair",
+      "category": "chairs",
+      "zoneId": "zone-banquet",
+      "timestamp": "2026-08-10T12:52:20.279Z"
+    },
+    {
+      "id": "swap_1786366326730",
+      "slotId": "slot-meeting-desk",
+      "itemId": "table-led-glass",
+      "itemTitle": "Glass LED Illuminated Cocktail Table",
+      "category": "tables",
+      "zoneId": "zone-india-meeting",
+      "timestamp": "2026-08-10T12:52:06.730Z"
+    },
+    {
+      "id": "swap_1786366313363",
+      "slotId": "slot-election-seating",
+      "itemId": "chair-chiavari-gold",
+      "itemTitle": "Gold Chiavari Chair",
+      "category": "chairs",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T12:51:53.363Z"
+    },
+    {
+      "id": "swap_1786366302595",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-digital-podium",
+      "itemTitle": "Acrylic LED Digital Summit Podium",
+      "category": "podiums",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-10T12:51:42.595Z"
+    },
+    {
+      "id": "swap_1786366292562",
+      "slotId": "slot-entrance-arch",
+      "itemId": "backdrop-shimmer-sequin",
+      "itemTitle": "Shimmer Sequined Gold Photo Wall",
+      "category": "backdrops",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-10T12:51:32.562Z"
+    },
+    {
+      "id": "swap_1786366289430",
+      "slotId": "slot-entrance-arch",
+      "itemId": "backdrop-hedge-wall",
+      "itemTitle": "Greenery Boxwood Hedge Wall",
+      "category": "backdrops",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-10T12:51:29.430Z"
+    },
+    {
+      "id": "swap_1786366285182",
+      "slotId": "slot-entrance-water",
+      "itemId": "fountain-tiered-stone",
+      "itemTitle": "Classic Tiered Stone Fountain",
+      "category": "fountains",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-10T12:51:25.182Z"
+    },
+    {
+      "id": "swap_1785946179559",
+      "slotId": "slot-meeting-podium",
+      "itemId": "stage-royal-mandap",
+      "itemTitle": "Carved Pillar Royal Wedding Mandap Stage",
+      "category": "stages",
+      "zoneId": "zone-india-meeting",
+      "timestamp": "2026-08-05T16:09:39.559Z"
+    },
+    {
+      "id": "swap_1785946111941",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-royal-mandap",
+      "itemTitle": "Carved Pillar Royal Wedding Mandap Stage",
+      "category": "stages",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-05T16:08:31.941Z"
+    },
+    {
+      "id": "swap_1785946108407",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-led-arch",
+      "itemTitle": "Concert LED Arch Truss Stage",
+      "category": "stages",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-05T16:08:28.407Z"
+    },
+    {
+      "id": "swap_1785946106174",
+      "slotId": "slot-election-podium",
+      "itemId": "stage-royal-pavilion",
+      "itemTitle": "Royal Velvet Pavilion Stage",
+      "category": "stages",
+      "zoneId": "zone-india-election",
+      "timestamp": "2026-08-05T16:08:26.174Z"
+    },
+    {
+      "id": "swap_1785946093506",
+      "slotId": "slot-entrance-water",
+      "itemId": "fountain-royal-marble",
+      "itemTitle": "Royal Sculpted White Marble Fountain",
+      "category": "fountains",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-05T16:08:13.506Z"
+    },
+    {
+      "id": "swap_1785946083387",
+      "slotId": "slot-entrance-arch",
+      "itemId": "backdrop-shimmer-sequin",
+      "itemTitle": "Shimmer Sequined Gold Photo Wall",
+      "category": "backdrops",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-05T16:08:03.387Z"
+    },
+    {
+      "id": "swap_1785946078420",
+      "slotId": "slot-entrance-arch",
+      "itemId": "backdrop-hedge-wall",
+      "itemTitle": "Greenery Boxwood Hedge Wall",
+      "category": "backdrops",
+      "zoneId": "zone-entrance",
+      "timestamp": "2026-08-05T16:07:58.420Z"
+    },
     {
       "id": "swap_1785944502925",
       "slotId": "slot-election-seating",

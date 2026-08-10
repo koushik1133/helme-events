@@ -48,11 +48,39 @@ export class AudioEngine {
       this.currentSound = this.createRallySoundscape(now);
     } else if (zoneId.includes('function')) {
       this.currentSound = this.createWeddingSoundscape(now);
+    } else if (zoneId.includes('meeting')) {
+      this.currentSound = this.createSummitSoundscape(now);
     } else if (zoneId.includes('fountain')) {
       this.currentSound = this.createFountainSoundscape(now);
     } else {
       this.currentSound = this.createAmbientChords(now);
     }
+  }
+
+  createSummitSoundscape(now) {
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+    osc1.frequency.setValueAtTime(196.0, now);
+    osc2.frequency.setValueAtTime(293.66, now);
+
+    const gainNode = this.ctx.createGain();
+    gainNode.gain.setValueAtTime(0.1, now);
+
+    osc1.connect(gainNode);
+    osc2.connect(gainNode);
+    gainNode.connect(this.masterGain);
+
+    osc1.start(now);
+    osc2.start(now);
+
+    return {
+      stop: () => {
+        try { osc1.stop(); } catch (e) {}
+        try { osc2.stop(); } catch (e) {}
+      }
+    };
   }
 
   createRallySoundscape(now) {

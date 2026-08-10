@@ -1,5 +1,5 @@
 /**
- * Backend REST API Client Service for Helme Events 360°
+ * Backend REST API Client Service for Helm Events 360°
  * Syncs real-time state, item swaps, proposals, and bookings with backend environment.
  */
 

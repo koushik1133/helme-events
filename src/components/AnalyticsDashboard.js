@@ -35,7 +35,7 @@ export class AnalyticsDashboard {
           } else if (item.category === 'stages') {
             totalPowerDrawKw += 45;
             totalGuestCapacity += 200;
-          } else if (item.category === 'fountains' && item.id.includes('horn')) {
+          } else if (item.category === 'audio' || (item.id && item.id.includes('horn'))) {
             maxSplDb = Math.max(maxSplDb, 118);
             totalPowerDrawKw += 12.5;
           }

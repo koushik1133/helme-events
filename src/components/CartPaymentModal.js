@@ -16,8 +16,8 @@ export class CartPaymentModal {
     this.selectedCountry = 'IN';
     this.selectedState = 'Maharashtra';
     this.clientName = 'Koushik Goud';
-    this.clientCompany = 'Helme Events Pvt Ltd';
-    this.clientEmail = 'koushik@helmeevents.com';
+    this.clientCompany = 'Helm Events';
+    this.clientEmail = 'hello@helmevents.com';
     this.clientPhone = '+91 98765 43210';
     this.streetAddress = 'Suite 402, Bandra Kurla Complex';
     this.city = 'Mumbai';

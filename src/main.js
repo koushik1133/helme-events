@@ -1,6 +1,7 @@
 import confetti from 'canvas-confetti';
 import { VENUE_ZONES } from './data/zones.js';
 import { getItemById } from './data/catalog.js';
+import { resolveScenePanorama, hasSceneVariant } from './data/sceneVariants.js';
 import { Viewer360 } from './engine/Viewer360.js';
 import { AudioEngine } from './engine/AudioEngine.js';
 import { ApiService } from './services/apiService.js';
@@ -44,11 +45,12 @@ import { ESignatureFlow } from './components/ESignatureFlow.js';
 import { NotificationCenter } from './components/NotificationCenter.js';
 import { InvoiceGenerator } from './components/InvoiceGenerator.js';
 
-// Phase 5: AI
+// Phase 5: AI & Ops Architecture
 import { BudgetOptimizer } from './components/BudgetOptimizer.js';
 import { EventBriefGenerator } from './components/EventBriefGenerator.js';
 import { CustomEventBriefWizard } from './components/CustomEventBriefWizard.js';
 import { ThreeDLiveSpaceEditor } from './components/ThreeDLiveSpaceEditor.js';
+import { N8nArchitectureWorkflow } from './components/N8nArchitectureWorkflow.js';
 
 class Event360App {
   constructor() {
@@ -86,7 +88,7 @@ class Event360App {
   toggleTheme() {
     const nextTheme = this.theme === 'light' ? 'dark' : 'light';
     this.applyTheme(nextTheme);
-    this.showToast(`Switched to Helme Events ${nextTheme.toUpperCase()} theme!`);
+    this.showToast(`Switched to Helm Events ${nextTheme.toUpperCase()} theme!`);
   }
 
   initUI() {
@@ -113,6 +115,7 @@ class Event360App {
     this.revenueContainer = document.getElementById('revenueContainer');
     this.testimonialContainer = document.getElementById('testimonialContainer');
     this.playlistContainer = document.getElementById('playlistContainer');
+    this.n8nOpsContainer = document.getElementById('n8nOpsContainer');
 
     // New modal containers
     this.colorThemeContainer = document.getElementById('colorThemeContainer');
@@ -135,14 +138,16 @@ class Event360App {
     // Original tabs
     this.tabMapView = document.getElementById('tabMapView');
     this.tab360View = document.getElementById('tab360View');
+    this.tabN8nOpsView = document.getElementById('tabN8nOpsView');
     this.tabIndiaView = document.getElementById('tabIndiaView');
     this.tabFloorPlanView = document.getElementById('tabFloorPlanView');
     this.tabAnalyticsView = document.getElementById('tabAnalyticsView');
     this.tabProposalsView = document.getElementById('tabProposalsView');
 
-    // New tabs
+    // New tabs & search
     this.tabTimelineView = document.getElementById('tabTimelineView');
     this.tabSeatingView = document.getElementById('tabSeatingView');
+    this.globalNavSearch = document.getElementById('globalNavSearch');
 
     // Original buttons
     this.btnOpenVenueMenu = document.getElementById('btnOpenVenueMenu');
@@ -261,7 +266,14 @@ class Event360App {
       this.activeSelections
     );
 
-    this.colorThemeDesigner = new ColorThemeDesigner(this.colorThemeContainer);
+    this.colorThemeDesigner = new ColorThemeDesigner(this.colorThemeContainer, (result) => {
+      if (result?.saved) {
+        this.showToast('Palette saved to your library!');
+      } else if (result?.primary) {
+        this.showToast(`🎨 Theme applied — Primary ${result.primary}`);
+        confetti({ particleCount: 40, spread: 60, origin: { y: 0.35 } });
+      }
+    });
 
     this.beforeAfterCompare = new BeforeAfterCompare(
       this.compareContainer,
@@ -369,11 +381,39 @@ class Event360App {
       (selections, formData) => {
         Object.assign(this.activeSelections, selections);
         this.updateAllComponents(this.activeSelections);
+
+        // Prefer launching into the concept's 360 plate when provided
+        const themePano = selections.theme_panorama || selections.panoramaUrl;
+        let targetZoneId = this.currentZoneId;
+        if (formData?.category === 'political' || formData?.subCategory === 'rally') {
+          targetZoneId = 'zone-india-election';
+        } else if (formData?.subCategory === 'wedding' || formData?.subCategory === 'mandap') {
+          targetZoneId = 'zone-india-function';
+        } else if (formData?.subCategory === 'conference' || formData?.subCategory === 'summit') {
+          targetZoneId = 'zone-india-meeting';
+        } else if (selections['slot-function-mandap']) {
+          targetZoneId = 'zone-india-function';
+        } else if (selections['slot-meeting-podium']) {
+          targetZoneId = 'zone-india-meeting';
+        } else if (selections['slot-election-podium']) {
+          targetZoneId = 'zone-india-election';
+        } else {
+          targetZoneId = 'zone-stage';
+        }
+
+        this.openStudio360(targetZoneId);
+        if (themePano && this.viewer360?.updatePanorama) {
+          setTimeout(() => this.viewer360.updatePanorama(themePano), 200);
+        }
+
         this.showToast(`📋 Custom ${formData.category.toUpperCase()} event setup generated & applied!`);
         confetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
-        this.threeDLiveSpaceEditor.open();
+        setTimeout(() => this.threeDLiveSpaceEditor.open(), 350);
       }
     );
+
+    // Phase 5: AI & Ops Architecture
+    this.n8nArchitecture = new N8nArchitectureWorkflow(this.n8nOpsContainer);
 
     // Update notification badge
     this.updateNotifBadge();
@@ -383,14 +423,18 @@ class Event360App {
     // Original tab events
     this.tabMapView.addEventListener('click', () => this.switchView('map'));
     this.tab360View.addEventListener('click', () => this.switchView('studio360'));
+    if (this.tabN8nOpsView) this.tabN8nOpsView.addEventListener('click', () => this.switchView('n8n-ops'));
     if (this.tabIndiaView) this.tabIndiaView.addEventListener('click', () => this.switchView('india'));
     if (this.tabFloorPlanView) this.tabFloorPlanView.addEventListener('click', () => this.switchView('floorplan'));
     if (this.tabAnalyticsView) this.tabAnalyticsView.addEventListener('click', () => this.switchView('analytics'));
     if (this.tabProposalsView) this.tabProposalsView.addEventListener('click', () => this.switchView('proposals'));
 
-    // New tab events
+    // New tab & search events
     if (this.tabTimelineView) this.tabTimelineView.addEventListener('click', () => this.switchView('timeline'));
     if (this.tabSeatingView) this.tabSeatingView.addEventListener('click', () => this.switchView('seating'));
+    if (this.globalNavSearch) {
+      this.globalNavSearch.addEventListener('input', (e) => this.handleGlobalSearch(e.target.value));
+    }
 
     // Original button events
     if (this.btnOpenVenueMenu) this.btnOpenVenueMenu.addEventListener('click', () => this.venueMenuModal.open());
@@ -443,8 +487,9 @@ class Event360App {
 
     if (this.btnAutoRotate) {
       this.btnAutoRotate.addEventListener('click', () => {
-        this.viewer360.autoRotate = !this.viewer360.autoRotate;
-        this.btnAutoRotate.classList.toggle('active', this.viewer360.autoRotate);
+        const on = this.viewer360.toggleAutoRotate();
+        this.btnAutoRotate.classList.toggle('active', on);
+        this.showToast(on ? 'Auto-rotate ON' : 'Auto-rotate OFF');
       });
     }
 
@@ -453,14 +498,42 @@ class Event360App {
       btn.addEventListener('click', () => {
         timeBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        this.viewer360.setTimeOfDay(btn.getAttribute('data-time'));
+        if (this.viewer360?.setTimeOfDay) {
+          this.viewer360.setTimeOfDay(btn.getAttribute('data-time'));
+        }
       });
     });
 
     if (this.btnPresetDropdown && this.presetPopoverMenu) {
+      const positionThemeMenu = () => {
+        const rect = this.btnPresetDropdown.getBoundingClientRect();
+        const menu = this.presetPopoverMenu;
+        const width = menu.offsetWidth || 240;
+        let left = rect.right - width;
+        if (left < 8) left = 8;
+        if (left + width > window.innerWidth - 8) {
+          left = Math.max(8, window.innerWidth - width - 8);
+        }
+        menu.style.top = `${Math.round(rect.bottom + 6)}px`;
+        menu.style.left = `${Math.round(left)}px`;
+        menu.style.right = 'auto';
+      };
+
+      const closeThemeMenu = () => {
+        this.presetPopoverMenu.classList.add('hidden');
+        this.btnPresetDropdown.setAttribute('aria-expanded', 'false');
+      };
+
+      const openThemeMenu = () => {
+        this.presetPopoverMenu.classList.remove('hidden');
+        this.btnPresetDropdown.setAttribute('aria-expanded', 'true');
+        positionThemeMenu();
+      };
+
       this.btnPresetDropdown.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.presetPopoverMenu.classList.toggle('hidden');
+        if (this.presetPopoverMenu.classList.contains('hidden')) openThemeMenu();
+        else closeThemeMenu();
       });
 
       const menuItems = this.presetPopoverMenu.querySelectorAll('.preset-menu-item');
@@ -486,18 +559,24 @@ class Event360App {
             this.presetCurrentName.textContent = `${icon} ${parts[0]} ${parts[1] || ''}`.trim();
           }
 
-          this.presetPopoverMenu.classList.add('hidden');
+          closeThemeMenu();
           this.applyThemePreset(val);
         });
       });
 
       document.addEventListener('click', (e) => {
-        if (this.presetPopoverMenu && !this.presetPopoverMenu.classList.contains('hidden')) {
-          if (!this.btnPresetDropdown.contains(e.target) && !this.presetPopoverMenu.contains(e.target)) {
-            this.presetPopoverMenu.classList.add('hidden');
-          }
+        if (this.presetPopoverMenu.classList.contains('hidden')) return;
+        if (!this.btnPresetDropdown.contains(e.target) && !this.presetPopoverMenu.contains(e.target)) {
+          closeThemeMenu();
         }
       });
+
+      window.addEventListener('resize', () => {
+        if (!this.presetPopoverMenu.classList.contains('hidden')) positionThemeMenu();
+      });
+      window.addEventListener('scroll', () => {
+        if (!this.presetPopoverMenu.classList.contains('hidden')) positionThemeMenu();
+      }, true);
     }
 
     // Global Escape key modal close handler
@@ -584,7 +663,16 @@ class Event360App {
     };
 
     const action = featureMap[feature];
-    if (action) action();
+    if (action) {
+      action();
+      // Auto-collapse toolbar after pick
+      this.featureToolbarOpen = false;
+      if (this.featureToolbar) this.featureToolbar.classList.add('hidden');
+      if (this.btnToggleFeatures) this.btnToggleFeatures.classList.remove('active');
+      this.showToast(`Opened ${feature}`);
+    } else {
+      this.showToast(`Feature "${feature}" is not available`);
+    }
   }
 
   switchView(viewName) {
@@ -596,13 +684,14 @@ class Event360App {
       this.analyticsContainer, this.proposalsContainer,
       this.timelineContainer, this.seatingContainer,
       this.vendorContainer, this.inventoryContainer, this.calendarContainer,
-      this.revenueContainer, this.testimonialContainer, this.playlistContainer
+      this.revenueContainer, this.testimonialContainer, this.playlistContainer,
+      this.n8nOpsContainer
     ];
     sections.forEach(s => { if (s) { s.classList.remove('active'); s.classList.add('hidden'); } });
 
     // All tab buttons
     const tabs = [
-      this.tabMapView, this.tab360View, this.tabIndiaView,
+      this.tabMapView, this.tab360View, this.tabN8nOpsView, this.tabIndiaView,
       this.tabFloorPlanView, this.tabAnalyticsView, this.tabProposalsView,
       this.tabTimelineView, this.tabSeatingView
     ];
@@ -613,6 +702,11 @@ class Event360App {
     switch (viewName) {
       case 'map':
         this.activateSection(this.mapContainer, this.tabMapView);
+        break;
+
+      case 'n8n-ops':
+        this.activateSection(this.n8nOpsContainer, this.tabN8nOpsView);
+        if (this.n8nArchitecture?.render) this.n8nArchitecture.render();
         break;
 
       // FIXED: explicit studio360 case — just shows the container,
@@ -735,16 +829,17 @@ class Event360App {
       const selectedItemId = this.activeSelections[slot.id] || slot.defaultItemId;
       const item = getItemById(selectedItemId);
       const customText = this.activeSelections[`custom_text_${slot.id}`];
+      const qty = slot.quantityByItem?.[selectedItemId] ?? slot.quantity;
 
       return `
         <div class="slot-item-card" data-slot-id="${slot.id}">
           <div class="slot-item-head">
             <span>${slot.label}</span>
-            <small>${slot.quantity}x</small>
+            <small>${qty}x</small>
           </div>
           <div class="slot-item-body">
             <strong>${item ? item.name : 'None'}</strong>
-            <span class="slot-item-price">$${item ? item.price * slot.quantity : 0}</span>
+            <span class="slot-item-price">$${item ? item.price * qty : 0}</span>
           </div>
           ${customText ? `<div class="slot-writing-tag">✍️ "${customText}"</div>` : ''}
         </div>
@@ -779,7 +874,13 @@ class Event360App {
     const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
     const slot = zone?.slots.find(s => s.id === slotId);
 
-    // Sync to backend REST API environment
+    // Apply quantity presets (e.g. chair count on stage)
+    if (quantity != null && slot) {
+      slot.quantity = quantity;
+    } else if (slot?.quantityByItem?.[newItemId] != null) {
+      slot.quantity = slot.quantityByItem[newItemId];
+    }
+
     ApiService.recordSwap({
       slotId,
       itemId: newItemId,
@@ -788,38 +889,73 @@ class Event360App {
       category: slot ? slot.category : 'furniture'
     });
 
-    // 2. ONLY update 360° panorama for backdrops category (walls/photo walls).
-    //    Chairs, tables, fountains, stages, lighting do NOT change the background scene.
-    if (slot?.category === 'backdrops' && item?.panoramaUrl && this.viewer360?.updatePanorama) {
-      // Only reload panorama if it's actually a different image
-      const currentPanorama = this.viewer360._currentPanorama || zone?.panoramaUrl;
-      if (item.panoramaUrl !== currentPanorama) {
+    // 2. Load environment-locked variant plate for THIS slot when available.
+    //    Falls back to zone-local backdrop plate; never jumps to another venue.
+    let panoramaChanged = false;
+    if (zone && this.viewer360?.updatePanorama) {
+      const nextPano = resolveScenePanorama(
+        this.currentZoneId,
+        zone,
+        this.activeSelections,
+        slotId
+      );
+      const currentPanorama = this.viewer360._currentPanorama || zone.panoramaUrl;
+      if (nextPano && nextPano !== currentPanorama) {
+        this.viewer360.updatePanorama(nextPano, { ...this.activeSelections });
+        panoramaChanged = true;
+      } else if (
+        !hasSceneVariant(this.currentZoneId, slotId, newItemId) &&
+        slot?.category === 'backdrops' &&
+        item?.panoramaUrl &&
+        item.panoramaUrl !== currentPanorama &&
+        // Only accept backdrop plates that belong to this zone family
+        this._isZoneLocalPanorama(item.panoramaUrl, zone)
+      ) {
         this.viewer360.updatePanorama(item.panoramaUrl);
+        panoramaChanged = true;
       }
     }
 
-    // 3. Update the hotspot card on the 360° panorama (just DOM swap, no reload)
+    // 3. Hotspot card + live prop overlay (always — even when plate reloads)
     if (this.viewer360?.updateSlotDisplay) {
       this.viewer360.updateSlotDisplay(slotId, newItemId, customText);
     }
 
-    // 4. Update 3D editor slogan text if applicable
     if (customText !== undefined && this.threeDLiveSpaceEditor?.updateSloganText) {
       this.threeDLiveSpaceEditor.updateSloganText(customText);
     }
 
-    // 5. Re-render the inventory drawer to show new item name
     if (zone) this.renderInventoryDrawer(zone);
-
-    // 6. Sync all other UI panels (price card, analytics, map, etc.)
     this.updateAllComponents(this.activeSelections);
 
-    // 7. Feedback
     if (item) {
       const label = customText ? `${item.name} — "${customText}"` : item.name;
-      this.showToast(`✅ Updated to ${label}`);
+      const hint = panoramaChanged
+        ? ' · 360° scene updated (element only)'
+        : hasSceneVariant(this.currentZoneId, slotId, newItemId)
+          ? ' · already showing this look'
+          : ' · selection saved';
+      this.showToast(`✅ Swapped to ${label}${hint}`);
       confetti({ particleCount: 55, spread: 75, origin: { y: 0.75 }, colors: ['#f59e0b', '#a855f7', '#06b6d4'] });
     }
+  }
+
+  /** Keep backdrop swaps inside the current venue instead of teleporting zones. */
+  _isZoneLocalPanorama(url, zone) {
+    if (!url || !zone) return false;
+    if (url === zone.panoramaUrl) return true;
+    const zoneFamily = {
+      'zone-stage': ['zone_stage', 'zone_shimmer', 'zone_hedge', 'zone_entrance', 'zone_marigold', 'variants/zone-stage'],
+      'zone-banquet': ['zone_banquet'],
+      'zone-fountain': ['zone_fountain', 'zone_stone', 'zone_dancing', 'variants/zone-fountain'],
+      'zone-lounge': ['zone_lounge'],
+      'zone-entrance': ['zone_entrance', 'zone_hedge', 'zone_shimmer', 'zone_marigold', 'variants/zone-fountain'],
+      'zone-india-election': ['india_election', 'variants/zone-india-election', 'political_presidential'],
+      'zone-india-function': ['india_function', 'variants/zone-india-function', 'zone_marigold'],
+      'zone-india-meeting': ['india_meeting', 'variants/zone-india-meeting']
+    };
+    const keys = zoneFamily[zone.id] || [];
+    return keys.some(k => url.includes(k));
   }
 
 
@@ -880,13 +1016,16 @@ class Event360App {
       case 'royal':
         presetMap = {
           'theme_panorama': '/images/zone_stage_360.jpg',
-          'slot-stage-main': 'stage-royal-mandap',
-          'slot-stage-backdrop': 'backdrop-marigold-garland',   // FIXED: was backdrop-flower-marigold
+          'slot-stage-main': 'stage-royal-pavilion',
+          'slot-stage-backdrop': 'backdrop-marigold-garland',
           'slot-stage-seating': 'chair-chiavari-gold',
           'slot-banquet-table': 'table-round-standard',
           'slot-banquet-chairs': 'chair-chiavari-gold',
           'slot-banquet-lighting': 'lighting-chandeliers',
-          'slot-fountain-center': 'fountain-royal-marble'
+          'slot-fountain-center': 'fountain-royal-marble',
+          'slot-function-mandap': 'stage-royal-mandap',
+          'slot-function-marigold': 'backdrop-marigold-garland',
+          'slot-function-throne': 'chair-maharaja-throne'
         };
         break;
       case 'cyber':
@@ -895,17 +1034,19 @@ class Event360App {
           'slot-stage-main': 'stage-led-arch',
           'slot-stage-backdrop': 'backdrop-shimmer-sequin',
           'slot-stage-seating': 'chair-ghost',
-          'slot-banquet-table': 'table-cocktail',               // FIXED: was table-cocktail-high
+          'slot-banquet-table': 'table-cocktail',
           'slot-banquet-chairs': 'chair-ghost',
-          'slot-fountain-center': 'fountain-dancing-jets'
+          'slot-fountain-center': 'fountain-dancing-jets',
+          'slot-meeting-podium': 'stage-digital-podium',
+          'slot-meeting-screen': 'screen-layout-dual'
         };
         break;
       case 'garden':
         presetMap = {
           'theme_panorama': '/images/zone_lounge_360.jpg',
-          'slot-stage-main': 'stage-wooden-riser',              // FIXED: was stage-wooden-rustic
+          'slot-stage-main': 'stage-wooden-riser',
           'slot-stage-backdrop': 'backdrop-hedge-wall',
-          'slot-stage-seating': 'chair-folding',                // FIXED: was chair-folding-white
+          'slot-stage-seating': 'chair-folding',
           'slot-banquet-table': 'table-rustic-wood',
           'slot-fountain-center': 'fountain-tiered-stone',
           'slot-entrance-arch': 'backdrop-floral-wall'
@@ -917,7 +1058,8 @@ class Event360App {
           'slot-stage-main': 'stage-led-arch',
           'slot-stage-backdrop': 'backdrop-floral-wall',
           'slot-stage-seating': 'chair-ghost',
-          'slot-banquet-table': 'table-round-standard'
+          'slot-banquet-table': 'table-round-standard',
+          'slot-meeting-screen': 'screen-layout-center'
         };
         break;
     }
@@ -925,8 +1067,19 @@ class Event360App {
     Object.assign(this.activeSelections, presetMap);
     this.updateAllComponents(this.activeSelections);
 
-    const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId) || VENUE_ZONES[0];
-    if (zone && this.viewer360) {
+    // Open 360 studio so the theme is visibly applied
+    const preferredZone =
+      (presetKey === 'royal' && 'zone-india-function') ||
+      (presetKey === 'cyber' && 'zone-india-meeting') ||
+      (presetKey === 'garden' && 'zone-lounge') ||
+      'zone-stage';
+
+    this.openStudio360(preferredZone);
+    const zone = VENUE_ZONES.find(z => z.id === preferredZone);
+    const pano = presetMap.theme_panorama;
+    if (pano && this.viewer360?.updatePanorama) {
+      setTimeout(() => this.viewer360.updatePanorama(pano), 180);
+    } else if (zone && this.viewer360) {
       this.viewer360.loadZone(zone, this.activeSelections);
     }
 
@@ -947,6 +1100,35 @@ class Event360App {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 300);
     }, 3000);
+  }
+
+  handleGlobalSearch(query) {
+    if (!query || query.trim().length < 2) return;
+    const q = query.toLowerCase().trim();
+
+    // Search rooms
+    const matchedZone = VENUE_ZONES.find(z => z.name.toLowerCase().includes(q) || z.subtitle.toLowerCase().includes(q));
+    if (matchedZone) {
+      this.openStudio360(matchedZone.id);
+      this.showToast(`🔍 Quick Search: Loaded ${matchedZone.name}`);
+      return;
+    }
+
+    // Search AI Operations / n8n
+    if (q.includes('n8n') || q.includes('siri') || q.includes('voice') || q.includes('ops') || q.includes('whatsapp') || q.includes('dispatch') || q.includes('architecture')) {
+      this.switchView('n8n-ops');
+      this.showToast(`⚡ Quick Search: Opened n8n AI Operations Architecture!`);
+      return;
+    }
+
+    // Navigation shortcuts
+    if (q.includes('map')) { this.switchView('map'); return; }
+    if (q.includes('floor')) { this.switchView('floorplan'); return; }
+    if (q.includes('vendor')) { this.switchView('vendors'); return; }
+    if (q.includes('inventory')) { this.switchView('inventory'); return; }
+    if (q.includes('proposal')) { this.switchView('proposals'); return; }
+    if (q.includes('timeline')) { this.switchView('timeline'); return; }
+    if (q.includes('seating')) { this.switchView('seating'); return; }
   }
 }
 

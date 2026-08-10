@@ -142,8 +142,8 @@ export const ITEM_CATALOG = {
       price: 450,
       category: 'podiums',
       description: 'Classic solid mahogany wooden podium with carved seal emblem and brass reading light.',
-      imageUrl: '/images/stage_wooden_riser.jpg',
-      panoramaUrl: '/images/india_meeting_360.jpg',
+      imageUrl: '/images/props/podium-wooden-presidential.png',
+      panoramaUrl: '/images/variants/zone-india-meeting/podium_podium-wooden-presidential.jpg',
       color: '#78350f'
     },
     {
@@ -152,8 +152,8 @@ export const ITEM_CATALOG = {
       price: 380,
       category: 'podiums',
       description: 'Ultra-clear minimalist acrylic podium with integrated LED edge lighting.',
-      imageUrl: '/images/chair_ghost_acrylic.jpg',
-      panoramaUrl: '/images/zone_entrance_360.jpg',
+      imageUrl: '/images/props/podium-acrylic-modern.png',
+      panoramaUrl: '/images/variants/zone-india-meeting/podium_podium-acrylic-modern.jpg',
       color: '#38bdf8'
     }
   ],
@@ -223,13 +223,23 @@ export const ITEM_CATALOG = {
 
   fountains: [
     {
+      id: 'fountain-royal-marble',
+      name: 'Royal Sculpted White Marble Fountain',
+      price: 1400,
+      category: 'fountains',
+      description: 'Grand Renaissance-style carved white marble fountain with bronze spouts — plaza centerpiece.',
+      imageUrl: '/images/fountain_royal_marble.jpg',
+      panoramaUrl: '/images/variants/zone-fountain/fountain-royal-marble.jpg',
+      color: '#f1f5f9'
+    },
+    {
       id: 'fountain-tiered-stone',
       name: 'Classic Tiered Stone Fountain',
       price: 650,
       category: 'fountains',
       description: 'Three-tiered Mediterranean carved limestone water fountain feature.',
       imageUrl: '/images/zone_stone_fountain_360.jpg',
-      panoramaUrl: '/images/zone_stone_fountain_360.jpg',
+      panoramaUrl: '/images/variants/zone-fountain/fountain-tiered-stone.jpg',
       color: '#94a3b8'
     },
     {
@@ -237,50 +247,73 @@ export const ITEM_CATALOG = {
       name: 'Modern Glass Waterfall Wall',
       price: 950,
       category: 'fountains',
-      description: '8ft architectural tempered glass water wall with underwater LED illumination.',
-      imageUrl: '/images/zone_fountain_360.jpg',
-      panoramaUrl: '/images/zone_entrance_360.jpg',
+      description: 'Architectural tempered glass water wall with underwater LED illumination.',
+      imageUrl: '/images/fountain_glass_waterfall.jpg',
+      panoramaUrl: '/images/variants/zone-fountain/fountain-glass-waterfall.jpg',
       color: '#0284c7'
-    },
-    {
-      id: 'fountain-royal-marble',
-      name: 'Royal Sculpted White Marble Fountain',
-      price: 1400,
-      category: 'fountains',
-      description: 'Grand Renaissance-style carved white marble fountain with bronze spouts.',
-      imageUrl: '/images/fountain_royal_marble.jpg',
-      panoramaUrl: '/images/zone_fountain_360.jpg',
-      color: '#f1f5f9'
     },
     {
       id: 'fountain-dancing-jets',
       name: 'LED Dancing Water Jet Fountain',
       price: 1850,
       category: 'fountains',
-      description: 'Choreographed multi-jet fountain with synchronized color changing lasers.',
+      description: 'Choreographed multi-jet fountain with synchronized color-changing lasers.',
       imageUrl: '/images/zone_dancing_jets_360.jpg',
-      panoramaUrl: '/images/zone_dancing_jets_360.jpg',
+      panoramaUrl: '/images/variants/zone-fountain/fountain-dancing-jets.jpg',
       color: '#ec4899'
     },
+    {
+      id: 'fountain-black-granite',
+      name: 'Black Granite Cube Fountain',
+      price: 1100,
+      category: 'fountains',
+      description: 'Minimalist black granite cube with a calm water sheet and soft LED rim lighting.',
+      imageUrl: '/images/fountain_black_granite.jpg',
+      panoramaUrl: '/images/variants/zone-fountain/fountain-black-granite.jpg',
+      color: '#1e293b'
+    },
+    {
+      id: 'fountain-steel-sphere',
+      name: 'Stainless Steel Sphere Fountain',
+      price: 1250,
+      category: 'fountains',
+      description: 'Polished steel orb fountain with continuous water sheeting and cool white LEDs.',
+      imageUrl: '/images/fountain_steel_sphere.jpg',
+      panoramaUrl: '/images/variants/zone-fountain/fountain-steel-sphere.jpg',
+      color: '#94a3b8'
+    },
+    {
+      id: 'fountain-brass-lotus',
+      name: 'Brass Lotus Urli Fountain',
+      price: 980,
+      category: 'fountains',
+      description: 'Floating brass lotus bowl with cascading water and warm amber petal lighting.',
+      imageUrl: '/images/fountain_brass_lotus.jpg',
+      panoramaUrl: '/images/variants/zone-fountain/fountain-brass-lotus.jpg',
+      color: '#d97706'
+    }
+  ],
+
+  audio: [
     {
       id: 'fountain-horn-speakers',
       name: 'High-Output Rally Horn Speaker Array',
       price: 600,
-      category: 'fountains',
+      category: 'audio',
       description: 'Heavy-duty 360-degree horn loudspeaker towers for election crowd sound projection.',
       imageUrl: '/images/lighting_rally_highmast.jpg',
       panoramaUrl: '/images/india_election_360.jpg',
       color: '#f59e0b'
     },
     {
-      id: 'fountain-brass-diyas',
-      name: 'Grand Temple Brass Urli & Diya Cascade',
-      price: 450,
-      category: 'fountains',
-      description: 'Multi-tiered floating lotus Urli with oil diyas and floating rose petals.',
-      imageUrl: '/images/lighting_temple_lanterns.jpg',
-      panoramaUrl: '/images/india_function_360.jpg',
-      color: '#eab308'
+      id: 'audio-line-array',
+      name: 'Concert Line-Array Speaker Towers',
+      price: 1800,
+      category: 'audio',
+      description: 'Flown professional line-array PA system for large outdoor stages and rallies.',
+      imageUrl: '/images/lighting_rally_highmast.jpg',
+      panoramaUrl: '/images/india_election_360.jpg',
+      color: '#f97316'
     }
   ],
 
@@ -407,6 +440,46 @@ export const ITEM_CATALOG = {
       imageUrl: '/images/backdrop_seamless_led.jpg',
       panoramaUrl: '/images/india_meeting_360.jpg',
       color: '#1e40af'
+    },
+    {
+      id: 'screen-layout-center',
+      name: 'Screen Layout: Center Wide Wall',
+      price: 2500,
+      category: 'backdrops',
+      description: 'Full-width curved LED wall centered behind the podium — classic summit broadcast look.',
+      imageUrl: '/images/backdrop_seamless_led.jpg',
+      panoramaUrl: '/images/variants/zone-india-meeting/screen_layout-center.jpg',
+      color: '#1e40af'
+    },
+    {
+      id: 'screen-layout-left',
+      name: 'Screen Layout: Left Tower + Branding',
+      price: 2200,
+      category: 'backdrops',
+      description: 'Tall LED tower on stage-left with a smaller center branding panel — asymmetric placement.',
+      imageUrl: '/images/backdrop_election_flags.jpg',
+      panoramaUrl: '/images/variants/zone-india-meeting/screen_layout-left.jpg',
+      color: '#16a34a'
+    },
+    {
+      id: 'screen-layout-dual',
+      name: 'Screen Layout: Dual Side Screens',
+      price: 2800,
+      category: 'backdrops',
+      description: 'Paired left/right LED side screens flanking the stage with a narrower center brand panel.',
+      imageUrl: '/images/backdrop_floral_wall.jpg',
+      panoramaUrl: '/images/variants/zone-india-meeting/screen_layout-dual.jpg',
+      color: '#f43f5e'
+    },
+    {
+      id: 'screen-layout-shimmer',
+      name: 'Screen Layout: Shimmer Gold Photo Wall',
+      price: 1600,
+      category: 'backdrops',
+      description: 'Gold sequin shimmer wall behind the stage instead of a full LED video wall.',
+      imageUrl: '/images/backdrop_shimmer_sequin.jpg',
+      panoramaUrl: '/images/variants/zone-india-meeting/screen_layout-shimmer.jpg',
+      color: '#f59e0b'
     }
   ],
 
@@ -460,6 +533,16 @@ export const ITEM_CATALOG = {
       imageUrl: '/images/lighting_temple_lanterns.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#d97706'
+    },
+    {
+      id: 'fountain-brass-diyas',
+      name: 'Grand Temple Brass Urli & Diya Cascade',
+      price: 450,
+      category: 'lighting',
+      description: 'Multi-tiered floating lotus Urli with oil diyas and floating rose petals — ambient ceremonial lighting.',
+      imageUrl: '/images/lighting_temple_lanterns.jpg',
+      panoramaUrl: '/images/india_function_360.jpg',
+      color: '#eab308'
     }
   ]
 };

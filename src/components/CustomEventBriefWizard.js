@@ -105,10 +105,10 @@ export class CustomEventBriefWizard {
           description: `Deep navy blue velvet draping, LED starlight ceiling, silver chiavari seating & illuminated glass bar.`,
           priceEstimate: Math.round(baseCost * 1.15),
           selections: {
-            'slot-stage-main': 'stage-truss-canopy',
+            'slot-stage-main': 'stage-led-arch',
             'slot-stage-backdrop': 'backdrop-shimmer-sequin',
-            'slot-stage-seating': 'chair-ghost-acrylic',
-            'slot-banquet-table': 'table-cocktail-high',
+            'slot-stage-seating': 'chair-ghost',
+            'slot-banquet-table': 'table-cocktail',
             'slot-fountain-center': 'fountain-tiered-stone'
           }
         },
@@ -120,9 +120,9 @@ export class CustomEventBriefWizard {
           description: `Outdoor floral lawn canopy, warm fairy lights, rustic wood dining tables & acoustic lounge music.`,
           priceEstimate: Math.round(baseCost * 0.9),
           selections: {
-            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-main': 'stage-wooden-riser',
             'slot-stage-backdrop': 'backdrop-hedge-wall',
-            'slot-stage-seating': 'chair-folding-white',
+            'slot-stage-seating': 'chair-folding',
             'slot-banquet-table': 'table-rustic-wood',
             'slot-fountain-center': 'fountain-dancing-jets'
           }
@@ -139,7 +139,7 @@ export class CustomEventBriefWizard {
           priceEstimate: Math.round(baseCost * 1.35),
           selections: {
             'slot-stage-main': 'stage-led-arch',
-            'slot-stage-backdrop': 'backdrop-flower-marigold',
+            'slot-stage-backdrop': 'backdrop-marigold-garland',
             'slot-stage-seating': 'chair-chiavari-gold',
             'slot-banquet-table': 'table-round-standard',
             'slot-fountain-center': 'fountain-dancing-jets'
@@ -168,9 +168,9 @@ export class CustomEventBriefWizard {
           description: `Crisp white floral ceremony arch, ghost acrylic aisle chairs, subtle ambient lighting & grand piano.`,
           priceEstimate: Math.round(baseCost * 0.95),
           selections: {
-            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-main': 'stage-wooden-riser',
             'slot-stage-backdrop': 'backdrop-floral-wall',
-            'slot-stage-seating': 'chair-ghost-acrylic',
+            'slot-stage-seating': 'chair-ghost',
             'slot-banquet-table': 'table-round-standard',
             'slot-fountain-center': 'fountain-dancing-jets'
           }
@@ -186,9 +186,9 @@ export class CustomEventBriefWizard {
           description: `Massive 4K LED screen backdrop, bulletproof glass podium, dual teleprompters, state flags & camera risers.`,
           priceEstimate: Math.round(baseCost * 1.4),
           selections: {
-            'slot-stage-main': 'stage-truss-canopy',
+            'slot-stage-main': 'stage-led-arch',
             'slot-stage-backdrop': 'backdrop-shimmer-sequin',
-            'slot-stage-seating': 'chair-folding-white',
+            'slot-stage-seating': 'chair-folding',
             'slot-banquet-table': 'table-round-standard',
             'slot-fountain-center': 'fountain-tiered-stone'
           }
@@ -202,9 +202,9 @@ export class CustomEventBriefWizard {
           priceEstimate: Math.round(baseCost * 1.15),
           selections: {
             'slot-stage-main': 'stage-led-arch',
-            'slot-stage-backdrop': 'backdrop-flower-marigold',
-            'slot-stage-seating': 'chair-folding-white',
-            'slot-banquet-table': 'table-cocktail-high',
+            'slot-stage-backdrop': 'backdrop-marigold-garland',
+            'slot-stage-seating': 'chair-folding',
+            'slot-banquet-table': 'table-cocktail',
             'slot-fountain-center': 'fountain-dancing-jets'
           }
         },
@@ -216,7 +216,7 @@ export class CustomEventBriefWizard {
           description: `Executive conference dais, satellite truck bay, high-resolution media backdrop & lapel mic array.`,
           priceEstimate: Math.round(baseCost * 0.95),
           selections: {
-            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-main': 'stage-wooden-riser',
             'slot-stage-backdrop': 'backdrop-floral-wall',
             'slot-stage-seating': 'chair-chiavari-gold',
             'slot-banquet-table': 'table-round-standard',
@@ -250,10 +250,10 @@ export class CustomEventBriefWizard {
           description: `4K Video wall, high-speed truss canopy, acrylic cocktail tables & moving spotlight array.`,
           priceEstimate: Math.round(baseCost * 1.1),
           selections: {
-            'slot-stage-main': 'stage-truss-canopy',
+            'slot-stage-main': 'stage-led-arch',
             'slot-stage-backdrop': 'backdrop-shimmer-sequin',
-            'slot-stage-seating': 'chair-ghost-acrylic',
-            'slot-banquet-table': 'table-cocktail-high',
+            'slot-stage-seating': 'chair-ghost',
+            'slot-banquet-table': 'table-cocktail',
             'slot-fountain-center': 'fountain-tiered-stone'
           }
         },
@@ -265,9 +265,9 @@ export class CustomEventBriefWizard {
           description: `Lush green hedge wall, rustic wooden tables, warm string lights & relaxed seating.`,
           priceEstimate: Math.round(baseCost * 0.85),
           selections: {
-            'slot-stage-main': 'stage-wooden-rustic',
+            'slot-stage-main': 'stage-wooden-riser',
             'slot-stage-backdrop': 'backdrop-hedge-wall',
-            'slot-stage-seating': 'chair-folding-white',
+            'slot-stage-seating': 'chair-folding',
             'slot-banquet-table': 'table-rustic-wood',
             'slot-fountain-center': 'fountain-dancing-jets'
           }
@@ -286,7 +286,7 @@ export class CustomEventBriefWizard {
           c.description += ` Updated lighting to deep violet ambient LEDs.`;
         }
         if (promptText.includes('marigold') || promptText.includes('garland')) {
-          c.selections['slot-stage-backdrop'] = 'backdrop-flower-marigold';
+          c.selections['slot-stage-backdrop'] = 'backdrop-marigold-garland';
           c.description += ` Added traditional marigold flower garlands to stage backdrop.`;
         }
         if (promptText.includes('sound') || promptText.includes('speaker') || promptText.includes('tower')) {

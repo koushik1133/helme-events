@@ -6,9 +6,9 @@ export const STYLE_PRESETS = [
     description: 'Natural woods, pampas grass, and warm earthy tones.',
     colorPalette: { primary: '#D4B895', secondary: '#8A9A5B', accent: '#C86558' },
     selections: {
-      'slot-stage-main': 'stage-wood-rustic',
-      'slot-stage-backdrop': 'backdrop-macrame',
-      'slot-stage-seating': 'chair-crossback-wood'
+      'slot-stage-main': 'stage-wooden-riser',
+      'slot-stage-backdrop': 'backdrop-hedge-wall',
+      'slot-stage-seating': 'chair-folding'
     }
   },
   {
@@ -30,21 +30,22 @@ export const STYLE_PRESETS = [
     description: 'Clean lines, acrylics, white florals, and sleek furniture.',
     colorPalette: { primary: '#FFFFFF', secondary: '#F0F0F0', accent: '#333333' },
     selections: {
-      'slot-entrance-arch': 'backdrop-acrylic-arch',
+      'slot-entrance-arch': 'backdrop-floral-wall',
       'slot-entrance-seating': 'chair-ghost',
-      'slot-banquet-table': 'table-glass-modern'
+      'slot-banquet-table': 'table-led-glass'
     }
   },
   {
     id: 'style-tropical',
     name: 'Tropical Paradise',
     emoji: '🌴',
-    description: 'Lush greens, bright pinks, monstera leaves and bamboo.',
+    description: 'Lush greens, bright pinks, monstera leaves and water features.',
     colorPalette: { primary: '#006400', secondary: '#FF1493', accent: '#00FFFF' },
     selections: {
-      'slot-fountain-center': 'fountain-bamboo',
-      'slot-lounge-table': 'table-tiki',
-      'slot-lounge-lighting': 'lighting-tiki-torch'
+      'slot-fountain-center': 'fountain-brass-lotus',
+      'slot-lounge-table': 'table-cocktail',
+      'slot-lounge-lighting': 'lighting-fairy-canopy',
+      'slot-stage-backdrop': 'backdrop-hedge-wall'
     }
   },
   {
@@ -54,21 +55,9 @@ export const STYLE_PRESETS = [
     description: 'Lace, antique gold, crystal chandeliers, and soft pastels.',
     colorPalette: { primary: '#F5DEB3', secondary: '#D8BFD8', accent: '#B8860B' },
     selections: {
-      'slot-banquet-chairs': 'chair-vintage-velvet',
+      'slot-banquet-chairs': 'chair-velvet-armchair',
       'slot-banquet-lighting': 'lighting-chandeliers',
-      'slot-entrance-seating': 'chair-vintage-sofa'
-    }
-  },
-  {
-    id: 'style-cyber',
-    name: 'Cyber Neon',
-    emoji: '⚡',
-    description: 'Neon lights, LED screens, and futuristic tech vibes.',
-    colorPalette: { primary: '#000000', secondary: '#00FF00', accent: '#FF00FF' },
-    selections: {
-      'slot-meeting-podium': 'stage-digital-podium',
-      'slot-meeting-screen': 'backdrop-seamless-led',
-      'slot-lounge-lighting': 'lighting-rgb-uplighting'
+      'slot-entrance-seating': 'chair-ghost'
     }
   }
 ];

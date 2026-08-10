@@ -1,33 +1,28 @@
 import { getItemById } from '../data/catalog.js';
+import { resolveScenePanorama, getPropImage, hasSceneVariant } from '../data/sceneVariants.js';
 
 /**
- * Viewer360
- * ─────────────────────────────────────────────────────────────────────────────
- * Loads a Pannellum equirectangular panorama and overlays clickable hotspot
- * "item cards" at each slot position using rectilinear pitch/yaw projection.
- * Also renders Google Earth / Street View style 3D Navigation Arrow Hotspots
- * on the floor to navigate between connected rooms with smooth zoom transitions.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Viewer360 — Pannellum equirectangular viewer with hotspot cards
+ * and live prop overlays that reflect the currently selected furniture.
  */
 export class Viewer360 {
   constructor(containerEl, onSelectSlot, onNavigateZone = null) {
     this.container      = containerEl;
-    this.onSelectSlot   = onSelectSlot;   // (slotId) => void
-    this.onNavigateZone = onNavigateZone; // (targetZoneId) => void
+    this.onSelectSlot   = onSelectSlot;
+    this.onNavigateZone = onNavigateZone;
     this.currentZone    = null;
     this.viewer         = null;
     this.autoRotate     = false;
 
-    // slotId → selected itemId
     this.activeSelections = new Map();
     this.customWriting    = new Map();
 
-    // DOM overlay
     this._overlayEl          = null;
     this._loopId             = null;
     this._positionLoopActive = false;
     this._overlayBuilt       = false;
     this._loadGeneration     = 0;
+    this._currentPanorama    = null;
   }
 
   loadZone(zoneData, activeSelectionsObj = {}, overridePanoramaUrl = null) {
@@ -35,23 +30,18 @@ export class Viewer360 {
 
     const myGen = ++this._loadGeneration;
 
-    // Sync selections map
     zoneData.slots.forEach(slot => {
       const id = activeSelectionsObj[slot.id] || slot.defaultItemId;
       this.activeSelections.set(slot.id, id);
       const ck = `custom_text_${slot.id}`;
       if (activeSelectionsObj[ck]) this.customWriting.set(slot.id, activeSelectionsObj[ck]);
+      else this.customWriting.delete(slot.id);
     });
 
-    let panoramaUrl = overridePanoramaUrl || zoneData.panoramaUrl;
-    if (!overridePanoramaUrl) {
-      zoneData.slots.forEach(slot => {
-        const selId = activeSelectionsObj[slot.id] || slot.defaultItemId;
-        const item = getItemById(selId);
-        if (item && item.panoramaUrl && item.panoramaUrl !== zoneData.panoramaUrl && slot.category === 'backdrops') {
-          panoramaUrl = item.panoramaUrl;
-        }
-      });
+    let panoramaUrl = overridePanoramaUrl;
+    if (!panoramaUrl) {
+      panoramaUrl = resolveScenePanorama(zoneData.id, zoneData, activeSelectionsObj, null)
+        || zoneData.panoramaUrl;
     }
     this._currentPanorama = panoramaUrl;
 
@@ -80,7 +70,8 @@ export class Viewer360 {
       minHfov: 50,
       maxHfov: 130,
       pitch: 0,
-      yaw: 0
+      yaw: 0,
+      compass: false
     });
 
     const buildOverlay = () => {
@@ -95,24 +86,36 @@ export class Viewer360 {
 
     try {
       this.viewer.on('load', buildOverlay);
-    } catch(e) {}
+    } catch (e) {}
     setTimeout(buildOverlay, 900);
   }
 
-  updatePanorama(newPanoramaUrl) {
-    if (!this.viewer || !newPanoramaUrl || this._currentPanorama === newPanoramaUrl) return;
+  updatePanorama(newPanoramaUrl, selectionsOverride = null) {
+    if (!newPanoramaUrl || this._currentPanorama === newPanoramaUrl) return;
 
     let currentPitch = 0, currentYaw = 0, currentHfov = 100;
     try {
-      if (typeof this.viewer.getPitch === 'function') currentPitch = this.viewer.getPitch();
-      if (typeof this.viewer.getYaw === 'function')   currentYaw   = this.viewer.getYaw();
-      if (typeof this.viewer.getHfov === 'function')  currentHfov  = this.viewer.getHfov();
-    } catch(e) {}
+      if (typeof this.viewer?.getPitch === 'function') currentPitch = this.viewer.getPitch();
+      if (typeof this.viewer?.getYaw === 'function')   currentYaw   = this.viewer.getYaw();
+      if (typeof this.viewer?.getHfov === 'function')  currentHfov  = this.viewer.getHfov();
+    } catch (e) {}
 
     if (this.currentZone) {
       const activeObj = {};
-      this.activeSelections.forEach((val, key) => { activeObj[key] = val; });
-      this.customWriting.forEach((val, key) => { activeObj[`custom_text_${key}`] = val; });
+      if (selectionsOverride && typeof selectionsOverride === 'object') {
+        Object.assign(activeObj, selectionsOverride);
+        // Keep Map in sync so overlays match the new plate
+        Object.keys(selectionsOverride).forEach(key => {
+          if (key.startsWith('custom_text_')) {
+            this.customWriting.set(key.replace('custom_text_', ''), selectionsOverride[key]);
+          } else {
+            this.activeSelections.set(key, selectionsOverride[key]);
+          }
+        });
+      } else {
+        this.activeSelections.forEach((val, key) => { activeObj[key] = val; });
+        this.customWriting.forEach((val, key) => { activeObj[`custom_text_${key}`] = val; });
+      }
       this.loadZone(this.currentZone, activeObj, newPanoramaUrl);
 
       setTimeout(() => {
@@ -120,8 +123,8 @@ export class Viewer360 {
           if (this.viewer?.setPitch) this.viewer.setPitch(currentPitch);
           if (this.viewer?.setYaw)   this.viewer.setYaw(currentYaw);
           if (this.viewer?.setHfov)  this.viewer.setHfov(currentHfov);
-        } catch(e) {}
-      }, 100);
+        } catch (e) {}
+      }, 120);
     }
   }
 
@@ -146,16 +149,42 @@ export class Viewer360 {
     const priceEl = card.querySelector('.hs-card-price');
     if (priceEl && item && slot) priceEl.textContent = `$${(item.price * slot.quantity).toLocaleString()}`;
 
+    const writingEl = card.querySelector('.hs-card-writing');
+    if (writingText) {
+      if (writingEl) {
+        writingEl.textContent = `✍️ "${writingText}"`;
+      } else {
+        const info = card.querySelector('.hs-card-info');
+        if (info) {
+          const em = document.createElement('em');
+          em.className = 'hs-card-writing';
+          em.textContent = `✍️ "${writingText}"`;
+          info.appendChild(em);
+        }
+      }
+    }
+
     const beacon = card.querySelector('.hs-beacon');
     if (beacon) beacon.className = `hs-beacon${isSwapped ? ' hs-beacon-swapped' : ''}`;
+
+    // Live prop ghost image near the hotspot
+    const prop = this._overlayEl.querySelector(`.hs-prop[data-slot-id="${slotId}"]`);
+    if (prop && item) {
+      const propSrc = getPropImage(newItemId, item.imageUrl);
+      const propImg = prop.querySelector('img');
+      if (propImg && propSrc) {
+        propImg.src = propSrc;
+        propImg.alt = item.name;
+      }
+      prop.classList.toggle('hs-prop-swapped', Boolean(isSwapped));
+      prop.classList.add('hs-prop-flash');
+      setTimeout(() => prop.classList.remove('hs-prop-flash'), 700);
+    }
 
     card.classList.add('hs-card-flash');
     setTimeout(() => card.classList.remove('hs-card-flash'), 600);
   }
 
-  /**
-   * Google Earth / Street View style camera zoom into arrow before room navigation
-   */
   navigateToZoneWithZoom(targetZoneId, targetPitch, targetYaw) {
     if (!this.viewer) {
       if (this.onNavigateZone) this.onNavigateZone(targetZoneId);
@@ -166,24 +195,44 @@ export class Viewer360 {
       if (typeof this.viewer.setPitch === 'function') this.viewer.setPitch(targetPitch, 400);
       if (typeof this.viewer.setYaw === 'function')   this.viewer.setYaw(targetYaw, 400);
       if (typeof this.viewer.setHfov === 'function')  this.viewer.setHfov(60, 400);
-    } catch(e) {}
+    } catch (e) {}
 
     setTimeout(() => {
-      if (this.onNavigateZone) {
-        this.onNavigateZone(targetZoneId);
-      }
+      if (this.onNavigateZone) this.onNavigateZone(targetZoneId);
     }, 420);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Build the overlay DOM (Item Cards + Google Earth 3D Navigation Arrows)
-  // ─────────────────────────────────────────────────────────────────────────
   _buildOverlay(zoneData) {
     const overlay = document.createElement('div');
     overlay.className = 'hs-overlay';
     overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:50;overflow:visible;';
 
-    // 1. Item Slot Cards
+    // Live prop sprites only for slots without a baked 360 plate (avoid double-draw)
+    const PROP_CATEGORIES = new Set(['podiums', 'stages', 'chairs', 'tables', 'backdrops', 'fountains']);
+    zoneData.slots.forEach(slot => {
+      if (!PROP_CATEGORIES.has(slot.category)) return;
+      const selId = this.activeSelections.get(slot.id);
+      const item = getItemById(selId);
+      if (!item) return;
+      // Baked variant already encodes this element in the panorama
+      if (hasSceneVariant(zoneData.id, slot.id, selId)) return;
+      const propSrc = getPropImage(selId, item.imageUrl);
+      if (!propSrc) return;
+
+      const swapped = selId !== slot.defaultItemId;
+      const scale = slot.propScale || 1;
+      const prop = document.createElement('div');
+      prop.className = `hs-prop${swapped ? ' hs-prop-swapped' : ''}`;
+      prop.setAttribute('data-slot-id', slot.id);
+      prop.setAttribute('data-pitch', slot.pos3D.pitch - 4);
+      prop.setAttribute('data-yaw', slot.pos3D.yaw);
+      prop.setAttribute('data-scale', String(scale));
+      prop.style.cssText = 'display:none;position:absolute;transform:translate(-50%,-70%);pointer-events:none;';
+      prop.innerHTML = `<img src="${propSrc}" alt="${item.name}" />`;
+      overlay.appendChild(prop);
+    });
+
+    // Item slot cards
     zoneData.slots.forEach(slot => {
       const selId   = this.activeSelections.get(slot.id);
       const item    = getItemById(selId);
@@ -220,7 +269,7 @@ export class Viewer360 {
       overlay.appendChild(card);
     });
 
-    // 2. Google Earth / Street View style 3D Navigation Arrows
+    // Navigation arrows
     if (zoneData.navLinks && zoneData.navLinks.length) {
       zoneData.navLinks.forEach(link => {
         const arrow = document.createElement('div');
@@ -270,7 +319,7 @@ export class Viewer360 {
     const halfH = hfov / 2;
     const halfV = (hfov * H / W) / 2;
 
-    this._overlayEl.querySelectorAll('.hs-card, .nav-arrow-hotspot').forEach(el => {
+    this._overlayEl.querySelectorAll('.hs-card, .nav-arrow-hotspot, .hs-prop').forEach(el => {
       const hp = parseFloat(el.getAttribute('data-pitch'));
       const hy = parseFloat(el.getAttribute('data-yaw'));
 
@@ -285,6 +334,13 @@ export class Viewer360 {
         el.style.display = 'block';
         el.style.left    = `${x}px`;
         el.style.top     = `${y}px`;
+
+        if (el.classList.contains('hs-prop')) {
+          const scale = parseFloat(el.getAttribute('data-scale') || '1');
+          const depth = 1 - Math.min(1, Math.hypot(dYaw / halfH, dPitch / halfV) * 0.35);
+          el.style.transform = `translate(-50%, -70%) scale(${(0.85 + depth * 0.25) * scale})`;
+          el.style.opacity = String(0.55 + depth * 0.35);
+        }
       } else {
         el.style.display = 'none';
       }
@@ -317,7 +373,7 @@ export class Viewer360 {
       this._overlayEl = null;
     }
     if (this.viewer) {
-      try { this.viewer.destroy(); } catch(e) {}
+      try { this.viewer.destroy(); } catch (e) {}
       this.viewer = null;
     }
   }
@@ -329,6 +385,20 @@ export class Viewer360 {
       else this.viewer.stopAutoRotate();
     }
     return this.autoRotate;
+  }
+
+  /** Soft day/night grade over the panorama canvas (CSS filter). */
+  setTimeOfDay(timeKey = 'day') {
+    const canvas = this.container?.querySelector('canvas') || this.container;
+    if (!canvas) return;
+    const filters = {
+      dawn: 'brightness(0.95) saturate(1.15) hue-rotate(-8deg)',
+      day: 'none',
+      dusk: 'brightness(0.85) saturate(1.25) hue-rotate(12deg)',
+      night: 'brightness(0.55) saturate(0.85) contrast(1.1)'
+    };
+    canvas.style.filter = filters[timeKey] || filters.day;
+    canvas.style.transition = 'filter 0.6s ease';
   }
 
   _loadFallback(panoramaUrl, zoneData) {

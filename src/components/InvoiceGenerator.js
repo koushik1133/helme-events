@@ -64,7 +64,7 @@ export class InvoiceGenerator {
           </div>
           <div class="modal-body invoice-body" id="invoice-print-area" style="padding: 20px; background: #fff; color: #000;">
             <div class="invoice-header" style="text-align: center; margin-bottom: 20px;">
-              <h1 style="margin: 0; color: #333;">Helme Events Pvt Ltd</h1>
+              <h1 style="margin: 0; color: #333;">Helm Events</h1>
               <p style="margin: 5px 0;">Invoice #: INV-${Math.floor(Math.random()*10000)}<br>Date: ${new Date().toLocaleDateString()}</p>
             </div>
             <div class="invoice-bill-to" style="margin-bottom: 20px;">

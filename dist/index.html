@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Helme Events 360° | India Events & Venue Visualizer</title>
+  <title>Helm Events 360° | Venue & India Events Studio</title>
 
-  <!-- Google Fonts: Inter (Helme Events Font Stack) -->
+  <!-- Google Fonts: Inter (Helm Events Font Stack) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,36 +14,37 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css" />
   <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 
-  <script type="module" crossorigin src="/assets/index-BtTilD14.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BhTNF8s8.css">
+  <script type="module" crossorigin src="/assets/index-CvwPrWlB.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-D6cM2Pt3.css">
 </head>
 <body>
-  <!-- Helme Events Navbar Header -->
+  <!-- Helm Events Navbar Header -->
   <header class="app-navbar">
     <div class="nav-brand">
-      <div class="logo-badge">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
-          <path d="M2 12h20" />
-        </svg>
-      </div>
+      <img class="helm-logo" src="/images/helm-logo.png" alt="helm" width="120" height="48" />
       <div class="brand-text">
-        <h1 class="logo-title">Helme Events 360°</h1>
-        <span class="logo-subtitle">Venue & India Events Studio</span>
+        <h1 class="logo-title">Helm Events</h1>
+        <span class="logo-subtitle">360° Venue & India Events Studio</span>
       </div>
     </div>
 
     <!-- Navigation View Switcher (Center Segmented Pill) -->
     <div class="view-toggle-group">
       <button class="nav-tab active" id="tabMapView"><span>📍 Map</span></button>
-      <button class="nav-tab" id="tab360View"><span>🌀 360°</span></button>
+      <button class="nav-tab" id="tab360View"><span>🌀 360° Studio</span></button>
+      <button class="nav-tab nav-tab-ai-ops" id="tabN8nOpsView"><span>⚡ n8n AI Ops</span></button>
       <button class="nav-tab nav-tab-india" id="tabIndiaView"><span>🇮🇳 India</span></button>
       <button class="nav-tab" id="tabFloorPlanView"><span>📐 Floor Plan</span></button>
       <button class="nav-tab" id="tabAnalyticsView"><span>📊 Analytics</span></button>
       <button class="nav-tab" id="tabProposalsView"><span>📁 Proposals</span></button>
       <button class="nav-tab" id="tabTimelineView"><span>📅 Timeline</span></button>
       <button class="nav-tab" id="tabSeatingView"><span>👥 Seating</span></button>
+    </div>
+
+    <!-- Quick Search Input Bar -->
+    <div class="nav-search-wrapper">
+      <span class="nav-search-icon">🔍</span>
+      <input type="text" id="globalNavSearch" class="nav-search-input" placeholder="Quick search rooms, furniture, vendors..." />
     </div>
 
     <!-- Action Buttons Group (Right Pill Bar) -->
@@ -78,7 +79,7 @@
       </button>
 
       <button class="nav-action-btn btn-sound-toggle" id="btnSoundToggle">
-        <span id="soundIcon">🔊</span> <span id="soundLabel">Sound: OFF</span>
+        <span id="soundIcon">🔇</span> <span id="soundLabel">Sound: OFF</span>
       </button>
 
       <button class="theme-mode-toggle" id="themeModeToggle" aria-label="Toggle Theme">
@@ -86,26 +87,27 @@
         <span class="icon-moon">🌙</span>
         <span class="theme-mode-label">Dark</span>
       </button>
+    </div>
 
-      <div class="preset-popover-wrapper" id="presetPopoverWrapper">
-        <button class="preset-trigger-btn" id="btnPresetDropdown" aria-label="Select Theme Preset" aria-haspopup="true">
-          <span class="preset-label-tag">Theme:</span>
-          <span id="presetCurrentName" class="preset-current-val">👑 Royal Gold</span>
-          <span class="preset-chevron">▾</span>
-        </button>
-        <div class="preset-popover-menu hidden" id="presetPopoverMenu">
-          <div class="preset-menu-item active" data-value="royal">
-            <span class="item-icon">👑</span> <span class="item-name">Royal Gold Wedding</span> <span class="item-check">✓</span>
-          </div>
-          <div class="preset-menu-item" data-value="cyber">
-            <span class="item-icon">⚡</span> <span class="item-name">Cyber Neon Gala</span> <span class="item-check"></span>
-          </div>
-          <div class="preset-menu-item" data-value="garden">
-            <span class="item-icon">🌿</span> <span class="item-name">Garden Boho Party</span> <span class="item-check"></span>
-          </div>
-          <div class="preset-menu-item" data-value="minimal">
-            <span class="item-icon">🤍</span> <span class="item-name">Minimalist Platinum</span> <span class="item-check"></span>
-          </div>
+    <!-- Theme pinned outside scroll row so it is always reachable -->
+    <div class="preset-popover-wrapper nav-theme-pin" id="presetPopoverWrapper">
+      <button class="preset-trigger-btn" id="btnPresetDropdown" aria-label="Select Theme Preset" aria-haspopup="true" aria-expanded="false">
+        <span class="preset-label-tag">Theme:</span>
+        <span id="presetCurrentName" class="preset-current-val">👑 Royal Gold</span>
+        <span class="preset-chevron">▾</span>
+      </button>
+      <div class="preset-popover-menu hidden" id="presetPopoverMenu" role="menu">
+        <div class="preset-menu-item active" data-value="royal" role="menuitem">
+          <span class="item-icon">👑</span> <span class="item-name">Royal Gold Wedding</span> <span class="item-check">✓</span>
+        </div>
+        <div class="preset-menu-item" data-value="cyber" role="menuitem">
+          <span class="item-icon">⚡</span> <span class="item-name">Cyber Neon Gala</span> <span class="item-check"></span>
+        </div>
+        <div class="preset-menu-item" data-value="garden" role="menuitem">
+          <span class="item-icon">🌿</span> <span class="item-name">Garden Boho Party</span> <span class="item-check"></span>
+        </div>
+        <div class="preset-menu-item" data-value="minimal" role="menuitem">
+          <span class="item-icon">🤍</span> <span class="item-name">Minimalist Platinum</span> <span class="item-check"></span>
         </div>
       </div>
     </div>
@@ -210,6 +212,9 @@
 
     <!-- View 13: 🎵 Playlist Builder -->
     <section id="playlistContainer" class="view-section hidden"></section>
+
+    <!-- View 14: ⚡ n8n AI Multi-Agent Operations Architecture -->
+    <section id="n8nOpsContainer" class="view-section hidden"></section>
   </main>
 
   <!-- Persistent Floating Cost Card -->
