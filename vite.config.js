@@ -133,7 +133,7 @@ function apiDevPlugin() {
 export default defineConfig({
   plugins: [apiDevPlugin()],
   server: {
-    port: 3009,
+    port: 3002,
     open: false,
     proxy: {
       '/api': {
