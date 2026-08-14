@@ -133,11 +133,20 @@ export class N8nArchitectureWorkflow {
               <span class="adv-icon">💰</span>
               <h4>1. Work-Based Fair Payouts & 80% Budget Allocation</h4>
             </div>
-            <ul class="adv-list">
-              <li><strong>Direct Work-Based Payout:</strong> Workers are paid strictly according to verified work completed. The AI System calculates and suggests fair post-event payment logs based on verified photo timestamps.</li>
-              <li><strong>Eliminates 100 to 250 Middlemen:</strong> Replaces up to 250 unnecessary middleman supervisors ($200k manager + $75k supervisor fees).</li>
-              <li><strong>80% Direct Ground Payout:</strong> 80% of total budget goes straight to actual ground workers doing the work, while communication costs drop to ~2k Meta API fees.</li>
-            </ul>
+            <div class="adv-items-list">
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Direct Work-Based Payout:</strong> Workers are paid strictly according to verified work completed. The AI System calculates and suggests fair post-event payment logs based on verified photo timestamps.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Eliminates 100 to 250 Middlemen:</strong> Replaces up to 250 unnecessary middleman supervisors ($200k manager + $75k supervisor fees).</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>80% Direct Ground Payout:</strong> 80% of total budget goes straight to actual ground workers doing the work, while communication costs drop to ~2k Meta API fees.</div>
+              </div>
+            </div>
           </div>
 
           <!-- PILLAR 2: REAL-TIME GPS & MAP VISUALS -->
@@ -146,11 +155,20 @@ export class N8nArchitectureWorkflow {
               <span class="adv-icon">🗺️</span>
               <h4>2. Live GPS Map Tracking & Zero Overlapping</h4>
             </div>
-            <ul class="adv-list">
-              <li><strong>Live Colored Dots on Maps:</strong> Visual venue map tracks worker availability in real time (<span class="dot green">●</span> Free / Available, <span class="dot red">●</span> Busy / On Task, <span class="dot yellow">●</span> En Route).</li>
-              <li><strong>Zero Task Overlapping:</strong> Auto-cancellation of backup calls prevents multiple workers from blindly rushing to fix the exact same issue at the same time.</li>
-              <li><strong>Crowd Scale Ready (10,000+ Attendees):</strong> Organizes ground operations seamlessly for massive public rallies and political events with zero confusion.</li>
-            </ul>
+            <div class="adv-items-list">
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Live Colored Dots on Maps:</strong> Visual venue map tracks worker availability in real time (<span class="dot green">●</span> Free / Available, <span class="dot red">●</span> Busy / On Task, <span class="dot yellow">●</span> En Route).</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Zero Task Overlapping:</strong> Auto-cancellation of backup calls prevents multiple workers from blindly rushing to fix the exact same issue at the same time.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Crowd Scale Ready (10,000+ Attendees):</strong> Organizes ground operations seamlessly for massive public rallies and political events with zero confusion.</div>
+              </div>
+            </div>
           </div>
 
           <!-- PILLAR 3: RESPONSE SPEED & ZERO HALLUCINATION -->
@@ -159,11 +177,20 @@ export class N8nArchitectureWorkflow {
               <span class="adv-icon">⚡</span>
               <h4>3. 5-Second Response & Zero Hallucination</h4>
             </div>
-            <ul class="adv-list">
-              <li><strong>5-Second Ultra-Fast Response:</strong> Reduces emergency resolution time from 20+ minutes down to 5 seconds.</li>
-              <li><strong>Zero Hallucination / False Assumptions:</strong> Eliminates supervisors assuming <em>"someone else must have gone to fix it"</em> — system maintains 100% telemetry status.</li>
-              <li><strong>Staggered 10s Call Cascade:</strong> Top 3 closest workers called in parallel with 10s buffers; auto-escalates to P4-P6 if P1-P3 reject (~1m 20s max).</li>
-            </ul>
+            <div class="adv-items-list">
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>5-Second Ultra-Fast Response:</strong> Reduces emergency resolution time from 20+ minutes down to 5 seconds.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Zero Hallucination / False Assumptions:</strong> Eliminates supervisors assuming <em>"someone else must have gone to fix it"</em> — system maintains 100% telemetry status.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Staggered 10s Call Cascade:</strong> Top 3 closest workers called in parallel with 10s buffers; auto-escalates to P4-P6 if P1-P3 reject (~1m 20s max).</div>
+              </div>
+            </div>
           </div>
 
           <!-- PILLAR 4: NAVIGATION & ZERO APP INSTALLATION -->
@@ -172,11 +199,20 @@ export class N8nArchitectureWorkflow {
               <span class="adv-icon">📍</span>
               <h4>4. Turn-by-Turn Navigation & WhatsApp Native</h4>
             </div>
-            <ul class="adv-list">
-              <li><strong>Turn-by-Turn Route Guidance:</strong> Sends Google Maps route pins directly to WhatsApp, removing directional confusion on massive grounds.</li>
-              <li><strong>Zero App Downloads Required:</strong> Operates 100% on WhatsApp & phone calls, which every worker already uses daily.</li>
-              <li><strong>Hands-Free Voice & Siri Command:</strong> Stage Manager speaks naturally (<em>"Hey Siri..."</em>); Voice Agent parses domain, priority, and location in seconds.</li>
-            </ul>
+            <div class="adv-items-list">
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Turn-by-Turn Route Guidance:</strong> Sends Google Maps route pins directly to WhatsApp, removing directional confusion on massive grounds.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Zero App Downloads Required:</strong> Operates 100% on WhatsApp & phone calls, which every worker already uses daily.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Hands-Free Voice & Siri Command:</strong> Stage Manager speaks naturally (<em>"Hey Siri..."</em>); Voice Agent parses domain, priority, and location in seconds.</div>
+              </div>
+            </div>
           </div>
 
           <!-- PILLAR 5: ANTI-BLUFFING & AUTOMATED REMINDERS -->
@@ -185,11 +221,20 @@ export class N8nArchitectureWorkflow {
               <span class="adv-icon">📸</span>
               <h4>5. Anti-Bluffing Vision AI & Automated Reminders</h4>
             </div>
-            <ul class="adv-list">
-              <li><strong>Anti-Bluffing Photo AI Verification:</strong> Requires photo upload via WhatsApp upon completion. AI Vision inspects proof before marking job done & approving payment.</li>
-              <li><strong>Automated 20-Min Follow-Ups:</strong> System automatically sends text reminders every 20 minutes for ongoing tasks to prevent forgotten jobs.</li>
-              <li><strong>Social Media & Marketing Agent:</strong> Integrated social media AI agent manages live audience engagement while crew ops run in parallel.</li>
-            </ul>
+            <div class="adv-items-list">
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Anti-Bluffing Photo AI Verification:</strong> Requires photo upload via WhatsApp upon completion. AI Vision inspects proof before marking job done & approving payment.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Automated 20-Min Follow-Ups:</strong> System automatically sends text reminders every 20 minutes for ongoing tasks to prevent forgotten jobs.</div>
+              </div>
+              <div class="adv-item">
+                <span class="adv-bullet">✓</span>
+                <div class="adv-text"><strong>Social Media & Marketing Agent:</strong> Integrated social media AI agent manages live audience engagement while crew ops run in parallel.</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -487,12 +532,6 @@ export class N8nArchitectureWorkflow {
               <div class="cost-stat">$275,000 Total Cost</div>
             </div>
 
-            <ul class="roi-list">
-              <li>⚠️ <strong>High Overhead:</strong> 1 Stage Manager ($200,000) + Team Leaders ($75,000) + 100 workers.</li>
-              <li>⚠️ <strong>Slow Response:</strong> Takes 20+ minutes to find and direct a worker via phone calls.</li>
-              <li>⚠️ <strong>Worker Overlapping:</strong> Multiple people blindly rush to do the exact same task.</li>
-              <li>⚠️ <strong>Hallucination / Assumptions:</strong> Managers assume someone else already fixed the issue.</li>
-              <li>⚠️ <strong>No Proof of Work:</strong> No visual verification whether job was actually completed.</li>
             </ul>
           </div>
 
