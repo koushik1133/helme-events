@@ -82,7 +82,10 @@ class Event360App {
     this.initUI();
     this.initComponents();
     this.bindGlobalEvents();
+    // The studio's own router still needs priming, but the workspace opens on
+    // whichever section this person was last in — Home for a new sign-in.
     this.switchView(this.activeView);
+    this.setSection(loadRaw('helm.v1.section', 'home'));
 
     // Restore asynchronously — first paint must never wait on the API probe.
     this.restoreSavedState();
@@ -155,6 +158,19 @@ class Event360App {
     this.testimonialContainer = document.getElementById('testimonialContainer');
     this.playlistContainer = document.getElementById('playlistContainer');
     this.eventDetailsContainer = document.getElementById('eventDetailsContainer');
+
+    // Shell: the workspace sections above the studio's own view router.
+    this.signInRoot = document.getElementById('signInRoot');
+    this.workspaceEl = document.getElementById('workspace');
+    this.roleBadgeSlot = document.getElementById('roleBadgeSlot');
+    this.sectionSwitcher = document.getElementById('sectionSwitcher');
+    this.sections = {
+      home: document.getElementById('homeSection'),
+      clients: document.getElementById('clientsSection'),
+      deals: document.getElementById('dealsSection'),
+      payments: document.getElementById('paymentsSection'),
+      studio: document.getElementById('studioSection')
+    };
 
     // New modal containers
     this.compareContainer = document.getElementById('compareContainer');
@@ -527,6 +543,10 @@ class Event360App {
       this.btnOpen3DEditor.addEventListener('click', () => this.open3DEditor());
     }
 
+    this.sectionSwitcher?.querySelectorAll('.section-tab').forEach(btn => {
+      btn.addEventListener('click', () => this.setSection(btn.dataset.section));
+    });
+
     const btnEventDetails = document.getElementById('btnEventDetails');
     if (btnEventDetails) {
       btnEventDetails.addEventListener('click', () => {
@@ -777,6 +797,70 @@ class Event360App {
       this.btnToggleFeatures.setAttribute('aria-expanded', 'false');
     }
     this.showToast(`Opened ${featureLabels[feature] || feature}`);
+  }
+
+  /**
+   * Switch workspace section.
+   *
+   * This sits ABOVE `switchView`: a section is a whole area of the product
+   * (Home, Clients, Pipeline, Payments, Design Studio), while a view is a screen
+   * inside the Design Studio. The studio's own navbar controls are hidden outside
+   * it so the header is not advertising the 3D editor while you are reading an
+   * invoice.
+   */
+  setSection(name) {
+    const target = this.sections[name] ? name : 'home';
+    this.activeSection = target;
+
+    for (const [key, el] of Object.entries(this.sections)) {
+      if (!el) continue;
+      const on = key === target;
+      el.classList.toggle('hidden', !on);
+      el.classList.toggle('active', on);
+    }
+
+    this.sectionSwitcher?.querySelectorAll('.section-tab').forEach(btn => {
+      const on = btn.dataset.section === target;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-current', on ? 'page' : 'false');
+    });
+
+    // Studio-only chrome.
+    const inStudio = target === 'studio';
+    document.querySelectorAll('.studio-only, .studio-only-actions').forEach(el => {
+      el.classList.toggle('hidden', !inStudio);
+    });
+    if (!inStudio) {
+      this.featureToolbar?.classList.add('hidden');
+      this.indiaSubBar?.classList.add('hidden');
+      this.featureToolbarOpen = false;
+    }
+
+    this.renderSection(target);
+    saveRaw(STORAGE_KEYS.section || 'helm.v1.section', target);
+  }
+
+  /**
+   * Render a section on entry. Each screen owns its own DOM; we only decide when.
+   * Screens are optional so the app still runs while a module is being built.
+   */
+  renderSection(name) {
+    try {
+      if (name === 'home' && this.homeScreen?.render) this.homeScreen.render();
+      if (name === 'clients' && this.clientList?.render) this.clientList.render();
+      if (name === 'deals' && this.dealBoard?.render) this.dealBoard.render();
+      if (name === 'payments' && this.paymentsScreen?.render) this.paymentsScreen.render();
+      if (name === 'studio') this.switchView(this.activeView || 'map');
+    } catch (err) {
+      console.error('[Helm] section render failed', name, err);
+      const el = this.sections[name];
+      if (el && !el.childElementCount) {
+        el.innerHTML = `<div class="section-empty" role="alert">
+          <h2>This section could not load</h2>
+          <p>${escapeHtml(err.message || String(err))}</p>
+        </div>`;
+      }
+    }
   }
 
   /**

@@ -53,6 +53,15 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
+  <!--
+    Sign-in gate. This is a DEMO persona chooser, not authentication — there is no
+    backend and nothing here secures data. src/auth/ enforces the permission matrix
+    so the model transfers unchanged when a backend lands, but the app says plainly
+    what it is.
+  -->
+  <div id="signInRoot" class="signin-root" hidden></div>
+
+  <div id="workspace">
   <!-- Helm Events Navbar Header -->
   <header class="app-navbar">
     <div class="nav-brand">
@@ -63,7 +72,20 @@
       </div>
     </div>
 
+    <!-- Primary section switcher: the workspace this person is in right now. -->
+    <nav class="section-switcher" id="sectionSwitcher" aria-label="Workspace sections">
+      <button class="section-tab active" data-section="home" id="sectionHome"><span>🏠 Home</span></button>
+      <button class="section-tab" data-section="clients" id="sectionClients"><span>👤 Clients</span></button>
+      <button class="section-tab" data-section="deals" id="sectionDeals"><span>📊 Pipeline</span></button>
+      <button class="section-tab" data-section="payments" id="sectionPayments"><span>💰 Payments</span></button>
+      <button class="section-tab" data-section="studio" id="sectionStudio"><span>🎨 Design Studio</span></button>
+    </nav>
+
+    <!-- Who am I signed in as — always visible, always switchable. -->
+    <div id="roleBadgeSlot" class="role-badge-slot"></div>
+
     <!-- Navigation View Switcher (Center Segmented Pill) -->
+    <div class="studio-only" id="studioNavGroup">
     <nav class="view-toggle-group" aria-label="Main views">
       <button class="nav-tab active" id="tabMapView"><span>📍 Map</span></button>
       <button class="nav-tab" id="tab360View"><span>🌀 360° Studio</span></button>
@@ -74,6 +96,7 @@
       <button class="nav-tab" id="tabTimelineView"><span>📅 Timeline</span></button>
       <button class="nav-tab" id="tabSeatingView"><span>👥 Seating</span></button>
     </nav>
+    </div>
 
     <!-- Quick Search Input Bar -->
     <div class="nav-search-wrapper">
@@ -83,6 +106,7 @@
 
     <!-- Action Buttons Group (Right Pill Bar) -->
     <div class="nav-actions-group">
+      <span class="studio-only-actions" id="studioOnlyActions">
       <button class="nav-action-btn btn-3d-editor" id="btnOpen3DEditor" aria-label="Open the interactive 3D space editor" title="Interactive 3D Real-Time Space Editor">
         <span>🎮 3D Editor</span>
       </button>
@@ -110,6 +134,8 @@
       <button class="nav-action-btn btn-cart-nav" id="btnOpenCart" aria-label="Open cart and checkout">
         <span>🛒 Cart</span>
       </button>
+
+      </span>
 
       <button class="nav-action-btn btn-notification-bell" id="btnNotifications" aria-label="Notifications" title="Notifications">
         <span>🔔</span>
@@ -187,6 +213,16 @@
 
   <!-- Main Viewport -->
   <main class="app-viewport">
+    <!-- Role home. The front door for everyone who signs in. -->
+    <section id="homeSection" class="app-section active"></section>
+
+    <!-- CRM -->
+    <section id="clientsSection" class="app-section hidden"></section>
+    <section id="dealsSection" class="app-section hidden"></section>
+    <section id="paymentsSection" class="app-section hidden"></section>
+
+    <!-- Design Studio: the 360 venue planner and everything around it. -->
+    <div id="studioSection" class="app-section hidden">
     <!-- View 1: Interactive Aerial Venue Map -->
     <section id="mapViewContainer" class="view-section active"></section>
 
@@ -245,6 +281,7 @@
     <!-- View 13: 🎵 Playlist Builder -->
     <section id="playlistContainer" class="view-section hidden"></section>
 
+    </div><!-- /#studioSection -->
   </main>
 
   <!-- Persistent Floating Cost Card -->
@@ -306,6 +343,12 @@
 
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <p class="demo-disclaimer">
+    Demo workspace — roles shape what you see, they do not secure data.
+    Everything is stored in this browser.
+  </p>
+  </div><!-- /#workspace -->
 
   <script type="module" src="/src/main.js"></script>
 </body>

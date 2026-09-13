@@ -6414,3 +6414,117 @@ summary:focus-visible,
 .removed-lines-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
 .removed-lines-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .removed-lines-list small { display: block; opacity: .7; }
+
+/* =====================================================================
+   WORKSPACE SHELL
+   The app is no longer just a venue planner: it is a workspace an event
+   company lives in. A SECTION is an area of the product (Home, Clients,
+   Pipeline, Payments, Design Studio); a VIEW is a screen inside the studio.
+   ===================================================================== */
+
+.section-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  flex: 0 0 auto;
+}
+
+.section-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.section-tab:hover { color: var(--text-main); }
+
+.section-tab.active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-card);
+}
+
+.section-tab:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+}
+
+/* A section fills the viewport; only one is ever visible. */
+.app-section {
+  display: block;
+  width: 100%;
+  min-height: 0;
+}
+
+.app-section.hidden { display: none !important; }
+
+.role-badge-slot { flex: 0 0 auto; display: flex; align-items: center; }
+
+/* Chrome that only makes sense inside the Design Studio. */
+.studio-only.hidden,
+.studio-only-actions.hidden { display: none !important; }
+
+.studio-only-actions { display: contents; }
+
+/* The sign-in gate covers everything; the workspace is inert behind it. */
+.signin-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 9600);
+  overflow-y: auto;
+  background: var(--bg-base, var(--bg-surface));
+}
+
+.signin-root[hidden] { display: none !important; }
+
+/* Permanent, non-dismissible. This product has no authentication and says so. */
+.demo-disclaimer {
+  margin: 0;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+  color: var(--text-dim);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-soft);
+}
+
+.section-empty {
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.section-empty h2 {
+  color: var(--text-main);
+  font-size: 1.1rem;
+  margin: 0 0 8px;
+}
+
+@media (max-width: 1100px) {
+  .section-tab { padding: 7px 10px; font-size: 0.78rem; }
+}
+
+@media (max-width: 720px) {
+  .section-switcher {
+    order: 10;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: flex-start;
+  }
+  .section-switcher::-webkit-scrollbar { display: none; }
+}

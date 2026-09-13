@@ -48,40 +48,47 @@ export const CATEGORY_HEIGHT_M = {
  *   anchorPitch / anchorYaw — where the element's CENTRE sits, degrees.
  *     Defaults to the slot's own pos3D when absent.
  *   distanceM  — calibration distance (see honesty note).
+ *   ground     — true when the item's FEET rest on the floor, so the composited
+ *                layer is anchored to the floor plane and gets a contact shadow.
+ *                false for things that hang or mount on a wall (chandeliers,
+ *                LED walls, backdrops, garland arches) — those are centred on
+ *                the slot's own pitch and get no floor shadow, because a
+ *                contact shadow under a hanging object is the fastest way to
+ *                make a composite read as fake.
  *   calibrated — true only once the floor-contact click has been done.
  */
 export const SLOT_OVERLAY = {
-  'slot-stage-main':        { distanceM: 9,  calibrated: false },
-  'slot-stage-backdrop':    { distanceM: 11, calibrated: false },
-  'slot-stage-seating':     { distanceM: 3.5, calibrated: false },
-  'slot-banquet-table':     { distanceM: 4,  calibrated: false },
-  'slot-banquet-chairs':    { distanceM: 3.5, calibrated: false },
-  'slot-banquet-lighting':  { distanceM: 5,  calibrated: false },
-  'slot-fountain-center':   { distanceM: 7,  calibrated: false },
-  'slot-fountain-lighting': { distanceM: 6,  calibrated: false },
-  'slot-lounge-table':      { distanceM: 3.5, calibrated: false },
-  'slot-lounge-seating':    { distanceM: 4,  calibrated: false },
-  'slot-lounge-lighting':   { distanceM: 4.5, calibrated: false },
-  'slot-entrance-arch':     { distanceM: 8,  calibrated: false },
-  'slot-entrance-water':    { distanceM: 9,  calibrated: false },
-  'slot-entrance-seating':  { distanceM: 3.5, calibrated: false },
-  'slot-election-podium':   { distanceM: 5,  calibrated: false },
-  'slot-election-hoarding': { distanceM: 10, calibrated: false },
-  'slot-election-audio':    { distanceM: 7,  calibrated: false },
-  'slot-election-seating':  { distanceM: 4.5, calibrated: false },
-  'slot-function-mandap':   { distanceM: 8,  calibrated: false },
-  'slot-function-marigold': { distanceM: 9,  calibrated: false },
-  'slot-function-throne':   { distanceM: 6,  calibrated: false },
-  'slot-function-jhula':    { distanceM: 6,  calibrated: false },
-  'slot-meeting-podium':    { distanceM: 4.5, calibrated: false },
-  'slot-meeting-screen':    { distanceM: 7,  calibrated: false },
-  'slot-meeting-desk':      { distanceM: 4,  calibrated: false }
+  'slot-stage-main':        { ground: true, distanceM: 9,  calibrated: false },
+  'slot-stage-backdrop':    { ground: false, distanceM: 11, calibrated: false },
+  'slot-stage-seating':     { ground: true, distanceM: 3.5, calibrated: false },
+  'slot-banquet-table':     { ground: true, distanceM: 4,  calibrated: false },
+  'slot-banquet-chairs':    { ground: true, distanceM: 3.5, calibrated: false },
+  'slot-banquet-lighting':  { ground: false, distanceM: 5,  calibrated: false },
+  'slot-fountain-center':   { ground: true, distanceM: 7,  calibrated: false },
+  'slot-fountain-lighting': { ground: false, distanceM: 6,  calibrated: false },
+  'slot-lounge-table':      { ground: true, distanceM: 3.5, calibrated: false },
+  'slot-lounge-seating':    { ground: true, distanceM: 4,  calibrated: false },
+  'slot-lounge-lighting':   { ground: false, distanceM: 4.5, calibrated: false },
+  'slot-entrance-arch':     { ground: false, distanceM: 8,  calibrated: false },
+  'slot-entrance-water':    { ground: true, distanceM: 9,  calibrated: false },
+  'slot-entrance-seating':  { ground: true, distanceM: 3.5, calibrated: false },
+  'slot-election-podium':   { ground: true, distanceM: 5,  calibrated: false },
+  'slot-election-hoarding': { ground: false, distanceM: 10, calibrated: false },
+  'slot-election-audio':    { ground: true, distanceM: 7,  calibrated: false },
+  'slot-election-seating':  { ground: true, distanceM: 4.5, calibrated: false },
+  'slot-function-mandap':   { ground: true, distanceM: 8,  calibrated: false },
+  'slot-function-marigold': { ground: false, distanceM: 9,  calibrated: false },
+  'slot-function-throne':   { ground: true, distanceM: 6,  calibrated: false },
+  'slot-function-jhula':    { ground: true, distanceM: 6,  calibrated: false },
+  'slot-meeting-podium':    { ground: true, distanceM: 4.5, calibrated: false },
+  'slot-meeting-screen':    { ground: false, distanceM: 7,  calibrated: false },
+  'slot-meeting-desk':      { ground: true, distanceM: 4,  calibrated: false }
 };
 
 /**
  * Full overlay spec for one slot + item.
  * @returns {{anchorPitch:number, anchorYaw:number, heightM:number,
- *            distanceM:number, calibrated:boolean}|null}
+ *            distanceM:number, ground:boolean, calibrated:boolean}|null}
  */
 export function overlaySpec(slot, item) {
   if (!slot?.pos3D) return null;
@@ -92,6 +99,44 @@ export function overlaySpec(slot, item) {
     anchorYaw:   cfg.anchorYaw   != null ? cfg.anchorYaw   : slot.pos3D.yaw,
     heightM,
     distanceM: cfg.distanceM || 6,
+    ground: cfg.ground !== false,
     calibrated: Boolean(cfg.calibrated)
   };
+}
+
+/**
+ * Cut-out artwork for composited layers.
+ *
+ * `public/images/cutouts/manifest.json` carries, per catalogue item, the
+ * transparent PNG plus its `contact` value — where the object's FEET sit inside
+ * the frame, 0..1 from the top. Anchoring that point to the floor (rather than
+ * the image centre) is what makes a composited chair stand on the ground
+ * instead of hovering above it, so the manifest is not optional decoration.
+ */
+let _cutoutManifest = null;
+let _cutoutPromise = null;
+
+export function cutoutManifest() { return _cutoutManifest; }
+
+export async function loadCutoutManifest(url = '/images/cutouts/manifest.json') {
+  if (_cutoutManifest) return _cutoutManifest;
+  if (!_cutoutPromise) {
+    _cutoutPromise = fetch(url)
+      .then(r => (r.ok ? r.json() : {}))
+      .then(json => (_cutoutManifest = json || {}))
+      .catch(() => (_cutoutManifest = {}));
+  }
+  return _cutoutPromise;
+}
+
+/** Test seam: let a non-browser caller supply the manifest directly. */
+export function setCutoutManifest(json) { _cutoutManifest = json || {}; return _cutoutManifest; }
+
+/**
+ * @returns {{url:string, contact:number, width:number, height:number}|null}
+ */
+export function cutoutFor(itemId) {
+  const e = _cutoutManifest?.[itemId];
+  if (!e || !e.url) return null;
+  return { url: e.url, contact: e.contact ?? 0.9, width: e.width, height: e.height };
 }
