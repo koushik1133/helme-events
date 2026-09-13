@@ -270,7 +270,6 @@ class Event360App {
     this.btnOpenCart = document.getElementById('btnOpenCart');
     this.btnAIBuilder = document.getElementById('btnAIBuilder');
     this.btnCustomBrief = document.getElementById('btnCustomBrief');
-    this.btnOpen3DEditor = document.getElementById('btnOpen3DEditor');
     this.btnSoundToggle = document.getElementById('btnSoundToggle');
     this.btnPresetDropdown = document.getElementById('btnPresetDropdown');
     this.presetPopoverMenu = document.getElementById('presetPopoverMenu');
@@ -666,10 +665,6 @@ class Event360App {
       this.btnCustomBrief.addEventListener('click', () => this.customEventBriefWizard.open());
     }
 
-    if (this.btnOpen3DEditor) {
-      this.btnOpen3DEditor.addEventListener('click', () => this.open3DEditor());
-    }
-
     this.sectionSwitcher?.querySelectorAll('.section-tab').forEach(btn => {
       btn.addEventListener('click', () => this.setSection(btn.dataset.section));
     });
@@ -1027,6 +1022,12 @@ class Event360App {
     });
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
 
+    // Leaving the floor plan releases its WebGL context rather than leaving one
+    // pinned behind a hidden view — browsers cap these at around 16.
+    if (viewName !== 'floorplan' && this.threeDLiveSpaceEditor?.isMounted) {
+      this.threeDLiveSpaceEditor.unmount();
+    }
+
     switch (viewName) {
       case 'map':
         this.activateSection(this.mapContainer, this.tabMapView);
@@ -1049,7 +1050,7 @@ class Event360App {
 
       case 'floorplan':
         this.activateSection(this.floorPlanContainer, this.tabFloorPlanView);
-        this.floorPlanEditor.updateSelections(this.activeSelections);
+        this.mountFloorPlan();
         break;
       case 'analytics':
         this.activateSection(this.analyticsContainer, this.tabAnalyticsView);
@@ -1454,49 +1455,54 @@ class Event360App {
    * off the critical path and pulled in here. Every entry point (the toolbar button
    * and the brief wizard's hand-off) must come through this method.
    */
-  async open3DEditor() {
-    const btn = this.btnOpen3DEditor;
-    if (btn?.dataset.loading === '1') return;
+  /**
+   * Show the 3D floor plan.
+   *
+   * It used to be a full-screen modal reached from its own navbar button, which
+   * is the pop-up that interrupted everything. It is now simply the Floor plan
+   * tab, so every entry point — the tab, the brief wizard hand-off, quick search
+   * — lands in the same embedded view.
+   */
+  open3DEditor() {
+    this.setSection('studio');
+    this.switchView('floorplan');
+  }
+
+  /** Lazily import and mount the floor plan into its studio view. */
+  async mountFloorPlan() {
+    const host = this.floorPlanContainer;
+    if (!host) return;
 
     if (!this.threeDLiveSpaceEditor) {
-      const label = btn?.textContent;
-      if (btn) {
-        btn.dataset.loading = '1';
-        btn.disabled = true;
-        btn.setAttribute('aria-busy', 'true');
-        btn.textContent = 'Loading 3D editor…';
-      }
+      host.setAttribute('aria-busy', 'true');
       try {
         const { ThreeDLiveSpaceEditor } = await import('./components/ThreeDLiveSpaceEditor.js');
         this.threeDLiveSpaceEditor = new ThreeDLiveSpaceEditor(
-          this.threeDEditorContainer,
+          host,
           this.activeSelections,
-          (selections) => this.updateAllComponents(selections)
+          (selections) => this.updateAllComponents(selections),
+          { modal: false, mode: 'view' }
         );
-        // The 3D floor plan is a SEPARATE costing surface from the zone catalogue.
-        // Record the layout for proposals and exports, but do NOT fold its total
-        // into the venue subtotal — the zones already price tables, chairs and
-        // staging, so counting both would double-charge the client.
+        // The floor plan is a SEPARATE costing surface from the zone catalogue:
+        // the zones already price tables, chairs and staging, so folding its
+        // total into the venue subtotal would double-charge the client.
         this.threeDLiveSpaceEditor.onLayoutChange = (layout) => {
           this.floorPlanLayout = layout;
         };
       } catch (err) {
-        console.error('[Helm] 3D editor failed to load', err);
-        this.showToast('The 3D editor could not load. Check your connection and try again.');
+        console.error('[Helm] floor plan failed to load', err);
+        this.showToast('The floor plan could not load. Check your connection and try again.');
         return;
       } finally {
-        if (btn) {
-          btn.dataset.loading = '0';
-          btn.disabled = false;
-          btn.removeAttribute('aria-busy');
-          btn.textContent = label;
-        }
+        host.removeAttribute('aria-busy');
       }
     }
 
-    this._lastTrigger = btn || null;
-    this.noteModalOpened('threeDLiveSpaceEditor');
-    this.threeDLiveSpaceEditor.open();
+    if (!this.threeDLiveSpaceEditor.isMounted) {
+      this.threeDLiveSpaceEditor.mount(host, { modal: false, mode: 'view' });
+    } else {
+      this.threeDLiveSpaceEditor.resize?.();
+    }
   }
 
   /** Record that a modal was opened, so Escape knows which one is on top. */
