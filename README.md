@@ -1,7 +1,7 @@
 # Helm Events 360°
 
 An interactive sales tool for event production. A Helm salesperson sits next to a client,
-walks them through a 4K 360° preview of the actual venue, swaps decor in and out live —
+walks them through a 360° preview of the venue, swaps decor in and out live —
 stage, chairs, backdrops, lighting, florals — and the cost quote updates in rupees as they
 go. The client sees the room and the price at the same time, and signs off before anything
 is built.
@@ -29,6 +29,7 @@ Requires **Node 20+** (enforced via `engines` in `package.json`).
 | `npm run preview` | Serves `dist/` on `:3002`, with the same `/api/*` mock as dev, so preview behaves like dev. |
 | `npm run api` | Runs the local API standalone on `127.0.0.1:3011`. Optional — `npm run dev` already includes it. |
 | `npm run seed` | Resets `src/data/backend_db.json` from the tracked `backend_db.seed.json`. |
+| `npm test` | Contract tests (`node --test`, no framework). Run before every commit. |
 
 ---
 
@@ -224,3 +225,45 @@ Honest list, so nobody rediscovers these:
   flat image if it fails to load, so nothing crashes, but the 360° feature is gone.
 - **`src/style.css` is one 132 kB render-blocking file.**
 - **Panoramas are ~1 MB JPEGs.** WebP/AVIF would cut 60–70%.
+
+
+---
+
+## Panorama assets — read this before promising a client a "4K 360° tour"
+
+`src/data/panoramaMeta.js` records the measured pixel dimensions of every plate, and
+`Viewer360` picks its projection from them. There are two kinds of plate in this repo:
+
+| Kind | Size | Count | How it renders |
+|---|---|---|---|
+| True equirectangular | 2048 × 1024 (2:1) | 32 | Full 360° sphere. Pan all the way round. |
+| Wide-angle photograph | 1376 × 768 (1.79:1) | 32 | **Partial panorama**, 120° horizontal field of view. |
+
+The second group are ordinary wide photos, not spherical captures. Wrapping one around a
+full sphere — which is what the app used to do — puts a hard seam where the left and right
+edges meet and smears both poles. Rendering them as a partial panorama is honest and looks
+correct, but it is a mitigation, not a fix.
+
+**Every plate for the three India verticals (election rally, mandap, summit) is in the
+second group.** Those are the differentiating screens, so they are the first assets worth
+re-shooting or regenerating as true 2:1 equirectangular images at 4096 × 2048. Nothing in
+this repo exceeds 2048 px wide, so no part of the product is genuinely 4K today — do not
+put "4K" in a proposal or on a pricing page until the assets exist.
+
+To regenerate the manifest after adding assets:
+
+```bash
+find public/images -name '*.jpg' -exec sips -g pixelWidth -g pixelHeight {} +
+```
+
+## Tests
+
+`test/contracts.test.mjs` pins the invariants that have actually broken here: quote
+arithmetic (lines must equal the subtotal, CGST + SGST must equal the GST total, the
+payment schedule must equal the grand total), the flat `slotId -> itemId` **string**
+selection contract, catalog id uniqueness, event-type zone scoping, panorama metadata
+coverage, and corrupt-localStorage survival.
+
+```bash
+npm test
+```
