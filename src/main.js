@@ -267,7 +267,6 @@ class Event360App {
     this.globalNavSearch = document.getElementById('globalNavSearch');
 
     // Original buttons
-    this.btnOpenCart = document.getElementById('btnOpenCart');
     this.btnAIBuilder = document.getElementById('btnAIBuilder');
     this.btnCustomBrief = document.getElementById('btnCustomBrief');
     this.btnSoundToggle = document.getElementById('btnSoundToggle');

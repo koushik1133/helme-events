@@ -4949,7 +4949,7 @@ body {
   letter-spacing: 0.02em;
 }
 
-.ism-select-btn:hover { background: var(--solid-indigo); transform: translateY(-1px); }
+.ism-select-btn:hover { background: var(--btn-primary-hover); }
 
 .ism-select-btn-active {
   background: var(--solid-gold);
@@ -6744,3 +6744,5 @@ body:not([data-section="studio"]) #costCardContainer { display: none; }
 #workspace > .demo-disclaimer {
   flex: 0 0 auto;
 }
+
+#workspace > .studio-action-strip { flex: 0 0 auto; }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Helm Events 360° | Venue &amp; India Events Studio</title>
+  <title>Helm Events — Event production workspace</title>
 
   <!-- Identity -->
   <meta name="description" content="Helm Events 360° — walk clients through venue previews, swap decor live and quote the exact cost in rupees before anyone signs." />
@@ -60,7 +60,6 @@
       <img class="helm-logo" src="/images/helm-logo.png" alt="Helm Events" width="120" height="48" />
       <div class="brand-text">
         <h1 class="logo-title">Helm Events</h1>
-        <span class="logo-subtitle">360° Venue & India Events Studio</span>
       </div>
     </div>
 
@@ -100,7 +99,7 @@
 
     <!-- Quick Search Input Bar -->
     <div class="nav-search-wrapper">
-      <span class="nav-search-icon">🔍</span>
+      <span class="nav-search-icon" aria-hidden="true"></span>
       <input type="search" id="globalNavSearch" class="nav-search-input" aria-label="Quick search rooms, furniture and vendors" placeholder="Quick search rooms, furniture, vendors..." />
     </div>
 
@@ -109,32 +108,22 @@
       <span class="studio-only-actions" id="studioOnlyActions">
 
       <button class="nav-action-btn btn-event-details" id="btnEventDetails" aria-label="Edit event details: client, dates, guest count and budget" title="Event details — client, dates, guests, budget">
-        <span>📝 Event Details</span>
+        <span>Event details</span>
       </button>
 
       <button class="nav-action-btn btn-custom-brief" id="btnCustomBrief" aria-label="Open the custom event brief wizard" title="Dynamic Custom Event Setup Wizard">
-        <span>📋 Custom Brief</span>
+        <span>New brief</span>
       </button>
 
       <button class="nav-action-btn btn-ai-builder" id="btnAIBuilder" aria-label="Build a complete layout from the event brief" title="Build a complete layout from the event brief">
-        <span>⚡ Instant Layout</span>
-      </button>
-
-
-
-      <button class="nav-action-btn btn-cart-nav" id="btnOpenCart" aria-label="Open cart and checkout">
-        <span>🛒 Cart</span>
+        <span>Instant layout</span>
       </button>
 
       </span>
 
       <button class="nav-action-btn btn-notification-bell" id="btnNotifications" aria-label="Notifications" title="Notifications">
-        <span>🔔</span>
+        <span aria-hidden="true" class="icon-bell"></span>
         <span class="notif-badge" id="notifBadge" role="status" aria-live="polite" aria-atomic="true" hidden></span>
-      </button>
-
-      <button class="nav-action-btn btn-sound-toggle" id="btnSoundToggle" aria-label="Toggle ambient sound">
-        <span id="soundIcon">🔇</span> <span id="soundLabel">Sound: OFF</span>
       </button>
 
       <button class="theme-mode-toggle" id="themeModeToggle" aria-label="Toggle Theme">
@@ -144,7 +133,14 @@
       </button>
     </div>
 
-    <!-- Theme pinned outside scroll row so it is always reachable -->
+  </header>
+
+  <!--
+    Studio action strip. These are STUDIO actions, not global chrome — putting
+    them in the header is what made it four rows tall. It only exists while the
+    Studio section is on screen.
+  -->
+  <div class="studio-action-strip studio-only" id="studioActionStrip">
     <div class="preset-popover-wrapper nav-theme-pin" id="presetPopoverWrapper">
       <button class="preset-trigger-btn" id="btnPresetDropdown" aria-label="Select Theme Preset" aria-haspopup="true" aria-expanded="false">
         <span class="preset-label-tag">Theme:</span>
@@ -166,7 +162,12 @@
         </div>
       </div>
     </div>
-  </header>
+
+    <button class="nav-action-btn btn-sound-toggle" id="btnSoundToggle" aria-label="Toggle ambient sound">
+      <span id="soundIcon" aria-hidden="true"></span>
+      <span id="soundLabel">Sound off</span>
+    </button>
+  </div>
 
   <!-- Main Viewport -->
   <main class="app-viewport">
@@ -202,13 +203,6 @@
 
     <!-- View 3: 📐 Interactive 2D/3D Site Floor Plan Editor -->
     <section id="floorPlanContainer" class="view-section hidden"></section>
-
-
-
-
-
-
-
 
     <!-- View 12: ⭐ Testimonial Wall -->
     <section id="testimonialContainer" class="view-section hidden"></section>

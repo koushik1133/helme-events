@@ -20,6 +20,44 @@ export function ensureShellStyles() {
 /* ---------------------------------------------------------------- sections */
 .plan-only.hidden { display: none !important; }
 
+/* ------------------------------------------------------- studio action strip */
+/*
+  Studio actions live below the header rather than in it. Putting them in the
+  global chrome is what made the navbar four rows tall, and they are meaningless
+  outside the Studio anyway.
+*/
+.studio-action-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 0 0 auto;
+}
+.studio-action-strip::-webkit-scrollbar { display: none; }
+.studio-action-strip.hidden { display: none !important; }
+.studio-action-strip > * { flex: 0 0 auto; }
+
+/* ------------------------------------------------------------ navbar order */
+/*
+  Priority when width runs out. The section switcher is the primary navigation of
+  the whole product and must never be the thing that clips — at 1512 it was losing
+  61px while search sat at its full width. Search gives up space first, then the
+  brand, then the view tabs.
+*/
+.app-navbar > .section-switcher { flex: 0 1 auto; min-width: max-content; }
+.app-navbar > .nav-search-wrapper { flex: 1 1 90px; min-width: 90px; }
+.app-navbar > .nav-brand { flex: 0 1 auto; min-width: 0; }
+
+@media (max-width: 1180px) {
+  /* Below this the switcher may scroll rather than force the row to wrap. */
+  .app-navbar > .section-switcher { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .app-navbar > .section-switcher::-webkit-scrollbar { display: none; }
+}
+
 /* ------------------------------------------------------------ studio stage */
 /*
   The stage splits between the venue and the edit panel. The panel module styles
