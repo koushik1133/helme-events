@@ -228,3 +228,36 @@ test('an explicit zone scope overrides the event type', async () => {
   assert.ok(zonesInScope(allZoneIds).length > 0, 'scope must never collapse to empty');
   eventState.set({ scopeZoneIds: null });
 });
+
+// --------------------------------------------------------- seeded store
+
+test('the seeded store only references slots and items that still exist', async () => {
+  const { readFileSync } = await import('node:fs');
+  const db = JSON.parse(readFileSync(new URL('../src/data/backend_db.seed.json', import.meta.url), 'utf8'));
+  const selections = db.state?.activeSelections || db.activeSelections || {};
+  const validSlots = new Set(VENUE_ZONES.flatMap(z => z.slots.map(s => s.id)));
+
+  for (const [key, value] of Object.entries(selections)) {
+    if (key.startsWith('custom_text_')) {
+      assert.ok(validSlots.has(key.slice('custom_text_'.length)),
+        `seed has custom text for a slot that no longer exists: ${key}`);
+      assert.equal(typeof value, 'string', `${key} must be a string`);
+      continue;
+    }
+    assert.ok(validSlots.has(key), `seed references a slot that no longer exists: ${key}`);
+    assert.equal(typeof value, 'string',
+      `seed value for ${key} must be a plain item id string, not ${typeof value}`);
+    assert.ok(getItemById(value), `seed references a catalog item that no longer exists: ${value}`);
+  }
+});
+
+test('the seeded store covers every slot, so a restore is never partial', async () => {
+  const { readFileSync } = await import('node:fs');
+  const db = JSON.parse(readFileSync(new URL('../src/data/backend_db.seed.json', import.meta.url), 'utf8'));
+  const selections = db.state?.activeSelections || db.activeSelections || {};
+  for (const zone of VENUE_ZONES) {
+    for (const slot of zone.slots) {
+      assert.ok(slot.id in selections, `seed is missing ${zone.id}/${slot.id}`);
+    }
+  }
+});
