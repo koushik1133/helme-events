@@ -118,6 +118,27 @@ function cross(a, b) {
   return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
 
+/**
+ * Suppress the cut-out's soft matte.
+ *
+ * `make_cutouts.py` deliberately preserves each product photo's own contact
+ * shadow, which survives as a wide skirt of semi-transparent, STUDIO-COLOURED
+ * pixels — light grey against a white seamless. Composited onto a night lawn
+ * that skirt becomes a pale halo, and a halo is the single most obvious tell
+ * that something was pasted in. The layer's shadow is drawn separately, as a
+ * multiply pass against the actual plate (see `rasteriseContactShadow`), so
+ * this fringe is redundant as well as harmful: fade it out with a smoothstep
+ * and keep the object's real silhouette.
+ */
+const MATTE_LO = 0.42, MATTE_HI = 0.86;
+function demat(a255) {
+  const a = a255 / 255;
+  if (a <= MATTE_LO) return 0;
+  if (a >= MATTE_HI) return a255;
+  const t = (a - MATTE_LO) / (MATTE_HI - MATTE_LO);
+  return 255 * a * t * t * (3 - 2 * t);
+}
+
 /** Bilinear sample of an RGBA Uint8ClampedArray. Returns premultiplied-safe RGBA. */
 function sampleBilinear(src, cw, ch, fx, fy, out) {
   const x = Math.min(cw - 1.001, Math.max(0, fx));
@@ -168,7 +189,8 @@ export function rasteriseBillboard(cut, frame, bbox, W, H) {
       if (q < 0 || q > 1) continue;
       sampleBilinear(src, cw, ch, s * (cw - 1), (1 - q) * (ch - 1), px);
       const o = (j * bbox.w + i) * 4;
-      out[o] = px[0]; out[o + 1] = px[1]; out[o + 2] = px[2]; out[o + 3] = px[3];
+      out[o] = px[0]; out[o + 1] = px[1]; out[o + 2] = px[2];
+      out[o + 3] = demat(px[3]);
     }
   }
   return { data: out, width: bbox.w, height: bbox.h };

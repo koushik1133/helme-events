@@ -1,6 +1,7 @@
 import { getItemById } from '../data/catalog.js';
 import { resolveSceneComposite, unbakedChanges } from '../data/sceneVariants.js';
-import { overlaySpec, loadCutoutManifest, cutoutFor, CAMERA_HEIGHT_M } from '../data/propOverlays.js';
+import { overlaySpec, loadCutoutManifest, cutoutFor, loadOverlayManifest, bakedOverlay,
+  CAMERA_HEIGHT_M } from '../data/propOverlays.js';
 import { projectAnchor, verticalFov } from './panoProjection.js';
 import { EquirectViewer } from './EquirectViewer.js';
 import { PanoCompositor } from './PanoCompositor.js';
@@ -110,7 +111,7 @@ export class Viewer360 {
   async _boot(myGen, zoneData) {
     try {
       if (!this._THREE) this._THREE = await import('three');
-      await loadCutoutManifest();
+      await Promise.all([loadCutoutManifest(), loadOverlayManifest()]);
     } catch (e) {
       if (myGen !== this._loadGeneration) return;
       this._loadFallback(this._currentPanorama, zoneData);
@@ -203,7 +204,8 @@ export class Viewer360 {
         distanceM: spec.distanceM,
         heightM: spec.heightM,
         cameraHeightM: CAMERA_HEIGHT_M,
-        ground: spec.ground
+        ground: spec.ground,
+        baked: bakedOverlay(zone.id, slot.id, itemId)
       });
     }
     return specs;

@@ -87,6 +87,21 @@ const CSS = `
   background: linear-gradient(180deg, var(--accent-indigo, #409cff), transparent);
   opacity: 0.9;
 }
+/* Light theme: the dark-surface gradient all but disappears on white, so the
+   hero gets the elevated surface and a slightly stronger tint to keep its
+   weight. Tokens only — both themes stay legible. */
+html[data-theme="light"] .hh-hero {
+  background:
+    linear-gradient(180deg, var(--glass-1, rgba(0,0,0,0.05)), transparent 46%),
+    radial-gradient(120% 160% at 0% 0%, var(--tint-indigo, rgba(0,113,227,0.10)), transparent 64%),
+    var(--bg-elevated, #ffffff);
+}
+html[data-theme="light"] .hh-hero.is-warn {
+  background:
+    linear-gradient(180deg, var(--glass-1, rgba(0,0,0,0.05)), transparent 46%),
+    radial-gradient(120% 160% at 0% 0%, var(--tint-amber, rgba(251,191,36,0.15)), transparent 64%),
+    var(--bg-elevated, #ffffff);
+}
 .hh-hero.is-warn { background: radial-gradient(120% 160% at 0% 0%, var(--tint-amber, rgba(251,191,36,0.15)), transparent 62%), var(--bg-surface, #1c1c1e); }
 .hh-hero.is-warn::after { background: linear-gradient(180deg, var(--accent-amber, #fbbf24), transparent); }
 .hh-hero-label {

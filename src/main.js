@@ -46,6 +46,10 @@ import { ClientList } from './components/crm/ClientList.js';
 import { ClientDetail } from './components/crm/ClientDetail.js';
 import { DealBoard } from './components/crm/DealBoard.js';
 import { PaymentsScreen } from './components/crm/PaymentsScreen.js';
+import { HomeScreen } from './components/home/HomeScreen.js';
+import { crmStore } from './crm/store.js';
+import * as crmFinance from './crm/finance.js';
+import { can } from './auth/permissions.js';
 import { CalendarBooking } from './components/CalendarBooking.js';
 import { ZoneNotes } from './components/ZoneNotes.js';
 
@@ -409,6 +413,21 @@ class Event360App {
       });
     };
     this.openCrmClient = openClient;
+
+    // Role home. Dependencies are injected rather than imported by the screen, so
+    // it renders against whatever is actually available and degrades to real empty
+    // states instead of throwing.
+    this.homeScreen = new HomeScreen(this.sections.home, {
+      store: crmStore,
+      finance: crmFinance,
+      session,
+      can,
+      // Every number on the home screen links into a filtered list.
+      navigate: (route, param) => this.goFromHome(route, param)
+    });
+    const repaintHome = () => { if (this.activeSection === 'home') this.homeScreen.render(); };
+    crmStore.subscribe?.(repaintHome);
+    session.subscribe?.(repaintHome);
     this.clientList = new ClientList(this.sections.clients, openClient);
     this.dealBoard = new DealBoard(this.sections.deals, openClient);
     this.paymentsScreen = new PaymentsScreen(this.sections.payments, openClient);
@@ -867,6 +886,37 @@ class Event360App {
       this.btnToggleFeatures.setAttribute('aria-expanded', 'false');
     }
     this.showToast(`Opened ${featureLabels[feature] || feature}`);
+  }
+
+  /**
+   * Where a number on the home screen takes you.
+   *
+   * The home screen only knows route names; this owns the mapping, so the screen
+   * never needs to learn the shell's section or view vocabulary.
+   */
+  goFromHome(route, param) {
+    switch (route) {
+      case 'client':
+        if (param) this.openCrmClient(param);
+        else this.setSection('clients');
+        break;
+      case 'clients':  this.setSection('clients'); break;
+      case 'deal':
+      case 'deals':
+      case 'pipeline': this.setSection('deals'); break;
+      case 'payments':
+      case 'invoices':
+      case 'receivables': this.setSection('payments'); break;
+      case 'studio':
+      case 'design':   this.setSection('studio'); break;
+      case 'calendar':
+        this.setSection('studio');
+        this.switchView('calendar');
+        break;
+      default:
+        console.warn('[Helm] home screen asked for an unknown route:', route);
+        this.setSection('home');
+    }
   }
 
   /**

@@ -321,6 +321,13 @@ export function makeDeal(patch = {}) {
     category: patch.category || 'wedding',
     subType: patch.subType || '',
 
+    // Ownership drives the permission scopes: Sales is own-scoped and the Event
+    // Manager is assigned-scoped, so a deal with neither set is invisible to both.
+    // Sales owns the deal up to signature; the event manager owns delivery.
+    ownerId: patch.ownerId || '',
+    eventManagerId: patch.eventManagerId || '',
+    assignedTo: patch.assignedTo || patch.eventManagerId || patch.ownerId || '',
+
     phase: patch.phase || phaseForStage(stage),
     stage,
     stageChangedAt: patch.stageChangedAt || '',

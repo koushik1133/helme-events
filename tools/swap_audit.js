@@ -26,7 +26,9 @@ function optionsFor(slot) {
   return [...new Set(cats.flatMap(c => (ITEM_CATALOG[c] || []).map(i => i.id)))];
 }
 
-const settled = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+// Plain timers, never requestAnimationFrame: this harness has to complete in a
+// BACKGROUND tab, where rAF is throttled to a stop.
+const settled = (ms = 10) => new Promise(r => setTimeout(r, ms));
 
 async function runAudit() {
   const rows = [];
@@ -37,9 +39,11 @@ async function runAudit() {
       // result can never depend on what the previous slot left behind.
       const base = {};
       zone.slots.forEach(s => { base[s.id] = s.defaultItemId; });
+      // loadZone boots asynchronously; wait for the paint it produces, not for
+      // the compositor merely existing (it is reused across zones).
+      const rev0 = viewer._compositor?.revision ?? 0;
       viewer.loadZone(zone, base);
-      // loadZone is async internally; poll until the first paint lands.
-      for (let i = 0; i < 200 && !viewer._compositor?.revision; i++) await settled();
+      for (let i = 0; i < 400 && (viewer._compositor?.revision ?? 0) <= rev0; i++) await settled();
       let prev = viewer._compositor.hash();
       let prevId = base[slot.id];
 

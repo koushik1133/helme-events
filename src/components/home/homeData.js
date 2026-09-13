@@ -53,10 +53,10 @@ export const ROLE_LABEL = {
  * This is UX, never security — nothing here protects anything.
  */
 const FALLBACK_CAN = {
-  [ROLES.admin]:         { view_financials: true,  view_margin: true,  view_pipeline: true,  view_all_deals: true },
-  [ROLES.finance]:       { view_financials: true,  view_margin: true,  view_pipeline: false, view_all_deals: true },
-  [ROLES.sales]:         { view_financials: false, view_margin: false, view_pipeline: true,  view_all_deals: false },
-  [ROLES.event_manager]: { view_financials: false, view_margin: false, view_pipeline: false, view_all_deals: false }
+  [ROLES.admin]:         { view_financials: true,  view_margin: true,  view_pipeline: true,  view_all_deals: true,  view_company_money: true },
+  [ROLES.finance]:       { view_financials: true,  view_margin: true,  view_pipeline: false, view_all_deals: true,  view_company_money: true },
+  [ROLES.sales]:         { view_financials: false, view_margin: false, view_pipeline: true,  view_all_deals: false, view_company_money: false },
+  [ROLES.event_manager]: { view_financials: false, view_margin: false, view_pipeline: false, view_all_deals: false, view_company_money: false }
 };
 
 /* ---------------------------------------------------------- stage model */
@@ -171,7 +171,10 @@ const CAPABILITY = {
   view_margin: ['view', 'money.margin'],
   view_pipeline: ['view', 'pipeline'],
   view_payments: ['view', 'payment'],
-  view_all_deals: ['view', 'report'] // only the all-scope roles hold reports
+  // `export` is the cleanest ALL-scope marker in the matrix: only Admin and
+  // Finance hold it, which is exactly "may see the whole company's book".
+  view_company_money: ['view', 'export'],
+  view_all_deals: ['view', 'export']
 };
 
 /** Earliest and latest event date, from `eventDates` or `functions`. */
@@ -300,11 +303,20 @@ export function isOpenSales(deal) {
 }
 
 /** Deals owned by this user, unless the role may see everything. */
-export function scopedDeals(model, ownerField = 'salesOwnerId') {
+export function scopedDeals(model, ownerField = 'ownerId') {
   if (model.can('view_all_deals')) return model.deals;
   const id = model.user.id;
   if (!id) return model.deals;
-  return model.deals.filter(d => d[ownerField] === id || d.salesOwnerId === id || d.eventManagerId === id);
+  // The CRM schema calls the sales owner `ownerId` and the producer
+  // `eventManagerId`, with `assignedTo` as the effective owner. Accept the older
+  // `salesOwnerId` spelling too so neither side has to know about the other.
+  return model.deals.filter(d =>
+    d[ownerField] === id ||
+    d.ownerId === id ||
+    d.salesOwnerId === id ||
+    d.assignedTo === id ||
+    d.eventManagerId === id
+  );
 }
 
 /** Σ value × stage probability, over open sales-phase deals. */
@@ -490,7 +502,7 @@ export function calendarStrip(model, { includeMoney = false, days = 7 } = {}) {
   return out;
 }
 
-const MONEY_KINDS = ['payment', 'receipt', 'invoice', 'refund', 'quote', 'proposal_value'];
+const MONEY_KINDS = ['payment', 'receipt', 'invoice', 'refund', 'quote', 'proposal_value', 'milestone', 'payout'];
 const MONEY_TEXT = /₹|\bINR\b|invoice|receipt|payment|paid|refund/i;
 
 /**
@@ -499,11 +511,14 @@ const MONEY_TEXT = /₹|\bINR\b|invoice|receipt|payment|paid|refund/i;
  * into the activity feed, which defeats the whole point of that screen.
  */
 export function recentActivity(model, limit = 6) {
-  const showMoney = model.can('view_financials');
+  // The feed is company-wide, so it needs the company-wide money capability,
+  // not the per-deal one: a sales manager must not read other people's receipts.
+  const showMoney = model.can('view_company_money');
   return [...model.activity]
     .filter(a => {
       if (showMoney) return true;
-      if (a && MONEY_KINDS.includes(String(a.kind || '').toLowerCase())) return false;
+      const kind = String((a && (a.kind || a.type)) || '').toLowerCase();
+      if (MONEY_KINDS.includes(kind)) return false;
       return !MONEY_TEXT.test(String((a && (a.text || a.label)) || ''));
     })
     .sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))

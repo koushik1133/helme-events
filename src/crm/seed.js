@@ -466,6 +466,15 @@ export function seedCrm() {
     const deal = makeDeal({ ...spec.deal, id: `dl_seed_${idx + 1}`, clientId: client.id });
     deal.phase = phaseForStage(deal.stage);
     deal.probability = probabilityForStage(deal.stage);
+
+    // Ownership. Without it every persona except the Director signs in to an
+    // empty workspace, because Sales is own-scoped and Events is assigned-scoped.
+    // Sales owns the deal from enquiry to signature; the event manager owns it
+    // from booking onward — the two chained pipelines the schema models.
+    deal.ownerId = spec.deal.ownerId || 'u-priya';
+    deal.eventManagerId = spec.deal.eventManagerId
+      || (deal.phase === 'production' ? 'u-arjun' : '');
+    deal.assignedTo = deal.eventManagerId || deal.ownerId;
     deal.bookedAt = spec.deal.bookedAt || '';
     deal.updatedAt = todayISO();
     const template = templateById(spec.template) || defaultTemplateFor(deal.category);

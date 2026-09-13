@@ -19,6 +19,14 @@ import {
   relativeTime, clientName, daysUntil, isFresh
 } from './homeData.js';
 import { formatEventDate } from '../../data/eventState.js';
+import { formatNumber } from '../../utils/format.js';
+
+/** Functions (mehendi, sangeet, reception…) — or one row for a single-day event. */
+function functionsOf(deal) {
+  if (Array.isArray(deal.functions) && deal.functions.length) return deal.functions;
+  if (Array.isArray(deal.eventDates) && deal.eventDates.length) return deal.eventDates;
+  return [deal];
+}
 
 const PHASE_NOTE = {
   booked: 'Booked — planning has not started',
@@ -34,7 +42,6 @@ export function renderEventManagerHome(model) {
   const countdown = next ? daysUntil(next.eventStartDate, model.today) : null;
 
   const nextVendors = next ? unconfirmedVendors(next) : [];
-  const nextTasks = next ? openTasks([next], model.today) : [];
   const allTasks = openTasks(events, model.today);
   const overdueTasks = allTasks.filter(t => t.overdue);
 
@@ -45,8 +52,8 @@ export function renderEventManagerHome(model) {
         tone: countdown != null && countdown <= 7 ? 'warn' : '',
         sub: `${next.title || next.code} · ${clientName(model, next)} · ${formatEventDate(next.eventStartDate)} · ${(next.venue && next.venue.name) || next.city || 'Venue TBC'}`,
         facts: [
-          { label: 'Guests', value: next.guestCount ? String(next.guestCount) : 'TBC' },
-          { label: 'Functions', value: String(Array.isArray(next.eventDates) && next.eventDates.length ? next.eventDates.length : 1) },
+          { label: 'Guests', value: next.guestCount ? formatNumber(next.guestCount) : 'TBC' },
+          { label: 'Functions', value: String(functionsOf(next).length) },
           { label: 'Status', value: PHASE_NOTE[next.stage] || 'Confirmed' }
         ],
         actions: [
@@ -66,11 +73,16 @@ export function renderEventManagerHome(model) {
         actions: [{ go: 'events', label: 'Browse all events' }]
       });
 
+  // Indian weddings are multi-function: the unit of production is the function,
+  // not the event, so it gets a tile of its own.
+  const functionCount = events.reduce((sum, e) => sum + functionsOf(e).length, 0);
+  const vendorCount = events.reduce((sum, e) => sum + unconfirmedVendors(e).length, 0);
+
   const tiles = kpiTiles([
-    { label: 'Open tasks', value: String(allTasks.length), meta: next ? `${nextTasks.length} on the next event` : 'Across your events', tone: 'indigo', go: 'tasks' },
+    { label: 'Events assigned', value: String(events.length), meta: 'Confirmed, next 120 days', tone: 'violet', go: 'events', param: 'mine' },
+    { label: 'Functions to run', value: String(functionCount), meta: next ? `${functionsOf(next).length} on the next event` : 'Across your events', tone: 'indigo', go: 'events', param: 'functions' },
     { label: 'Overdue tasks', value: String(overdueTasks.length), meta: overdueTasks.length ? 'Past their due date' : 'Nothing late', tone: overdueTasks.length ? 'rose' : 'emerald', go: 'tasks', param: 'overdue' },
-    { label: 'Vendors to confirm', value: String(events.reduce((s, e) => s + unconfirmedVendors(e).length, 0)), meta: next ? `${nextVendors.length} on the next event` : 'Across your events', tone: 'amber', go: 'vendors' },
-    { label: 'Events assigned', value: String(events.length), meta: 'Confirmed, next 120 days', tone: 'violet', go: 'events', param: 'mine' }
+    { label: 'Vendors to confirm', value: String(vendorCount), meta: next ? `${nextVendors.length} on the next event` : 'Across your events', tone: 'amber', go: 'vendors' }
   ]);
 
   /* ---------- what is missing on the events closest to their date ---------- */
