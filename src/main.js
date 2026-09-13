@@ -51,6 +51,9 @@ import { crmStore } from './crm/store.js';
 import * as crmFinance from './crm/finance.js';
 import { can } from './auth/permissions.js';
 import { ensureShellStyles } from './shell/shellStyles.js';
+import { StudioModeBar } from './components/studio/StudioModeBar.js';
+import { StudioEditPanel } from './components/studio/StudioEditPanel.js';
+import { loadCutoutManifest } from './data/propOverlays.js';
 import { CalendarBooking } from './components/CalendarBooking.js';
 import { ZoneNotes } from './components/ZoneNotes.js';
 
@@ -82,7 +85,6 @@ class Event360App {
     ApiService.initStorage();
     this.theme = loadRaw(STORAGE_KEYS.theme, 'dark');
     this.activeSelections = {};
-    this.featureToolbarOpen = false;
 
     VENUE_ZONES.forEach(zone => {
       zone.slots.forEach(slot => {
@@ -205,7 +207,6 @@ class Event360App {
     this.swapperContainer = document.getElementById('swapperModalContainer');
     this.venueMenuContainer = document.getElementById('venueMenuModalContainer');
     this.cartModalContainer = document.getElementById('cartModalContainer');
-    this.indiaSubBar = document.getElementById('indiaSubBar');
 
     // New view containers
     this.timelineContainer = document.getElementById('timelineContainer');
@@ -250,7 +251,6 @@ class Event360App {
     // Original tabs
     this.tabMapView = document.getElementById('tabMapView');
     this.tab360View = document.getElementById('tab360View');
-    this.tabIndiaView = document.getElementById('tabIndiaView');
     this.tabFloorPlanView = document.getElementById('tabFloorPlanView');
     this.tabAnalyticsView = document.getElementById('tabAnalyticsView');
     this.tabProposalsView = document.getElementById('tabProposalsView');
@@ -267,26 +267,18 @@ class Event360App {
     this.globalNavSearch = document.getElementById('globalNavSearch');
 
     // Original buttons
-    this.btnOpenVenueMenu = document.getElementById('btnOpenVenueMenu');
     this.btnOpenCart = document.getElementById('btnOpenCart');
     this.btnAIBuilder = document.getElementById('btnAIBuilder');
     this.btnCustomBrief = document.getElementById('btnCustomBrief');
     this.btnOpen3DEditor = document.getElementById('btnOpen3DEditor');
     this.btnSoundToggle = document.getElementById('btnSoundToggle');
-    this.btnWatchTour360 = document.getElementById('btnWatchTour360');
     this.btnPresetDropdown = document.getElementById('btnPresetDropdown');
     this.presetPopoverMenu = document.getElementById('presetPopoverMenu');
     this.presetCurrentName = document.getElementById('presetCurrentName');
-    this.hudZoneTitle = document.getElementById('hudZoneTitle');
-    this.hudSlotsList = document.getElementById('hudSlotsList');
-    this.btnBackToMap = document.getElementById('btnBackToMap');
-    this.btnAutoRotate = document.getElementById('btnAutoRotate');
     this.themeToggleBtn = document.getElementById('themeModeToggle');
 
     // New buttons
-    this.btnToggleFeatures = document.getElementById('btnToggleFeatures');
     this.btnNotifications = document.getElementById('btnNotifications');
-    this.featureToolbar = document.getElementById('featureToolbar');
   }
 
   initComponents() {
@@ -422,6 +414,43 @@ class Event360App {
       });
     };
     this.openCrmClient = openClient;
+
+    // Studio chrome. The mode bar is the only thing allowed over the venue; the
+    // edit panel docks beside it and shrinks the canvas rather than covering it.
+    const stage = document.getElementById('studioStage');
+    this.studioModeBar = new StudioModeBar(this.studioModeBarHost, {
+      onBack: () => this.switchView('map'),
+      onEdit: () => this.setStudioMode('edit'),
+      onMenu: [
+        { id: 'collab', label: 'Share for client review', onSelect: () => this.openFeature('collab') },
+        { id: 'notes', label: 'Zone notes', onSelect: () => this.openFeature('notes') },
+        { id: 'arQR', label: 'AR preview code', onSelect: () => this.openFeature('arQR') },
+        { id: 'videoExport', label: 'Export walkthrough', onSelect: () => this.openFeature('videoExport') },
+        { id: 'briefGen', label: 'Event brief', onSelect: () => this.openFeature('briefGen') },
+        { id: 'budgetAI', label: 'Budget optimiser', onSelect: () => this.openFeature('budgetAI') }
+      ]
+    });
+
+    this.studioEditPanel = new StudioEditPanel(this.studioEditPanelHost, {
+      shell: stage,
+      onSelect: (slotId, itemId) => this.handleObjectSwap(slotId, itemId),
+      onClose: () => this.setStudioMode('view'),
+      onFocusSlot: (slotId) => this.viewer360?.lookAtSlot?.(slotId),
+      onApplySelections: (map) => this.updateAllComponents({ ...this.activeSelections, ...map })
+    });
+
+    // The panel announces its own open/close; keep the bar and the renderer in step.
+    stage?.addEventListener('studio:layout', (e) => {
+      const mode = e.detail?.open ? 'edit' : 'view';
+      if (stage) stage.dataset.mode = mode;
+      this.studioMode = mode;
+      this.studioModeBar?.setMode?.(mode);
+      requestAnimationFrame(() => this.viewer360?.resize?.());
+    });
+
+    // Thumbnails come from the cut-out manifest; without it the panel falls back
+    // to the raw catalogue photo, which still has its studio background.
+    loadCutoutManifest();
 
     // Role home. Dependencies are injected rather than imported by the screen, so
     // it renders against whatever is actually available and degrades to real empty
@@ -628,8 +657,6 @@ class Event360App {
     }
 
     // Original button events
-    if (this.btnOpenVenueMenu) this.btnOpenVenueMenu.addEventListener('click', () => this.venueMenuModal.open());
-    if (this.btnOpenCart) this.btnOpenCart.addEventListener('click', () => this.cartPaymentModal.open());
 
     if (this.btnAIBuilder) {
       this.btnAIBuilder.addEventListener('click', () => this.runAIAutoBuilder());
@@ -669,33 +696,7 @@ class Event360App {
       });
     }
 
-    if (this.btnWatchTour360) {
-      this.btnWatchTour360.addEventListener('click', () => {
-        this.tourWatcher.startTour(this.activeSelections);
-        this.showToast('Starting 360° Setup Progress Tour...');
-      });
-    }
-
-    const indiaModeBtns = document.querySelectorAll('.india-mode-btn');
-    indiaModeBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        indiaModeBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const mode = btn.getAttribute('data-mode');
-        this.switchIndiaMode(mode);
-      });
-    });
-
     if (this.themeToggleBtn) this.themeToggleBtn.addEventListener('click', () => this.toggleTheme());
-    if (this.btnBackToMap) this.btnBackToMap.addEventListener('click', () => this.switchView('map'));
-
-    if (this.btnAutoRotate) {
-      this.btnAutoRotate.addEventListener('click', () => {
-        const on = this.viewer360.toggleAutoRotate();
-        this.btnAutoRotate.classList.toggle('active', on);
-        this.showToast(on ? 'Auto-rotate ON' : 'Auto-rotate OFF');
-      });
-    }
 
     const timeBtns = document.querySelectorAll('.time-btn');
     timeBtns.forEach(btn => {
@@ -791,15 +792,6 @@ class Event360App {
     });
 
     // Feature toolbar toggle
-    if (this.btnToggleFeatures) {
-      this.btnToggleFeatures.addEventListener('click', () => {
-        this.featureToolbarOpen = !this.featureToolbarOpen;
-        if (this.featureToolbar) {
-          this.featureToolbar.classList.toggle('hidden', !this.featureToolbarOpen);
-        }
-        this.btnToggleFeatures.classList.toggle('active', this.featureToolbarOpen);
-      });
-    }
 
     // Notification bell
     if (this.btnNotifications) {
@@ -889,13 +881,6 @@ class Event360App {
     }
     if (modalKeyByFeature[feature]) this.noteModalOpened(modalKeyByFeature[feature]);
 
-    // Auto-collapse toolbar after pick
-    this.featureToolbarOpen = false;
-    if (this.featureToolbar) this.featureToolbar.classList.add('hidden');
-    if (this.btnToggleFeatures) {
-      this.btnToggleFeatures.classList.remove('active');
-      this.btnToggleFeatures.setAttribute('aria-expanded', 'false');
-    }
     this.showToast(`Opened ${featureLabels[feature] || feature}`);
   }
 
@@ -1114,27 +1099,21 @@ class Event360App {
     if (tab) tab.classList.add('active');
   }
 
+  /**
+   * Open one of the India zones.
+   *
+   * This used to be a whole "India" view with its own sub-bar of event types. It
+   * never was a view — choosing a rally over a mandap is choosing a ZONE, and it
+   * now works exactly like picking any other zone off the venue map.
+   */
   switchIndiaMode(modeKey) {
     const targetZoneId = `zone-india-${modeKey}`;
-    const zone = VENUE_ZONES.find(z => z.id === targetZoneId);
-    // Bail BEFORE touching the DOM — bailing afterwards left every section hidden
-    // and the viewport blank.
-    if (!zone) {
+    if (!VENUE_ZONES.some(z => z.id === targetZoneId)) {
       this.showToast(`No 360° set is configured for "${modeKey}" yet.`);
       return;
     }
-
     this.indiaMode = modeKey;
-    this.currentZoneId = targetZoneId;
-
-    this.hideAllSections();
-    this.activateSection(this.studioContainer, null);
-
-    if (this.hudZoneTitle) this.hudZoneTitle.textContent = zone.name;
-    this.renderInventoryDrawer(zone);
-    this.viewer360.loadZone(zone, this.activeSelections);
-    if (this.audioEngine.isPlaying) this.audioEngine.playZoneSound(targetZoneId);
-    this.showToast(`Loaded ${zone.name} 360° Studio!`);
+    this.openStudio360(targetZoneId);
   }
 
   openStudio360(zoneId) {
@@ -1143,21 +1122,64 @@ class Event360App {
     if (!zone) return;
 
     this.activeView = 'studio360';
-    this.hideAllSections();
-    this.activateSection(this.studioContainer, null);
+    // Reachable from anywhere — a map hotspot, Instant Layout, the venue menu,
+    // quick search — so make sure the Studio section itself is on screen first.
+    if (this.activeSection !== 'studio') this.setSection('studio');
 
-    // Reset every tab, not just the map tab — this method is reachable from any view
-    // (map hotspots, AI builder, venue menu, quick search).
-    [this.tabMapView, this.tabIndiaView, this.tabFloorPlanView,
-     this.tabAnalyticsView, this.tabProposalsView, this.tabTimelineView, this.tabSeatingView]
-      .forEach(t => { if (t) t.classList.remove('active'); });
-    if (this.indiaSubBar) this.indiaSubBar.classList.add('hidden');
-    if (this.tab360View) this.tab360View.classList.add('active');
+    document.querySelectorAll('.view-section').forEach(el => {
+      el.classList.remove('active');
+      el.classList.add('hidden');
+    });
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    this.activateSection(this.studioContainer, this.tab360View);
 
-    if (this.hudZoneTitle) this.hudZoneTitle.textContent = zone.name;
-    this.renderInventoryDrawer(zone);
+    this.refreshStudioChrome(zone);
     this.viewer360.loadZone(zone, this.activeSelections);
     if (this.audioEngine.isPlaying) this.audioEngine.playZoneSound(zoneId);
+  }
+
+  /**
+   * Studio view/edit mode.
+   *
+   * VIEW is the default and the venue fills the frame with nothing over it — that
+   * is the mode a salesperson presents in. EDIT docks a panel into the stage's
+   * second grid column, so the canvas shrinks rather than being covered: the
+   * whole point is watching the venue change while you change it. There is no
+   * modal anywhere in this flow, which was the explicit complaint.
+   */
+  setStudioMode(mode) {
+    const next = mode === 'edit' ? 'edit' : 'view';
+    this.studioMode = next;
+
+    const stage = document.getElementById('studioStage');
+    if (stage) stage.dataset.mode = next;
+
+    const host = this.studioEditPanelHost;
+    if (host) host.hidden = next !== 'edit';
+
+    const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
+
+    if (next === 'edit') {
+      if (this.studioEditPanel && zone) {
+        this.studioEditPanel.open(zone, this.activeSelections, {
+          returnFocusTo: document.activeElement
+        });
+      }
+    } else if (this.studioEditPanel?.isOpen) {
+      this.studioEditPanel.close();
+    }
+
+    // Hotspots are interactive furniture in edit mode and quiet dots in view mode.
+    this.viewer360?.setHotspotsInteractive?.(next === 'edit');
+    document.body.setAttribute('data-studio-mode', next);
+
+    this.studioModeBar?.setMode?.(next);
+    // The renderer must re-measure: its column just changed width.
+    requestAnimationFrame(() => this.viewer360?.resize?.());
+  }
+
+  toggleStudioMode() {
+    this.setStudioMode(this.studioMode === 'edit' ? 'view' : 'edit');
   }
 
   /**

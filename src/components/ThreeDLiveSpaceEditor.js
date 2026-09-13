@@ -45,14 +45,14 @@ const LOOKS = {
     floorInner: '#ffffff',
     floorMid: '#eef2fa',
     floorOuter: '#dbe3f1',
-    gridColor: 0x2f5fa8,
-    gridOpacity: 0.5,
+    gridColor: 0x24518f,
+    gridOpacity: 0.62,
     exposure: 1.15,
     envIntensity: 0.5,
     ambient: 0.85,
     keyIntensity: 0.9,
     // Every tinted surface is pushed towards drafting-ink blue-grey.
-    tint: 0x8fa6c9
+    tint: 0x7f93b6
   }
 };
 
@@ -363,6 +363,12 @@ export class ThreeDLiveSpaceEditor {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+
+    // Resizing reallocates (and clears) the drawing buffer. rAF is throttled in
+    // a hidden or backgrounded tab, so without an immediate repaint the canvas
+    // can sit blank until the tab is looked at again — which is exactly what
+    // "the 3D isn't working" looks like from the outside.
+    if (this.scene) this.renderer.render(this.scene, this.camera);
   }
 
   /**
@@ -1168,8 +1174,13 @@ export class ThreeDLiveSpaceEditor {
     if (this.selectionRing) {
       this.selectionRing.visible = shown;
       if (shown) {
-        const r = Math.max(target.userData.halfX, target.userData.halfZ) * 1.16;
-        this.selectionRing.scale.set(r, r, 1);
+        // Hug the actual footprint: a circle sized to the longest side swamps a
+        // 12 m stage and reads as a spotlight rather than a selection.
+        this.selectionRing.scale.set(
+          (target.userData.halfX + 0.45),
+          (target.userData.halfZ + 0.45),
+          1
+        );
         this.selectionRing.position.set(target.position.x, 0.03, target.position.z);
       }
     }
@@ -1301,7 +1312,7 @@ export class ThreeDLiveSpaceEditor {
           } else {
             // Desaturate towards ink rather than replacing outright, so an asset
             // recoloured by the client is still distinguishable in blueprint.
-            mat.color.setHex(mat.userData.h3dOrigColor).lerp(new THREE.Color(tint), 0.72);
+            mat.color.setHex(mat.userData.h3dOrigColor).lerp(new THREE.Color(tint), 0.8);
             if (mat.userData.h3dOrigMetal !== null) mat.metalness = Math.min(mat.userData.h3dOrigMetal, 0.15);
           }
         });
@@ -1530,8 +1541,14 @@ export class ThreeDLiveSpaceEditor {
 
     this.render();
     this.initThreeScene();
+    // Land on the default framing immediately rather than flying in on mount.
     this.cameraPreset('perspective');
-    this.camTween = null;   // land on the default framing immediately, do not fly in
+    if (this.camTween) {
+      this.camera.position.copy(this.camTween.toPos);
+      this.controls.target.copy(this.camTween.toTarget);
+      this.controls.update();
+      this.camTween = null;
+    }
     this.syncLookButtons();
     this.updateStats();
     this.updateInspectorUI();
@@ -1721,8 +1738,8 @@ export class ThreeDLiveSpaceEditor {
             <span><b data-stat="seats">0</b> seats</span>
             <span class="h3d-cost" data-stat="cost">${formatMoney(0)}</span>
           </div>
-          <button type="button" class="h3d-btn h3d-btn--primary" id="h3dModeToggle"
-                  aria-expanded="false" aria-controls="h3dPanel">Edit</button>
+          <button type="button" class="h3d-btn${this.mode === 'edit' ? '' : ' h3d-btn--primary'}" id="h3dModeToggle"
+                  aria-expanded="${this.mode === 'edit'}" aria-controls="h3dPanel">${this.mode === 'edit' ? 'Done' : 'Edit'}</button>
           ${modal ? '<button type="button" class="h3d-btn" id="h3dClose" aria-label="Close 3D floor plan">Close</button>' : ''}
         </div>
 

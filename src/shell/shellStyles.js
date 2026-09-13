@@ -22,42 +22,42 @@ export function ensureShellStyles() {
 
 /* ------------------------------------------------------------ studio stage */
 /*
-  The stage is a two-column grid: the venue on the left, the edit panel on the
-  right. In view mode the panel column collapses to zero, so the venue genuinely
-  fills the frame — it is not covered and then revealed, it is the only thing
-  there. In edit mode the panel takes a column and the canvas SHRINKS, which is
-  what lets you watch the venue change while you edit it.
+  The stage splits between the venue and the edit panel. The panel module styles
+  the stage as a flex row, so these rules use ID specificity to stay authoritative
+  about SIZING regardless of injection order — two stylesheets each thinking they
+  own the split is how the panel ended up 1px wide with the canvas at full width.
+
+  In view mode the panel column is zero, so the venue genuinely fills the frame —
+  it is not covered and then revealed, it is the only thing there. In edit mode the
+  panel takes its width and the canvas SHRINKS, which is the point: you watch the
+  venue change while you change it.
 */
-.studio-stage {
+#studioStage {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 0;
-  transition: grid-template-columns 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  display: flex;
+  align-items: stretch;
   min-height: 0;
+  overflow: hidden;
 }
 
-.studio-stage[data-mode="edit"] {
-  grid-template-columns: minmax(0, 1fr) clamp(320px, 26vw, 420px);
-}
-
-.studio-canvas-wrap {
+#studioStage > .studio-canvas-wrap {
   position: relative;
+  flex: 1 1 0%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
-.canvas-360-holder {
+#canvas360Holder {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
 
-/* The mode bar is a thin strip floating over the top of the canvas. It is the
-   only thing allowed to overlap the venue, and it stays out of the middle. */
-.studio-mode-bar-host {
+/* The mode bar is the ONLY thing allowed over the venue, and it hugs the top. */
+#studioModeBarHost {
   position: absolute;
   top: 0;
   left: 0;
@@ -65,18 +65,25 @@ export function ensureShellStyles() {
   z-index: 20;
   pointer-events: none;
 }
-.studio-mode-bar-host > * { pointer-events: auto; }
+#studioModeBarHost > * { pointer-events: auto; }
 
-.studio-edit-panel-host {
-  position: relative;
+#studioEditPanelHost {
+  flex: 0 0 auto;
+  width: clamp(320px, 26vw, 420px);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   border-left: 1px solid var(--border-soft);
   background: var(--bg-surface);
+  transition: width 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.studio-edit-panel-host[hidden] { display: none; }
+#studioStage:not([data-mode="edit"]) > #studioEditPanelHost {
+  width: 0;
+  border-left-width: 0;
+}
+
+#studioEditPanelHost[hidden] { display: none; }
 
 /* ------------------------------------------------------------------ mobile */
 /*
@@ -85,22 +92,23 @@ export function ensureShellStyles() {
   still visible while you change it — which is the requirement, not the shape.
 */
 @media (max-width: 840px) {
-  .studio-stage,
-  .studio-stage[data-mode="edit"] {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 0;
-  }
-  .studio-stage[data-mode="edit"] {
-    grid-template-rows: minmax(0, 1fr) min(52vh, 460px);
-  }
-  .studio-edit-panel-host {
+  #studioStage { flex-direction: column; }
+  #studioStage > #studioEditPanelHost {
+    width: auto;
+    height: min(52vh, 460px);
     border-left: 0;
     border-top: 1px solid var(--border-soft);
+    transition: height 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  #studioStage:not([data-mode="edit"]) > #studioEditPanelHost {
+    width: auto;
+    height: 0;
+    border-top-width: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .studio-stage { transition: none; }
+  #studioEditPanelHost { transition: none; }
 }
 `;
   document.head.appendChild(style);

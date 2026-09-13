@@ -388,8 +388,54 @@ body {
 .nav-brand           { order: 1; flex: 0 0 auto; }
 .nav-search-wrapper  { order: 2; }
 .nav-actions-group   { order: 3; }
-.nav-theme-pin       { order: 4; flex: 0 0 auto; }
+.nav-theme-pin       { order: 4; }
 .view-toggle-group   { order: 6; }
+
+/* THE RULE THAT KEEPS ONE ROW HONEST.
+   A non-wrapping flex row silently spills whatever will not fit off the right
+   edge — which is exactly the "clipping" this pass exists to remove. Every
+   direct child is therefore allowed to shrink below its content width, and
+   each one declares how it behaves when it does: truncate, or scroll.
+   The brand mark is the only exception; it is 28px and always fits. */
+.app-navbar > * {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.app-navbar > .nav-brand { flex: 0 0 auto; }
+
+/* Groups that TRUNCATE. */
+.role-badge-slot,
+.preset-popover-wrapper,
+.nav-theme-pin {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+.role-badge-slot > * {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Groups that SCROLL, with a faded trailing edge so a clipped strip announces
+   itself instead of just ending. */
+.studio-only {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.section-switcher,
+.view-toggle-group,
+.nav-actions-group {
+  scroll-snap-type: x proximity;
+}
+.section-switcher > *,
+.view-toggle-group > *,
+.nav-actions-group > * {
+  scroll-snap-align: start;
+}
 
 /* Center tabs: allow horizontal scroll when crowded */
 .view-toggle-group {
@@ -513,7 +559,7 @@ body {
   align-items: center;
   gap: var(--space-1);
   flex-wrap: nowrap;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -991,19 +1037,19 @@ body {
   display: block;
 }
 
+/* Sits ON the photograph. It is a caption, not a panel — no plate, no border,
+   no shadow: legible text on a soft gradient so the image reads through. */
 .map-overlay-title {
   position: absolute;
-  top: 1.25rem;
-  left: 1.25rem;
-  background: var(--bg-nav);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+  padding: var(--space-4) var(--space-5) var(--space-8);
+  border: none;
   pointer-events: none;
   z-index: 40;
-  box-shadow: var(--shadow-lg);
+  box-shadow: none;
 }
 
 .map-overlay-title h3 {
@@ -1011,12 +1057,12 @@ body {
   font-size: var(--fs-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--text-main);
+  color: var(--text-on-media);
 }
 
 .map-overlay-title p {
   font-size: var(--fs-xs);
-  color: var(--text-muted);
+  color: var(--text-on-media-dim);
   margin-top: 2px;
 }
 
@@ -1712,17 +1758,19 @@ body {
    6. HELME EVENTS FLOATING COST CARD
    ========================================================================== */
 
+/* The running total. It floats over photography, so it IS an object and keeps
+   its elevation — but it loses its border, and everything inside it is quiet. */
 .cost-card-wrapper {
   position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  width: 350px;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  width: 330px;
   background: var(--bg-surface);
-  border: 1px solid var(--border-strong);
+  border: none;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-costcard);
-  transition: var(--transition-normal);
+  overflow: hidden;
 }
 
 .cost-card-header {
@@ -1730,19 +1778,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
   cursor: pointer;
 }
 
 .grand-price {
   font-family: var(--font-attio);
   font-size: var(--fs-2xl);
-  font-weight: 800;
-  color: var(--accent-gold);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .budget-progress-bar {
-  width: 85px;
-  height: 4px;
+  width: 72px;
+  height: 3px;
   background: var(--bg-input);
   border-radius: 4px;
   overflow: hidden;
@@ -1756,11 +1809,15 @@ body {
 .btn-toggle-expand {
   background: transparent;
   border: none;
-  color: var(--accent-indigo);
-  font-weight: 600;
-  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: var(--fs-2xs);
   cursor: pointer;
+  white-space: nowrap;
+  text-align: right;
 }
+
+.btn-toggle-expand:hover { color: var(--text-main); }
 
 .cost-card-drawer {
   display: none;
@@ -2521,26 +2578,35 @@ body {
 
 .cost-badge {
   font-size: var(--fs-2xs);
-  font-weight: 700;
-  color: var(--accent-indigo);
+  font-weight: 600;
+  color: var(--text-dim);
   text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
+/* The price and its context STACK. They used to share a baseline, which
+   squeezed the target line into four wrapped words. */
 .grand-price-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
 }
 
 .budget-target {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .cost-header-right {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .alert {
