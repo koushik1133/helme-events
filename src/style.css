@@ -3107,14 +3107,15 @@ body {
   /* Still a wrapping row — NOT flex-direction:column, which used to make the
      navbar 231px tall (27% of an iPhone viewport) before any content showed. */
   .app-navbar { padding: 0.4rem 0.6rem; gap: 0.35rem 0.4rem; }
+  /* row 1: brand + search + theme  ·  row 2: actions  ·  row 3: tab strip */
   .nav-actions-group {
     justify-content: flex-start;
     gap: 0.3rem;
     flex: 1 1 100%;
-    order: 3;
+    order: 4;
   }
   .nav-search-wrapper { flex: 1 1 140px; min-width: 140px; order: 2; }
-  .nav-theme-pin { order: 4; margin-left: auto; }
+  .nav-theme-pin { order: 3; margin-left: auto; }
   .nav-theme-pin .preset-trigger-btn { max-width: 46vw; }
   .preset-current-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .logo-title { font-size: 0.95rem; }

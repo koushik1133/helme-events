@@ -1,5 +1,6 @@
 import { VENUE_ZONES } from '../data/zones.js';
 import { getItemById } from '../data/catalog.js';
+import { formatMoney, formatMoneyShort, escapeHtml } from '../utils/format.js';
 
 export class InteractiveMap {
   constructor(containerElement, onSelectZone, onSelectSlot, activeSelections) {
@@ -45,7 +46,7 @@ export class InteractiveMap {
                   <!-- Interactive Photo Node Marker -->
                   <button class="photo-node-button" aria-label="Open ${zone.name}">
                     <img src="${zone.thumbnailUrl}" class="node-thumb" alt="${zone.name}" />
-                    <span class="node-price-tag">$${cost.toLocaleString()}</span>
+                    <span class="node-price-tag">${formatMoneyShort(cost)}</span>
                   </button>
 
                   <!-- Helm Events Photo Zone Card -->
@@ -58,7 +59,7 @@ export class InteractiveMap {
                     <div class="card-content">
                       <div class="tooltip-header">
                         <h4>${zone.name}</h4>
-                        <span class="tooltip-price">$${cost.toLocaleString()}</span>
+                        <span class="tooltip-price">${formatMoney(cost)}</span>
                       </div>
                       <p class="zone-desc">${zone.subtitle}</p>
 
@@ -67,10 +68,12 @@ export class InteractiveMap {
                         ${zone.slots.map(slot => {
                           const item = getItemById(this.activeSelections[slot.id] || slot.defaultItemId);
                           return `
-                            <div class="tooltip-slot-item map-slot-clickable" data-zone-id="${zone.id}" data-slot-id="${slot.id}" title="Click to swap ${slot.label}">
-                              <span class="slot-label">${slot.label}:</span>
-                              <strong class="slot-val">${item ? item.name : 'None'} ✏️</strong>
-                            </div>
+                            <button type="button" class="tooltip-slot-item map-slot-clickable"
+                                    data-zone-id="${zone.id}" data-slot-id="${slot.id}"
+                                    aria-label="Change ${escapeHtml(slot.label)} in ${escapeHtml(zone.name)} — currently ${escapeHtml(item ? item.name : 'nothing selected')}">
+                              <span class="slot-label">${escapeHtml(slot.label)}:</span>
+                              <strong class="slot-val">${escapeHtml(item ? item.name : 'None')} ✏️</strong>
+                            </button>
                           `;
                         }).join('')}
                       </div>

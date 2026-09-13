@@ -1,7 +1,7 @@
 import { TESTIMONIALS } from '../data/testimonials.js';
 import { escapeHtml, formatNumber, readJSON, writeJSON } from '../utils/format.js';
 
-const STORAGE_KEY = 'helme_events_testimonials';
+const STORAGE_KEY = 'helm_events_testimonials_v2';
 
 const TYPE_LABELS = {
   wedding: 'Wedding',
