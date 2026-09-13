@@ -29,7 +29,7 @@ import { TimelinePlanner } from './components/TimelinePlanner.js';
 import { SeatingChart } from './components/SeatingChart.js';
 import { ColorThemeDesigner } from './components/ColorThemeDesigner.js';
 import { BeforeAfterCompare } from './components/BeforeAfterCompare.js';
-import { CollaborationMode } from './components/CollaborationMode.js';
+import { CollaborationMode, decodeDesignState } from './components/CollaborationMode.js';
 import { StyleLibrary } from './components/StyleLibrary.js';
 
 // Phase 2: Business Ops
@@ -79,6 +79,9 @@ class Event360App {
     // Captured before any restore overlays them, so "reset to defaults" stays possible.
     this.defaultSelections = { ...this.activeSelections };
 
+    // A review link wins over saved state: someone was sent this exact design.
+    this.sharedDesignApplied = this.restoreSharedDesign();
+
     this.applyTheme(this.theme);
     this.initUI();
     this.initComponents();
@@ -100,6 +103,9 @@ class Event360App {
       if (restored?.currentZoneId && restored.currentZoneId !== this.currentZoneId) {
         this.currentZoneId = restored.currentZoneId;
       }
+      // A design that arrived via a review link must not be overwritten by the
+      // viewer's own previously saved session.
+      if (this.sharedDesignApplied) return;
       const incoming = restored?.activeSelections || {};
       const changed = Object.keys(incoming).some(k => incoming[k] !== this.activeSelections[k]);
       if (!changed) return;
@@ -1143,6 +1149,39 @@ class Event360App {
         console.error('[Helm] updateSelections failed for', component?.constructor?.name, err);
       }
     }
+  }
+
+  /**
+   * Restore a design handed over by a review link:
+   *   <origin><path>#design=<base64url of the slotId -> itemId diff>
+   *
+   * Only entries that differ from the venue defaults travel in the link, so
+   * merging over the defaults is the correct restore. Runs before components
+   * render, so the HUD never shows the pre-link state.
+   */
+  restoreSharedDesign() {
+    const match = /[#&]design=([A-Za-z0-9\-_]+)/.exec(window.location.hash || '');
+    if (!match) return false;
+
+    let restored = null;
+    try {
+      restored = decodeDesignState(match[1]);
+    } catch (err) {
+      console.error('[Helm] could not decode review link', err);
+    }
+    if (!restored || !Object.keys(restored).length) {
+      // showToast needs the DOM, which is ready by the time the app is constructed.
+      setTimeout(() => this.showToast('That review link could not be read.'), 0);
+      return false;
+    }
+
+    const clean = this.normalizeSelections(restored);
+    Object.assign(this.activeSelections, clean);
+    // Drop the fragment so a later reload does not silently re-apply it.
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    const count = Object.keys(clean).length;
+    setTimeout(() => this.showToast(`🔗 Loaded shared design — ${count} custom ${count === 1 ? 'selection' : 'selections'}`), 0);
+    return true;
   }
 
   /** Every valid key of `activeSelections`: a real slot id, or custom_text_<slotId>. */
