@@ -1004,11 +1004,17 @@ export class ThreeDLiveSpaceEditor {
     // Idempotent: a second open() while already open must not start a second loop.
     if (this.renderer) return;
     this.render();
-    requestAnimationFrame(() => {
-      if (this.renderer) return;
-      this.initThreeScene();
-      this.updateStats();
-    });
+
+    // Initialise synchronously. render() applies innerHTML synchronously, so the
+    // canvas holder already exists; the ResizeObserver corrects the camera aspect
+    // and drawing-buffer size once layout settles.
+    //
+    // This used to be deferred to requestAnimationFrame, which does not fire while
+    // the tab is hidden or backgrounded — the panel rendered and the 3D scene
+    // silently never initialised, leaving a blank canvas until the editor was
+    // closed and reopened.
+    this.initThreeScene();
+    this.updateStats();
   }
 
   close() {
