@@ -52,6 +52,11 @@ export function ensureShellStyles() {
 .app-navbar > .nav-search-wrapper { flex: 1 1 90px; min-width: 90px; }
 .app-navbar > .nav-brand { flex: 0 1 auto; min-width: 0; }
 
+/* The Plan tab group sits in the same slot as the Studio one. Without an explicit
+   order it defaults to 0 and jumps in front of the brand. */
+.app-navbar > .plan-only { order: 3; flex: 0 1 auto; min-width: 0; }
+.app-navbar > .studio-only { order: 3; }
+
 @media (max-width: 1180px) {
   /* Below this the switcher may scroll rather than force the row to wrap. */
   .app-navbar > .section-switcher { min-width: 0; overflow-x: auto; scrollbar-width: none; }
