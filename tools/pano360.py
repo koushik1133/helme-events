@@ -127,35 +127,67 @@ def close_seam(a: np.ndarray, band_frac: float = 0.055) -> np.ndarray:
 # 3 — collapse the poles
 # --------------------------------------------------------------------------- #
 
-def collapse_poles(a: np.ndarray, band_deg: float = 30.0, softness: float = 2.2) -> np.ndarray:
+def collapse_poles(a: np.ndarray, floor_vignette: float = 0.18) -> np.ndarray:
     """
-    Drive the top and bottom rows toward a single colour.
+    Remove the pole smear, using the projection's own geometry to decide how much.
 
-    Weight rises from 0 at the inner edge of the band to 1 at the pole, so the
-    horizon is untouched and the very top/bottom row becomes flat — which is what
-    a real panorama does, because every column meets at the same point there.
+    An equirectangular image stores every row with the same number of pixels, but
+    the ring it represents on the sphere shrinks as cos(latitude). So a row near
+    the pole is oversampled by 1/cos(lat): the viewer magnifies those pixels
+    enormously, which is exactly what you see as radial streaking when you look
+    straight down.
 
-    The per-row target is a horizontally blurred version of the row rather than a
-    flat mean, so large-scale structure (a bright patch of sky on one side) is
-    preserved until close to the pole.
+    Blurring each row with a radius proportional to (1 - cos(lat)) * W / 2 cancels
+    that oversampling precisely — at the horizon the radius is 0 and nothing is
+    touched, at the pole it is half the width, which is a full row average. The
+    result converges to a single colour at the pole without the abrupt "disc" a
+    fixed-size blur leaves behind.
+
+    A gentle darkening toward the nadir is applied on top: the ground directly
+    beneath the camera is in the venue's own shadow, so this reads as natural
+    rather than as a defect.
     """
-    out = a.copy()
-    h, w = a.shape[:2]
-    band = max(4, int(h * band_deg / 180.0))
+    out = a.astype(np.float64).copy()
+    h, w = out.shape[:2]
 
-    # Horizontally smoothed copy, wrapped: the "target" each row eases toward.
-    target = _box_blur_1d(out.astype(np.float64), max(2, w // 12), axis=1, wrap=True)
+    lat = np.pi / 2.0 - (np.arange(h, dtype=np.float64) + 0.5) / h * np.pi
+    # A row at latitude phi stores a ring of circumference 2*pi*cos(phi) in the same
+    # W pixels the equator uses, so it is oversampled by exactly 1/cos(phi). Blurring
+    # by that factor restores equator-equivalent detail: zero at the horizon, and
+    # only rising steeply in the last few degrees where the smear actually happens.
+    oversample = 1.0 / np.maximum(np.cos(lat), 1e-6)
+    radii = np.rint(oversample - 1.0).astype(np.int64)
+    radii = np.clip(radii, 0, w // 2)
 
-    for is_top in (True, False):
-        for step in range(band):
-            row = step if is_top else h - 1 - step
-            t = (1.0 - step / band) ** softness          # 1 at the pole, 0 at band edge
-            blended = out[row] * (1 - t) + target[row] * t
-            # In the last few rows go all the way to a single colour.
-            if step < band * 0.12:
-                hard = (1.0 - step / (band * 0.12)) ** 1.5
-                blended = blended * (1 - hard) + blended.mean(axis=0) * hard
-            out[row] = blended
+    for y in range(h):
+        r = int(radii[y])
+        if r < 1:
+            continue
+        row = out[y]                                   # (w, 3)
+        k = 2 * r + 1
+        if k >= w:
+            out[y] = row.mean(axis=0)
+            continue
+        # Wrapped running mean along the row.
+        padded = np.concatenate([row[-r:], row, row[:r]], axis=0)
+        cum = np.cumsum(padded, axis=0)
+        cum = np.concatenate([np.zeros((1, 3)), cum], axis=0)
+        out[y] = (cum[k:] - cum[:-k]) / k
+
+    # The outermost rows ARE the pole: every column there is the same physical
+    # point, so they must be exactly one colour or the very centre of the view
+    # still shows structure. Ease into a true row mean over the last degree.
+    pole_rows = max(3, int(h * 1.8 / 180.0))
+    for step in range(pole_rows):
+        t = (1.0 - step / pole_rows) ** 1.2
+        for row in (step, h - 1 - step):
+            out[row] = out[row] * (1 - t) + out[row].mean(axis=0) * t
+
+    # Shade the floor beneath the camera.
+    if floor_vignette > 0:
+        depth = np.clip((lat / (-np.pi / 2.0)), 0.0, 1.0) ** 2.5      # 0 at horizon, 1 at nadir
+        out *= (1.0 - floor_vignette * depth)[:, None, None]
+
     return out
 
 
