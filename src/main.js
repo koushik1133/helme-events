@@ -1145,6 +1145,15 @@ class Event360App {
     }
   }
 
+  /** Every valid key of `activeSelections`: a real slot id, or custom_text_<slotId>. */
+  static isSelectionKey(key) {
+    if (!Event360App._slotIds) {
+      Event360App._slotIds = new Set(VENUE_ZONES.flatMap(z => z.slots.map(sl => sl.id)));
+    }
+    if (Event360App._slotIds.has(key)) return true;
+    return key.startsWith('custom_text_') && Event360App._slotIds.has(key.slice('custom_text_'.length));
+  }
+
   /**
    * Coerce an incoming selection map to the canonical shape: slotId -> itemId string.
    *
@@ -1155,6 +1164,17 @@ class Event360App {
   normalizeSelections(selections) {
     const out = {};
     for (const [slotId, value] of Object.entries(selections || {})) {
+      // Only real slot ids and custom_text_* belong here. Presets and the brief
+      // wizard used to smuggle `theme_panorama` (an image URL) in alongside them,
+      // which is not an item id — the API rejected every state sync with a 400.
+      if (!Event360App.isSelectionKey(slotId)) {
+        if (slotId === 'theme_panorama' || slotId === 'panoramaUrl') {
+          if (typeof value === 'string') this.themePanorama = value;
+        } else {
+          console.warn('[Helm] dropping non-slot selection key', slotId);
+        }
+        continue;
+      }
       if (typeof value === 'string') {
         out[slotId] = value;
       } else if (value && typeof value === 'object' && typeof value.itemId === 'string') {
