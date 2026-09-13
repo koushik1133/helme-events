@@ -444,7 +444,7 @@ export class MoodBoardMatcher {
 
     const setDropzoneActive = active => {
       const dz = this.container.querySelector('#mb-dropzone');
-      if (dz) dz.style.borderColor = active ? '#6366f1' : 'var(--border-subtle)';
+      if (dz) dz.style.borderColor = active ? 'var(--accent-indigo)' : 'var(--border-subtle)';
     };
 
     this.container.addEventListener('dragover', e => {

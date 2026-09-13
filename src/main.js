@@ -728,7 +728,7 @@ class Event360App {
     // Human-readable names — the toast used to leak the internal key ("Opened colorTheme").
     const featureLabels = {
       compare: 'Before / After Comparison',
-      collab: 'Collaboration',
+      collab: 'Client Review',
       styles: 'Floral & Decor Style Library',
       notes: 'Zone Notes',
       videoExport: 'Walkthrough Video Export',
@@ -741,7 +741,7 @@ class Event360App {
       vendors: 'Vendor Directory',
       inventory: 'Inventory Tracker',
       calendar: 'Booking Calendar',
-      testimonials: 'Client Reviews',
+      testimonials: 'References',
       playlist: 'Playlist Builder'
     };
 
@@ -1532,7 +1532,7 @@ class Event360App {
       ['India events', 'india'], ['Floor plan', 'floorplan'], ['Analytics', 'analytics'],
       ['Proposals', 'proposals'], ['Timeline', 'timeline'], ['Seating chart', 'seating'],
       ['Vendors', 'vendors'], ['Inventory', 'inventory'], ['Booking calendar', 'calendar'],
-      ['Client reviews', 'testimonials'], ['Playlist', 'playlist']
+      ['References', 'testimonials'], ['Playlist', 'playlist']
     ];
     views.forEach(([label, view]) => entries.push({
       kind: 'Go to', label, detail: 'View', keywords: label, run: () => this.switchView(view)

@@ -3011,20 +3011,6 @@ body {
 .n-content { flex: 1; font-size: 0.875rem; }
 .n-empty { padding: 32px; text-align: center; color: var(--text-muted); }
 
-/* Weather */
-.weather-panel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  box-shadow: var(--shadow-card);
-  position: absolute;
-  top: 80px;
-  right: 20px;
-  width: 250px;
-  z-index: var(--z-drawer);
-}
-
 /* Vendors & Inventory */
 .vendor-filters, .inventory-alerts, .testimonial-filters {
   display: flex; gap: 12px; margin-bottom: 24px;
@@ -4193,7 +4179,6 @@ body {
   color: var(--on-rose);
 }
 
-
 /* ==========================================================================
    360° VIEWER HOTSPOT ITEM CARDS
    Each dot is a floating card with item thumbnail, label, price + beacon
@@ -4895,7 +4880,6 @@ body {
   .ism-grid { grid-template-columns: 1fr; }
 }
 
-
 .viewer360-hotspot-overlay {
   position: absolute;
   inset: 0;
@@ -5209,72 +5193,6 @@ body {
   color: var(--text-on-media);
 }
 
-/* ==========================================================================
-   N8N AI MULTI-AGENT OPERATIONS & PROXIMITY DISPATCH SYSTEM STYLES
-   ========================================================================== */
-
-.n8n-ops-wrapper {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-  color: var(--text-main);
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* Header */
-.n8n-ops-header {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg, 20px);
-  padding: 1.75rem 2rem;
-  box-shadow: var(--shadow-card);
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.n8n-title-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(217, 119, 6, 0.12);
-  border: 1px solid rgba(217, 119, 6, 0.3);
-  color: var(--accent-gold);
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 5px 14px;
-  border-radius: 100px;
-  width: fit-content;
-}
-
-.n8n-main-title {
-  font-size: 1.85rem;
-  font-weight: 800;
-  margin: 0;
-  color: var(--text-main);
-  letter-spacing: -0.02em;
-}
-
-.n8n-main-subtitle {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  margin: 0;
-  max-width: 880px;
-  line-height: 1.55;
-}
-
-/* Metrics Row */
-.n8n-metrics-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
 .metric-pill {
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
@@ -5320,36 +5238,6 @@ body {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
-}
-
-/* Tabs Navigation */
-.n8n-tabs-nav {
-  display: flex;
-  gap: 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  padding: 6px;
-  border-radius: 100px;
-  overflow-x: auto;
-  box-shadow: var(--shadow-card);
-}
-
-.n8n-tab-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.88rem;
-  font-weight: 700;
-  padding: 10px 20px;
-  border-radius: 100px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.n8n-tab-btn:hover {
-  color: var(--text-main);
-  background: var(--bg-app);
 }
 
 .n8n-tab-btn.active {
@@ -5669,12 +5557,6 @@ body {
 .dot.green { color: var(--accent-emerald); }
 .dot.red { color: var(--accent-rose); }
 
-.sim-log-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .sim-status-pill {
   font-size: 0.75rem;
   font-weight: 800;
@@ -5685,21 +5567,6 @@ body {
 .sim-status-pill.idle { background: rgba(148, 163, 184, 0.2); color: var(--text-dim); }
 .sim-status-pill.running { background: rgba(245, 158, 11, 0.2); color: var(--accent-gold); }
 .sim-status-pill.success { background: rgba(34, 197, 94, 0.2); color: var(--accent-emerald); }
-
-.sim-log-terminal {
-  background: var(--bg-terminal);
-  border: 1px solid var(--border-terminal);
-  border-radius: 12px;
-  padding: 1.25rem;
-  height: 380px;
-  overflow-y: auto;
-  font-family: var(--font-mono, monospace);
-  font-size: 0.84rem;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  color: var(--text-terminal);
-}
 
 .log-line { line-height: 1.48; }
 .log-time { color: var(--text-dim); font-size: 0.75rem; margin-right: 6px; }
@@ -5758,87 +5625,10 @@ body {
   color: var(--on-sky);
 }
 
-.n8n-canvas-visual {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  background: var(--bg-app);
-  border-radius: 16px;
-  border: 1px solid var(--border-subtle);
-}
-
-.n8n-node-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.n8n-node {
-  flex: 1;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  box-shadow: var(--shadow-card);
-  transition: all 0.25s ease;
-}
-
-.n8n-node:hover {
-  border-color: var(--accent-gold);
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
-}
-
 .node-icon { font-size: 1.6rem; margin-bottom: 6px; }
 .node-title { font-size: 0.88rem; font-weight: 800; color: var(--text-main); }
 .node-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
 .node-arrow { font-size: 1.2rem; color: var(--accent-gold); font-weight: bold; }
-
-/* Tab 4: ROI Matrix */
-.roi-tab-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.roi-header h3 {
-  font-size: 1.4rem;
-  font-weight: 800;
-  margin: 0 0 4px;
-  color: var(--text-main);
-}
-
-.roi-header p {
-  font-size: 0.92rem;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.roi-grid-comparison {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-@media (max-width: 850px) {
-  .roi-grid-comparison { grid-template-columns: 1fr; }
-}
-
-.roi-card {
-  background: var(--bg-surface);
-  border-radius: 18px;
-  padding: 1.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  box-shadow: var(--shadow-card);
-}
 
 .roi-card.old-way {
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -5848,21 +5638,6 @@ body {
 .roi-card.new-way {
   border: 1px solid rgba(16, 185, 129, 0.3);
   background: var(--bg-surface);
-}
-
-.roi-card-header h4 {
-  font-size: 1.15rem;
-  font-weight: 800;
-  margin: 8px 0 2px;
-  color: var(--text-main);
-}
-
-.roi-badge {
-  font-size: 0.72rem;
-  font-weight: 900;
-  padding: 4px 12px;
-  border-radius: 100px;
-  display: inline-block;
 }
 
 .roi-badge.red { background: rgba(239, 68, 68, 0.15); color: var(--accent-rose); border: 1px solid rgba(239, 68, 68, 0.3); }
@@ -5876,39 +5651,6 @@ body {
 
 .old-way .cost-stat { color: var(--accent-rose); }
 .new-way .cost-stat { color: var(--accent-emerald); }
-
-.roi-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.roi-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background: var(--bg-app);
-  border: 1px solid var(--border-subtle);
-  padding: 12px 14px;
-  border-radius: 12px;
-}
-
-.roi-icon {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.roi-text {
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: var(--text-muted);
-}
-
-.roi-text strong {
-  color: var(--text-main);
-  font-weight: 700;
-}
 
 /* (moved to the navbar section so the responsive overrides can win) */
 
@@ -5980,9 +5722,6 @@ body {
   color: var(--text-main);
 }
 
-
-
-
 /* ==========================================================================
    16. PREVIOUSLY UNSTYLED COMPONENT CLASSES
    Every rule below covers a class that JS templates emit but the stylesheet
@@ -6041,69 +5780,9 @@ body {
   line-height: 1.5;
 }
 
-/* ── Weather & Time-of-Day Simulator ─────────────────────────────────────── */
-.weather-modal-card {
-  max-width: 680px;
-}
-
-.weather-options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-3);
-}
-
-.weather-opt-card {
-  background: var(--bg-elevated);
-  border: 1.5px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-  text-align: left;
-  cursor: pointer;
-  color: var(--text-main);
-  transition: var(--transition-fast);
-}
-
-.weather-opt-card:hover {
-  border-color: var(--accent-indigo);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
-}
-
 .weather-opt-card.active {
   border-color: var(--accent-gold);
   background: var(--tint-gold);
-}
-
-.weather-opt-card strong {
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.weather-opt-card small {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
-
-.weather-icon {
-  font-size: var(--fs-xl);
-  line-height: 1.2;
-}
-
-.weather-suggestion-banner {
-  display: none;
-  margin-top: var(--space-4);
-  background: var(--tint-gold);
-  border: 1px solid var(--border-gold);
-  border-radius: var(--radius-ms);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--fs-sm);
-  color: var(--text-main);
-  line-height: 1.5;
 }
 
 .weather-suggestion-banner.show { display: block; }
@@ -6172,14 +5851,6 @@ body {
 
 .btn-launch:hover { background: var(--btn-primary-hover); }
 
-/* ── n8n AI Ops containers ──────────────────────────────────────────────── */
-.n8n-header-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
 .n8n-tab-content,
 .flow-tab-container,
 .simulator-tab-container {
@@ -6201,8 +5872,6 @@ body {
 .type-2-card { border-left-color: var(--accent-gold); }
 
 .badge-icon { font-size: var(--fs-md); line-height: 1; }
-
-.roi-list { display: flex; flex-direction: column; gap: var(--space-2); }
 
 /* ── 3D editor header split ─────────────────────────────────────────────── */
 .header-left,
@@ -6540,7 +6209,6 @@ summary:focus-visible,
   h1, h2, h3, h4 { break-after: avoid; }
 }
 
-
 /* ==========================================================================
    20. GLOBAL NAV SEARCH RESULTS + REMAINING NAV HOOKS
    ========================================================================== */
@@ -6659,7 +6327,6 @@ summary:focus-visible,
 .ism-current-label {
   font-size: var(--fs-2xs);
 }
-
 
 /* ==========================================================================
    22. SAFETY NET FOR INLINE WHITE PANELS
