@@ -34,7 +34,9 @@ window.helmSettle = function () {
 
 window.helmAudit = async function (opts = {}) {
   window.helmSettle();
-  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  // NOT requestAnimationFrame: a hidden tab never fires it, so the audit hung
+  // forever in exactly the situation it exists to measure.
+  await new Promise(r => setTimeout(r, 50));
 
   const srgb = c => (c /= 255) <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   const lum = ([r, g, b]) => 0.2126 * srgb(r) + 0.7152 * srgb(g) + 0.0722 * srgb(b);
@@ -45,10 +47,19 @@ window.helmAudit = async function (opts = {}) {
     : [0, 1, 2].map(i => Math.round(fg[i] * fg[3] + bg[i] * (1 - fg[3])));
 
   // The true background behind an element: walk up through transparency.
+  const _cs = new Map();
+  const CS = el => { let v = _cs.get(el); if (!v) { v = getComputedStyle(el); _cs.set(el, v); } return v; };
+
+  const _bg = new Map();
   function bgOf(el) {
+    const memo = _bg.get(el); if (memo) return memo;
+    const r = bgOfUncached(el); _bg.set(el, r); return r;
+  }
+
+  function bgOfUncached(el) {
     let cur = el, acc = null;
     while (cur && cur !== document.documentElement.parentNode) {
-      const c = parse(getComputedStyle(cur).backgroundColor);
+      const c = parse(CS(cur).backgroundColor);
       if (c && c[3] > 0) { acc = acc ? over(acc.concat(1), c.slice(0, 3)).concat(1) : c;
         if (c[3] >= 1) return acc.slice(0, 3); }
       cur = cur.parentElement;
@@ -56,11 +67,35 @@ window.helmAudit = async function (opts = {}) {
     return acc ? acc.slice(0, 3) : [255, 255, 255];
   }
 
-  const vis = el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el);
+  const vis = el => { const r = el.getBoundingClientRect(); const cs = CS(el);
     return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'
       && parseFloat(cs.opacity) > 0.05; };
 
-  const out = { contrast: [], invisible: [] };
+  const out = { contrast: [], invisible: [], overMedia: [] };
+
+  /*
+   * Text whose real backdrop this tool CANNOT know: it sits over an <img>, a
+   * canvas, a background-image, or a scrim drawn as a ::before/::after that the
+   * ancestor walk does not see. Reporting these as failures is wrong (the card
+   * countdown sits on a 0.72 black scrim and is perfectly legible); reporting
+   * them as passes is worse. They go in their own bucket so they stay visible
+   * and get judged by eye, not by a number the formula cannot produce.
+   */
+  function overMedia(el) {
+    let cur = el;
+    while (cur && cur !== document.body) {
+      if (cur.querySelector && cur.querySelector(':scope > img, :scope > canvas, :scope > video')) return true;
+      const c = CS(cur);
+      if (c.backgroundImage && c.backgroundImage !== 'none') return true;
+      for (const pseudo of ['::before', '::after']) {
+        const p = getComputedStyle(cur, pseudo);
+        if (p.content !== 'none' && (p.backgroundImage !== 'none'
+            || (parse(p.backgroundColor)?.[3] || 0) > 0)) return true;
+      }
+      cur = cur.parentElement;
+    }
+    return false;
+  }
   const path = el => { const p = []; let c = el;
     while (c && c.nodeType === 1 && p.length < 4) { p.unshift(c.id ? '#' + c.id
       : c.tagName.toLowerCase() + (c.className && typeof c.className === 'string'
@@ -69,7 +104,7 @@ window.helmAudit = async function (opts = {}) {
 
   for (const el of document.querySelectorAll('body *')) {
     if (!vis(el)) continue;
-    const cs = getComputedStyle(el);
+    const cs = CS(el);
 
     // Own text only — an element inheriting a child's text would double-count.
     const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length);
@@ -81,8 +116,11 @@ window.helmAudit = async function (opts = {}) {
         const bold = parseInt(cs.fontWeight, 10) >= 700;
         const large = size >= 24 || (size >= 18.66 && bold);
         const need = large ? 3 : 4.5;
-        if (r < need) out.contrast.push({ sel: path(el), text: el.textContent.trim().slice(0, 40),
-          ratio: +r.toFixed(2), need, size, color: cs.color, bg: `rgb(${bg.join(',')})` });
+        if (r < need) {
+          const row = { sel: path(el), text: el.textContent.trim().slice(0, 40),
+            ratio: +r.toFixed(2), need, size, color: cs.color, bg: `rgb(${bg.join(',')})` };
+          (overMedia(el) ? out.overMedia : out.contrast).push(row);
+        }
       }
     }
 
@@ -110,6 +148,7 @@ window.helmAudit = async function (opts = {}) {
 
   return { theme: document.documentElement.getAttribute('data-theme'),
            where: opts.where || '', ...out,
-           counts: { contrast: out.contrast.length, invisible: out.invisible.length } };
+           counts: { contrast: out.contrast.length, invisible: out.invisible.length,
+                      overMedia: out.overMedia.length } };
 };
 'helmAudit ready';

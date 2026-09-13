@@ -384,6 +384,10 @@ const CSS = `
   border-color: var(--border-accent, rgba(224,177,85,0.34));
 }
 .ev-action--primary strong { color: var(--accent, #e0b155); }
+/* The hint sits on --tint-accent, not on the plain card surface, and --text-dim
+   was only ever checked against the latter — it lands at 4.4:1 on the tint in
+   dark. --text-muted is the correct role for a hint anyway. */
+.ev-action--primary small { color: var(--text-muted, #aca69d); }
 
 .ev-contact { display: flex; flex-direction: column; gap: var(--space-3, 12px); }
 .ev-contact-row { font-size: var(--fs-sm, 0.8125rem); }

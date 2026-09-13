@@ -512,8 +512,13 @@ export class Viewer360 {
       note.style.cssText = `position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
         max-width:min(90%,560px);display:flex;gap:9px;align-items:flex-start;
         padding:9px 14px;border-radius:12px;font-size:12.5px;line-height:1.45;
-        background:var(--surface-2, rgba(9,10,15,0.88));color:var(--text-primary, #f8fafc);
-        border:1px solid var(--accent, #f59e0b);pointer-events:auto;z-index:60;`;
+        pointer-events:auto;z-index:60;`;
+      // Background, colour and border deliberately live in the stylesheet rule for
+      // `.v360-composite-note`, NOT here. Inline, this reached for --surface-2
+      // (which does not exist, so the plate fell back to a hardcoded dark literal)
+      // and --text-primary (which does exist and themes to near-black) — so in
+      // light mode it painted near-black text on a near-black plate at 1.18:1.
+      // A plate and its text have to come from the same themed token set.
       this._overlayEl.appendChild(note);
     }
     note.innerHTML = `<span class="v360-note-icon" aria-hidden="true">◐</span>
