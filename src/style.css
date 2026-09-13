@@ -746,6 +746,10 @@ body {
   color: var(--text-main);
 }
 
+/* The bell is an SVG on currentColor: one glyph, correct in both themes, with
+   no per-theme rule to keep in step. */
+.icon-bell { display: block; flex: 0 0 auto; }
+
 [data-theme="light"] .icon-moon { display: none; }
 [data-theme="light"] .icon-sun { display: inline; }
 
