@@ -1,0 +1,452 @@
+{
+  "audio-line-array": {
+    "bytes": 352949,
+    "category": "audio",
+    "contact": 0.8964,
+    "coverage": 0.3576,
+    "height": 729,
+    "url": "/images/cutouts/audio-line-array.png",
+    "width": 768
+  },
+  "backdrop-election-flags": {
+    "bytes": 357141,
+    "category": "backdrops",
+    "contact": 0.9209,
+    "coverage": 0.2406,
+    "height": 730,
+    "url": "/images/cutouts/backdrop-election-flags.png",
+    "width": 768
+  },
+  "backdrop-floral-wall": {
+    "bytes": 906489,
+    "category": "backdrops",
+    "contact": 0.8794,
+    "coverage": 0.5322,
+    "height": 684,
+    "url": "/images/cutouts/backdrop-floral-wall.png",
+    "width": 768
+  },
+  "backdrop-hedge-wall": {
+    "bytes": 467786,
+    "category": "backdrops",
+    "contact": 0.6346,
+    "coverage": 0.1199,
+    "height": 702,
+    "url": "/images/cutouts/backdrop-hedge-wall.png",
+    "width": 768
+  },
+  "backdrop-marigold-garland": {
+    "bytes": 293895,
+    "category": "backdrops",
+    "contact": 0.6294,
+    "coverage": 0.1554,
+    "height": 710,
+    "url": "/images/cutouts/backdrop-marigold-garland.png",
+    "width": 768
+  },
+  "backdrop-seamless-led": {
+    "bytes": 523699,
+    "category": "backdrops",
+    "contact": 0.7553,
+    "coverage": 0.3196,
+    "height": 632,
+    "url": "/images/cutouts/backdrop-seamless-led.png",
+    "width": 768
+  },
+  "backdrop-shimmer-sequin": {
+    "bytes": 775590,
+    "category": "backdrops",
+    "contact": 0.9338,
+    "coverage": 0.5107,
+    "height": 702,
+    "url": "/images/cutouts/backdrop-shimmer-sequin.png",
+    "width": 768
+  },
+  "chair-chiavari-gold": {
+    "bytes": 222638,
+    "category": "chairs",
+    "contact": 0.9469,
+    "coverage": 0.128,
+    "height": 706,
+    "url": "/images/cutouts/chair-chiavari-gold.png",
+    "width": 768
+  },
+  "chair-folding": {
+    "bytes": 201733,
+    "category": "chairs",
+    "contact": 0.9323,
+    "coverage": 0.1844,
+    "height": 698,
+    "url": "/images/cutouts/chair-folding.png",
+    "width": 768
+  },
+  "chair-gaddi-baithak": {
+    "bytes": 358957,
+    "category": "chairs",
+    "contact": 0.6248,
+    "coverage": 0.1375,
+    "height": 526,
+    "url": "/images/cutouts/chair-gaddi-baithak.png",
+    "width": 768
+  },
+  "chair-ghost": {
+    "bytes": 180842,
+    "category": "chairs",
+    "contact": 0.9068,
+    "coverage": 0.1048,
+    "height": 719,
+    "url": "/images/cutouts/chair-ghost.png",
+    "width": 768
+  },
+  "chair-maharaja-throne": {
+    "bytes": 644534,
+    "category": "chairs",
+    "contact": 0.9286,
+    "coverage": 0.4478,
+    "height": 694,
+    "url": "/images/cutouts/chair-maharaja-throne.png",
+    "width": 768
+  },
+  "chair-throne": {
+    "bytes": 270306,
+    "category": "chairs",
+    "contact": 0.606,
+    "coverage": 0.0558,
+    "height": 704,
+    "url": "/images/cutouts/chair-throne.png",
+    "width": 768
+  },
+  "chair-velvet-armchair": {
+    "bytes": 304574,
+    "category": "chairs",
+    "contact": 0.8882,
+    "coverage": 0.2728,
+    "height": 624,
+    "url": "/images/cutouts/chair-velvet-armchair.png",
+    "width": 768
+  },
+  "chair-vvip-executive": {
+    "bytes": 271240,
+    "category": "chairs",
+    "contact": 0.9385,
+    "coverage": 0.2207,
+    "height": 695,
+    "url": "/images/cutouts/chair-vvip-executive.png",
+    "width": 768
+  },
+  "fountain-black-granite": {
+    "bytes": 263701,
+    "category": "fountains",
+    "contact": 0.565,
+    "coverage": 0.0732,
+    "height": 652,
+    "url": "/images/cutouts/fountain-black-granite.png",
+    "width": 768
+  },
+  "fountain-brass-diyas": {
+    "bytes": 410331,
+    "category": "lighting",
+    "contact": 0.8686,
+    "coverage": 0.2725,
+    "height": 719,
+    "url": "/images/cutouts/fountain-brass-diyas.png",
+    "width": 768
+  },
+  "fountain-brass-lotus": {
+    "bytes": 428196,
+    "category": "fountains",
+    "contact": 0.8273,
+    "coverage": 0.3848,
+    "height": 604,
+    "url": "/images/cutouts/fountain-brass-lotus.png",
+    "width": 768
+  },
+  "fountain-dancing-jets": {
+    "bytes": 448396,
+    "category": "fountains",
+    "contact": 0.9358,
+    "coverage": 0.4331,
+    "height": 736,
+    "url": "/images/cutouts/fountain-dancing-jets.png",
+    "width": 768
+  },
+  "fountain-glass-waterfall": {
+    "bytes": 448396,
+    "category": "fountains",
+    "contact": 0.9358,
+    "coverage": 0.4331,
+    "height": 736,
+    "url": "/images/cutouts/fountain-glass-waterfall.png",
+    "width": 768
+  },
+  "fountain-horn-speakers": {
+    "bytes": 352949,
+    "category": "audio",
+    "contact": 0.8964,
+    "coverage": 0.3576,
+    "height": 729,
+    "url": "/images/cutouts/fountain-horn-speakers.png",
+    "width": 768
+  },
+  "fountain-royal-marble": {
+    "bytes": 390570,
+    "category": "fountains",
+    "contact": 0.9748,
+    "coverage": 0.3419,
+    "height": 745,
+    "url": "/images/cutouts/fountain-royal-marble.png",
+    "width": 768
+  },
+  "fountain-steel-sphere": {
+    "bytes": 141124,
+    "category": "fountains",
+    "contact": 0.854,
+    "coverage": 0.2715,
+    "height": 622,
+    "url": "/images/cutouts/fountain-steel-sphere.png",
+    "width": 768
+  },
+  "fountain-tiered-stone": {
+    "bytes": 390570,
+    "category": "fountains",
+    "contact": 0.9748,
+    "coverage": 0.3419,
+    "height": 745,
+    "url": "/images/cutouts/fountain-tiered-stone.png",
+    "width": 768
+  },
+  "lighting-chandeliers": {
+    "bytes": 508551,
+    "category": "lighting",
+    "contact": 0.8365,
+    "coverage": 0.2173,
+    "height": 670,
+    "url": "/images/cutouts/lighting-chandeliers.png",
+    "width": 768
+  },
+  "lighting-fairy-canopy": {
+    "bytes": 132654,
+    "category": "lighting",
+    "contact": 0.4213,
+    "coverage": 0.025,
+    "height": 486,
+    "url": "/images/cutouts/lighting-fairy-canopy.png",
+    "width": 768
+  },
+  "lighting-rally-highmast": {
+    "bytes": 352949,
+    "category": "lighting",
+    "contact": 0.8964,
+    "coverage": 0.3576,
+    "height": 729,
+    "url": "/images/cutouts/lighting-rally-highmast.png",
+    "width": 768
+  },
+  "lighting-rgb-uplighting": {
+    "bytes": 236240,
+    "category": "lighting",
+    "contact": 0.8301,
+    "coverage": 0.246,
+    "height": 768,
+    "url": "/images/cutouts/lighting-rgb-uplighting.png",
+    "width": 768
+  },
+  "lighting-temple-lanterns": {
+    "bytes": 410331,
+    "category": "lighting",
+    "contact": 0.8686,
+    "coverage": 0.2725,
+    "height": 719,
+    "url": "/images/cutouts/lighting-temple-lanterns.png",
+    "width": 768
+  },
+  "podium-acrylic-modern": {
+    "bytes": 48036,
+    "category": "podiums",
+    "contact": 0.5804,
+    "coverage": 0.0077,
+    "height": 336,
+    "url": "/images/cutouts/podium-acrylic-modern.png",
+    "width": 512
+  },
+  "podium-wooden-presidential": {
+    "bytes": 94654,
+    "category": "podiums",
+    "contact": 0.9514,
+    "coverage": 0.4233,
+    "height": 494,
+    "url": "/images/cutouts/podium-wooden-presidential.png",
+    "width": 512
+  },
+  "screen-layout-center": {
+    "bytes": 523699,
+    "category": "backdrops",
+    "contact": 0.7553,
+    "coverage": 0.3196,
+    "height": 632,
+    "url": "/images/cutouts/screen-layout-center.png",
+    "width": 768
+  },
+  "screen-layout-dual": {
+    "bytes": 906489,
+    "category": "backdrops",
+    "contact": 0.8794,
+    "coverage": 0.5322,
+    "height": 684,
+    "url": "/images/cutouts/screen-layout-dual.png",
+    "width": 768
+  },
+  "screen-layout-left": {
+    "bytes": 357141,
+    "category": "backdrops",
+    "contact": 0.9209,
+    "coverage": 0.2406,
+    "height": 730,
+    "url": "/images/cutouts/screen-layout-left.png",
+    "width": 768
+  },
+  "screen-layout-shimmer": {
+    "bytes": 775590,
+    "category": "backdrops",
+    "contact": 0.9338,
+    "coverage": 0.5107,
+    "height": 702,
+    "url": "/images/cutouts/screen-layout-shimmer.png",
+    "width": 768
+  },
+  "sofa-modern-chesterfield": {
+    "bytes": 304574,
+    "category": "sofas",
+    "contact": 0.8882,
+    "coverage": 0.2728,
+    "height": 624,
+    "url": "/images/cutouts/sofa-modern-chesterfield.png",
+    "width": 768
+  },
+  "sofa-royal-maharani": {
+    "bytes": 644534,
+    "category": "sofas",
+    "contact": 0.9286,
+    "coverage": 0.4478,
+    "height": 694,
+    "url": "/images/cutouts/sofa-royal-maharani.png",
+    "width": 768
+  },
+  "sofa-velvet-lounge": {
+    "bytes": 304574,
+    "category": "sofas",
+    "contact": 0.8882,
+    "coverage": 0.2728,
+    "height": 624,
+    "url": "/images/cutouts/sofa-velvet-lounge.png",
+    "width": 768
+  },
+  "stage-bulletproof-podium": {
+    "bytes": 126805,
+    "category": "podiums",
+    "contact": 0.5195,
+    "coverage": 0.0331,
+    "height": 520,
+    "url": "/images/cutouts/stage-bulletproof-podium.png",
+    "width": 768
+  },
+  "stage-digital-podium": {
+    "bytes": 207383,
+    "category": "podiums",
+    "contact": 0.9989,
+    "coverage": 0.3464,
+    "height": 661,
+    "url": "/images/cutouts/stage-digital-podium.png",
+    "width": 768
+  },
+  "stage-led-arch": {
+    "bytes": 459332,
+    "category": "stages",
+    "contact": 0.8414,
+    "coverage": 0.3258,
+    "height": 652,
+    "url": "/images/cutouts/stage-led-arch.png",
+    "width": 768
+  },
+  "stage-royal-mandap": {
+    "bytes": 634336,
+    "category": "stages",
+    "contact": 0.856,
+    "coverage": 0.3569,
+    "height": 729,
+    "url": "/images/cutouts/stage-royal-mandap.png",
+    "width": 768
+  },
+  "stage-royal-pavilion": {
+    "bytes": 606857,
+    "category": "stages",
+    "contact": 0.9263,
+    "coverage": 0.4482,
+    "height": 733,
+    "url": "/images/cutouts/stage-royal-pavilion.png",
+    "width": 768
+  },
+  "stage-wooden-riser": {
+    "bytes": 62230,
+    "category": "stages",
+    "contact": 0.3161,
+    "coverage": 0.0034,
+    "height": 484,
+    "url": "/images/cutouts/stage-wooden-riser.png",
+    "width": 768
+  },
+  "table-antique-jhula": {
+    "bytes": 652192,
+    "category": "tables",
+    "contact": 0.834,
+    "coverage": 0.3247,
+    "height": 736,
+    "url": "/images/cutouts/table-antique-jhula.png",
+    "width": 768
+  },
+  "table-cocktail": {
+    "bytes": 123884,
+    "category": "tables",
+    "contact": 0.8999,
+    "coverage": 0.0879,
+    "height": 768,
+    "url": "/images/cutouts/table-cocktail.png",
+    "width": 708
+  },
+  "table-led-glass": {
+    "bytes": 82865,
+    "category": "tables",
+    "contact": 0.9067,
+    "coverage": 0.1362,
+    "height": 635,
+    "url": "/images/cutouts/table-led-glass.png",
+    "width": 768
+  },
+  "table-round-standard": {
+    "bytes": 202924,
+    "category": "tables",
+    "contact": 0.9245,
+    "coverage": 0.4112,
+    "height": 656,
+    "url": "/images/cutouts/table-round-standard.png",
+    "width": 768
+  },
+  "table-rustic-wood": {
+    "bytes": 151814,
+    "category": "tables",
+    "contact": 0.7107,
+    "coverage": 0.1499,
+    "height": 506,
+    "url": "/images/cutouts/table-rustic-wood.png",
+    "width": 768
+  },
+  "table-summit-desk": {
+    "bytes": 160608,
+    "category": "tables",
+    "contact": 0.5889,
+    "coverage": 0.1573,
+    "height": 620,
+    "url": "/images/cutouts/table-summit-desk.png",
+    "width": 768
+  }
+}
