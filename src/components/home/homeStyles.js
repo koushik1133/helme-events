@@ -204,7 +204,11 @@ html[data-theme="light"] .hh-hero.is-warn {
   border-radius: var(--radius-pill, 999px);
   background: var(--glass-2, rgba(255,255,255,0.12)); color: var(--text-muted, #a1a1a6);
 }
-.hh-count.is-hot { background: var(--tint-rose, rgba(255,69,58,0.15)); color: var(--accent-rose, #ff6961); }
+.hh-count.is-hot {
+  background-color: var(--bg-elevated, #201e1b);
+  background-image: linear-gradient(var(--tint-critical, rgba(255,123,110,0.14)), var(--tint-critical, rgba(255,123,110,0.14)));
+  color: var(--on-tint-critical, #ff7b6e);
+}
 .hh-card-head .hh-link {
   background: none; border: 0; cursor: pointer; font-family: inherit; padding: 4px 6px;
   font-size: var(--fs-xs, 0.75rem); font-weight: 560; color: var(--accent-indigo, #409cff);
@@ -238,10 +242,18 @@ html[data-theme="light"] .hh-hero.is-warn {
   display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
   padding: 3px 9px; border-radius: var(--radius-pill, 999px);
   font-size: var(--fs-xs, 0.75rem); font-weight: 640;
-  background: var(--tint-emerald, rgba(48,209,88,0.15)); color: var(--accent-emerald, #30d158);
+  background-color: var(--bg-elevated, #201e1b);
+  background-image: linear-gradient(var(--tint-positive, rgba(75,208,122,0.14)), var(--tint-positive, rgba(75,208,122,0.14)));
+  color: var(--on-tint-positive, #4bd07a);
 }
-.hh-clock[data-sla="warn"] { background: var(--tint-amber, rgba(251,191,36,0.15)); color: var(--accent-amber, #fbbf24); }
-.hh-clock[data-sla="late"] { background: var(--tint-rose, rgba(255,69,58,0.15)); color: var(--accent-rose, #ff6961); }
+.hh-clock[data-sla="warn"] {
+  background-image: linear-gradient(var(--tint-warning, rgba(240,180,41,0.14)), var(--tint-warning, rgba(240,180,41,0.14)));
+  color: var(--on-tint-warning, #f0b429);
+}
+.hh-clock[data-sla="late"] {
+  background-image: linear-gradient(var(--tint-critical, rgba(255,123,110,0.14)), var(--tint-critical, rgba(255,123,110,0.14)));
+  color: var(--on-tint-critical, #ff7b6e);
+}
 
 /* ------------------------------------------------------------ two column */
 .hh-split { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(14px, 2vw, 22px); align-items: start; }
@@ -260,14 +272,25 @@ html[data-theme="light"] .hh-hero.is-warn {
 .hh-day.is-today { border-color: var(--accent-indigo, #409cff); }
 .hh-day-d { font-size: var(--fs-xs, 0.75rem); color: var(--text-dim, #98989d); }
 .hh-day-n { font-size: var(--fs-lg, 1rem); font-weight: 620; line-height: 1; }
+/* The chip sits inside a translucent day cell, so its OWN ground has to be
+   known rather than inherited: an opaque plate carries the tint wash on top.
+   Text is the --on-tint-* pair (w6-shell), never the solid status colour. */
 .hh-chip {
   font-size: 0.66rem; font-weight: 580; padding: 3px 6px; border-radius: 5px;
-  background: var(--tint-indigo, rgba(10,132,255,0.16)); color: var(--accent-indigo, #409cff);
+  background-color: var(--bg-elevated, #201e1b);
+  background-image: linear-gradient(var(--tint-accent, rgba(224,177,85,0.14)), var(--tint-accent, rgba(224,177,85,0.14)));
+  color: var(--on-tint-accent, #e0b155);
   overflow: hidden; line-height: 1.25; text-align: left;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.hh-chip[data-kind="live"] { background: var(--tint-rose, rgba(255,69,58,0.15)); color: var(--accent-rose, #ff6961); }
-.hh-chip[data-kind="money"] { background: var(--tint-emerald, rgba(48,209,88,0.15)); color: var(--accent-emerald, #30d158); }
+.hh-chip[data-kind="live"] {
+  background-image: linear-gradient(var(--tint-critical, rgba(255,123,110,0.14)), var(--tint-critical, rgba(255,123,110,0.14)));
+  color: var(--on-tint-critical, #ff7b6e);
+}
+.hh-chip[data-kind="money"] {
+  background-image: linear-gradient(var(--tint-positive, rgba(75,208,122,0.14)), var(--tint-positive, rgba(75,208,122,0.14)));
+  color: var(--on-tint-positive, #4bd07a);
+}
 
 /* -------------------------------------------------------------- activity */
 .hh-acts { list-style: none; margin: 0; padding: 6px 0; }
@@ -295,9 +318,9 @@ html[data-theme="light"] .hh-hero.is-warn {
 .hh-table tfoot td { font-weight: 660; border-bottom: 0; background: var(--glass-1, rgba(255,255,255,0.07)); }
 .hh-age { font-weight: 620; }
 .hh-age[data-b="0"] { color: var(--text-muted, #a1a1a6); }
-.hh-age[data-b="30"] { color: var(--accent-amber, #fbbf24); }
-.hh-age[data-b="60"] { color: var(--accent-rose, #ff6961); }
-.hh-age[data-b="90"] { color: var(--accent-rose, #ff6961); }
+.hh-age[data-b="30"] { color: var(--warning, #f0b429); }
+.hh-age[data-b="60"] { color: var(--critical, #ff7b6e); }
+.hh-age[data-b="90"] { color: var(--critical, #ff7b6e); }
 .hh-sub { font-size: var(--fs-xs, 0.75rem); color: var(--text-dim, #98989d); margin-top: 2px; }
 
 /* ------------------------------------------------------------ empty state */
@@ -312,7 +335,11 @@ html[data-theme="light"] .hh-hero.is-warn {
 .hh-empty h3 { margin: 0 0 6px; font-size: var(--fs-md, 0.875rem); font-weight: 620; }
 .hh-empty p { margin: 0 auto; max-width: 44ch; font-size: var(--fs-sm, 0.8125rem); color: var(--text-dim, #98989d); line-height: 1.5; }
 .hh-empty .hh-btn { margin-top: 16px; }
-.hh-empty.is-good .hh-empty-mark { background: var(--tint-emerald, rgba(48,209,88,0.15)); color: var(--accent-emerald, #30d158); border-color: transparent; }
+.hh-empty.is-good .hh-empty-mark {
+  background-color: var(--bg-elevated, #201e1b);
+  background-image: linear-gradient(var(--tint-positive, rgba(75,208,122,0.14)), var(--tint-positive, rgba(75,208,122,0.14)));
+  color: var(--on-tint-positive, #4bd07a); border-color: transparent;
+}
 
 /* ------------------------------------------------------------ honest note */
 .hh-honest {

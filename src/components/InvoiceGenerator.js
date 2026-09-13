@@ -96,6 +96,11 @@ export class InvoiceGenerator {
             <button class="btn-close" type="button" aria-label="Close invoice">&times;</button>
           </div>
 
+          <!-- THEME NOTE — deliberate literals. #invoice-print-area is a printable GST
+               tax invoice, not an app surface: it is what window.print() puts on paper and
+               what a client receives as a PDF. It stays black-on-white in both themes (and
+               is self-consistent at 18.9:1), so every rule and border inside it is scoped
+               to that white sheet rather than to the theme tokens. -->
           <div class="modal-body invoice-body" id="invoice-print-area" style="padding: 20px; background: #fff; color: #111;">
             <div class="invoice-header" style="display:flex; justify-content:space-between; gap:20px; border-bottom:2px solid #111; padding-bottom:12px; margin-bottom:16px;">
               <div>

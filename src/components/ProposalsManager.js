@@ -144,7 +144,7 @@ export class ProposalsManager {
         </div>
 
         ${this.isFormOpen ? `
-          <form class="proposal-form" id="proposalForm" style="margin-bottom:18px; padding:16px; border:1px solid rgba(148,163,184,.35); border-radius:10px;">
+          <form class="proposal-form" id="proposalForm" style="margin-bottom:18px; padding:16px; border:1px solid var(--border-subtle); border-radius:10px;">
             <div class="form-row-dual" style="display:flex; gap:12px; flex-wrap:wrap;">
               <div class="form-group" style="flex:2; min-width:220px;">
                 <label for="propTitle">Proposal title</label>
@@ -161,7 +161,7 @@ export class ProposalsManager {
                 <input type="date" id="propDate" class="cart-input" value="${today}" style="width:100%;" />
               </div>
             </div>
-            ${this.formError ? `<p role="alert" style="color:#ef4444; margin:8px 0 0;">${escapeHtml(this.formError)}</p>` : ''}
+            ${this.formError ? `<p role="alert" style="color:var(--critical); margin:8px 0 0;">${escapeHtml(this.formError)}</p>` : ''}
             <div style="margin-top:12px; display:flex; gap:10px;">
               <button type="submit" class="btn-save-proposal">Save proposal</button>
               <button type="button" class="btn-load-prop" id="btnCancelProposal">Cancel</button>
@@ -173,7 +173,7 @@ export class ProposalsManager {
         ` : ''}
 
         ${this.proposals.length === 0 ? `
-          <div class="proposals-empty-state" style="padding:40px 20px; text-align:center; border:1px dashed rgba(148,163,184,.4); border-radius:12px;">
+          <div class="proposals-empty-state" style="padding:40px 20px; text-align:center; border:1px dashed var(--border-strong); border-radius:12px;">
             <h4 style="margin:0 0 8px;">No saved proposals yet</h4>
             <p style="margin:0; opacity:.8;">Configure a venue in the 360° studio, then press “Save Current Design as Proposal” to keep it here as a priced, printable draft.</p>
           </div>

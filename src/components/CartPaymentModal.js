@@ -146,7 +146,7 @@ export class CartPaymentModal {
             <button class="btn-close-modal" type="button" id="btnCloseCartModal" aria-label="Close checkout">&times;</button>
           </div>
 
-          <div class="demo-banner" role="note" style="margin:0 0 14px; padding:10px 14px; border:1px dashed #f59e0b; border-radius:8px; background:rgba(245,158,11,.12); font-size:13px;">
+          <div class="demo-banner" role="note" style="margin:0 0 14px; padding:10px 14px; border:1px dashed var(--warning); border-radius:8px; background:var(--tint-warning); font-size:13px;">
             <strong>Demo checkout — no real payment is processed.</strong>
             No card details are collected anywhere in this flow. Never enter live payment information.
           </div>
@@ -327,7 +327,7 @@ export class CartPaymentModal {
           </div>
 
           ${this.error ? `
-            <div class="payment-error-box" role="alert" style="margin:10px 0; padding:10px 14px; border:1px solid #ef4444; border-radius:8px; background:rgba(239,68,68,.12); font-size:13px;">
+            <div class="payment-error-box" role="alert" style="margin:10px 0; padding:10px 14px; border:1px solid var(--critical); border-radius:8px; background:var(--tint-critical); font-size:13px;">
               <strong>Payment declined (demo).</strong> ${escapeHtml(this.error)}
             </div>
           ` : ''}

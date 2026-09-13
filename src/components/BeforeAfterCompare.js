@@ -104,7 +104,7 @@ export class BeforeAfterCompare {
 
         <p style="margin:0 0 10px; font-size:11px; color:var(--text-muted);">${escapeHtml(notice)}</p>
 
-        <div class="compare-container" style="position: relative; flex: 1; min-height: 220px; overflow: hidden; border-radius: 8px; background: #000; touch-action: none;">
+        <div class="compare-container" style="position: relative; flex: 1; min-height: 220px; overflow: hidden; border-radius: 8px; background: var(--bg-media); touch-action: none;">
           <img id="compare-after-img" src="${escapeHtml(afterUrl)}" alt="Current selection view of ${escapeHtml(this.zone.name)}"
             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;" />
           <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.65); color: white; padding: 5px 10px; border-radius: 4px; font-size:12px;">After — Current selection</div>
@@ -140,7 +140,7 @@ export class BeforeAfterCompare {
                 <tr style="border-top:1px solid var(--border-subtle); ${r.changed ? '' : 'opacity:0.6;'}">
                   <td style="padding:8px;">${escapeHtml(r.label)}</td>
                   <td style="padding:8px;">${escapeHtml(r.before)}</td>
-                  <td style="padding:8px;">${escapeHtml(r.after)}${r.changed ? ' <span style="color:#4ade80;">•</span>' : ''}</td>
+                  <td style="padding:8px;">${escapeHtml(r.after)}${r.changed ? ' <span style="color:var(--positive);" aria-hidden="true">•</span>' : ''}</td>
                   <td style="padding:8px; text-align:right; white-space:nowrap;">${r.delta === 0 ? '—' : `${r.delta > 0 ? '+' : '−'}${formatMoney(Math.abs(r.delta))}`}</td>
                 </tr>
               `).join('')}

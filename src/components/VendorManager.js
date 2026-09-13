@@ -10,6 +10,23 @@ import { formatMoney, formatNumber, readJSON, writeJSON, escapeHtml } from '../u
 const ASSIGNMENTS_KEY = 'helme_events_vendor_assignments';
 const CUSTOM_VENDORS_KEY = 'helme_events_vendors_custom';
 
+/**
+ * THEME NOTE — vendor status pills. `.badge-available` / `.badge-booked` /
+ * `.badge-pending` were never defined anywhere, so every status painted the
+ * same neutral `.badge` grey in both themes: a booked vendor and an available
+ * one were indistinguishable at a glance. Each status now carries a themed
+ * FILL + its matching `--on-*` foreground, which is contrast-safe by
+ * construction in light and dark. "Quote pending" deliberately stays on the
+ * neutral pill: --warning and --accent are nearly the same colour in the light
+ * theme (#7a5310 vs #7a5a12), so a third semantic fill would have collapsed
+ * the set back to two readable states in light while looking fine in dark.
+ */
+const STATUS_PILL = {
+  available: 'background:var(--positive); color:var(--on-positive);',
+  booked:    'background:var(--accent); color:var(--on-accent);',
+  pending:   'background:var(--bg-pill); color:var(--text-main); box-shadow:inset 0 0 0 1px var(--border-strong);'
+};
+
 const RATE_UNIT_LABELS = {
   plate: 'per plate',
   day: 'per day',
@@ -189,7 +206,7 @@ export class VendorManager {
         </div>
 
         <div id="vendor-modal" role="dialog" aria-modal="true" aria-labelledby="vendor-modal-title" hidden
-          style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:var(--bg-surface); color:var(--text-main); padding:20px; border:1px solid var(--border-subtle); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.45); z-index:1000; width:min(420px, 92vw);">
+          style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:var(--bg-surface); color:var(--text-main); padding:20px; border:1px solid var(--border-subtle); border-radius:12px; box-shadow:var(--shadow-lg); z-index:1000; width:min(420px, 92vw);">
           <h3 id="vendor-modal-title" style="margin:0 0 14px;">Add Vendor</h3>
           <input type="text" id="v-name" aria-label="Vendor name" placeholder="Vendor name" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-main);" />
           <select id="v-category" aria-label="Vendor category" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-main);">
@@ -210,7 +227,7 @@ export class VendorManager {
             <option value="pending">Quote Pending</option>
             <option value="booked">Booked</option>
           </select>
-          <div id="vendor-modal-error" role="alert" style="color:#f87171;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+          <div id="vendor-modal-error" role="alert" style="color:var(--critical);font-size:12px;min-height:16px;margin-bottom:8px;"></div>
           <div style="display:flex;gap:10px;justify-content:flex-end;">
             <button type="button" id="v-cancel" class="btn-secondary">Cancel</button>
             <button type="button" id="v-save" class="btn-primary">Save Vendor</button>
@@ -317,7 +334,7 @@ export class VendorManager {
         <td style="padding:10px;">${v.capacity ? `${formatNumber(v.capacity)} ${escapeHtml(v.capacityUnit || '')}` : '—'}</td>
         <td style="padding:10px;">${Number.isFinite(Number(v.leadTimeDays)) ? `${v.leadTimeDays} days` : '—'}</td>
         <td style="padding:10px;white-space:nowrap;">${Number(v.rating || 0).toFixed(1)} ⭐${v.reviewCount ? `<div style="font-size:11px;color:var(--text-muted);">${formatNumber(v.reviewCount)} reviews</div>` : ''}</td>
-        <td style="padding:10px;"><span class="badge badge-${escapeHtml(String(v.status || '').toLowerCase())}">${escapeHtml(this.statusLabel(v.status))}</span></td>
+        <td style="padding:10px;"><span class="badge badge-${escapeHtml(String(v.status || '').toLowerCase())}" style="${STATUS_PILL[v.status] || ''}">${escapeHtml(this.statusLabel(v.status))}</span></td>
         <td style="padding:10px;">
           <select id="assign-${escapeHtml(v.id)}" data-vid="${escapeHtml(v.id)}" class="zone-assign-select"
             aria-label="Assign ${escapeHtml(v.name)} to a zone"
@@ -353,7 +370,7 @@ export class VendorManager {
     const meta = this.container.querySelector('#vendor-meta');
     if (meta) {
       meta.textContent = message;
-      meta.style.color = '#f87171';
+      meta.style.color = 'var(--critical)';
     }
   }
 

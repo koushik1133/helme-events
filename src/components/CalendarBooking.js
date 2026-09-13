@@ -164,7 +164,13 @@ export class CalendarBooking {
       let style = 'padding:18px 8px; border:1px solid var(--border-subtle); position:relative; ' +
         'border-radius:var(--radius-xs); color:var(--text-main); background:var(--bg-surface);';
       if (isPast) {
-        style += 'opacity:.4; cursor:not-allowed;';
+        // THEME NOTE — a past day used to be faded with opacity:.4, which fades
+        // the date number along with the cell: measured 2.52:1 in light and
+        // 3.60:1 in dark, under the 4.5:1 minimum in BOTH themes. "Past" is now
+        // carried by the tertiary text role on the recessed surface, which is
+        // legible in both themes (5.4:1 light, 5.6:1 dark) and still reads as
+        // quieter than a live day.
+        style += 'color:var(--text-dim); background:var(--bg-surface-hover); cursor:not-allowed;';
       } else {
         style += 'cursor:pointer;';
       }
@@ -199,10 +205,10 @@ export class CalendarBooking {
       ? visible.map(b => `
           <div style="padding:6px 0; border-bottom:1px solid var(--border-subtle); display:flex;
                       justify-content:space-between; gap:.5rem; align-items:center;
-                      ${b.date < today2 ? 'opacity:.55;' : ''}">
+                      ${b.date < today2 ? 'background:var(--bg-surface-hover);' : ''}">
             <div style="min-width:0;">
-              <strong style="color:var(--text-main);">${escapeHtml(formatEventDate(b.date))}</strong>
-              <div style="color:var(--text-muted); overflow:hidden; text-overflow:ellipsis;">
+              <strong style="color:${b.date < today2 ? 'var(--text-dim)' : 'var(--text-main)'};">${escapeHtml(formatEventDate(b.date))}</strong>
+              <div style="color:${b.date < today2 ? 'var(--text-dim)' : 'var(--text-muted)'}; overflow:hidden; text-overflow:ellipsis;">
                 ${escapeHtml(b.name)}${b.venue ? ` · ${escapeHtml(b.venue)}` : ''}
               </div>
             </div>

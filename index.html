@@ -99,7 +99,15 @@
 
     <!-- Quick Search Input Bar -->
     <div class="nav-search-wrapper">
-      <span class="nav-search-icon" aria-hidden="true"></span>
+      <!-- Drawn with currentColor, like the bell. The previous empty <span> had
+           no content, no background-image and no pseudo-element anywhere, so it
+           measured 0x0 and painted nothing in EITHER theme. -->
+      <svg class="nav-search-icon" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14"
+           fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.6-3.6" />
+      </svg>
       <input type="search" id="globalNavSearch" class="nav-search-input" aria-label="Quick search rooms, furniture and vendors" placeholder="Quick search rooms, furniture, vendors..." />
     </div>
 
@@ -135,8 +143,21 @@
       </button>
 
       <button class="theme-mode-toggle" id="themeModeToggle" aria-label="Toggle Theme">
-        <span class="icon-sun">☀️</span>
-        <span class="icon-moon">🌙</span>
+        <!-- SVG on currentColor, not emoji. An emoji paints its own fixed
+             colours, so the moon glyph stayed near-black on the dark navbar and
+             no token could correct it (1.61:1). These inherit the button's
+             themed colour and are right in both themes by construction. -->
+        <svg class="icon-sun" aria-hidden="true" viewBox="0 0 24 24" width="15" height="15"
+             fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4.2" />
+          <path d="M12 2.6v2.2M12 19.2v2.2M4.2 12H2M22 12h-2.2M6.3 6.3 4.8 4.8M19.2 19.2l-1.5-1.5M17.7 6.3l1.5-1.5M4.8 19.2l1.5-1.5" />
+        </svg>
+        <svg class="icon-moon" aria-hidden="true" viewBox="0 0 24 24" width="15" height="15"
+             fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.5 14.3A8.6 8.6 0 0 1 9.7 3.5a8.6 8.6 0 1 0 10.8 10.8Z" />
+        </svg>
         <span class="theme-mode-label">Dark</span>
       </button>
     </div>
@@ -172,7 +193,10 @@
     </div>
 
     <button class="nav-action-btn btn-sound-toggle" id="btnSoundToggle" aria-label="Toggle ambient sound">
-      <span id="soundIcon" aria-hidden="true"></span>
+      <!-- Seeded with the muted glyph. It was an empty span, so until the
+           button was clicked once the icon slot painted nothing at all;
+           src/main.js owns the value from the first click onward. -->
+      <span id="soundIcon" aria-hidden="true">🔇</span>
       <span id="soundLabel">Sound off</span>
     </button>
   </div>

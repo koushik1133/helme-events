@@ -187,7 +187,7 @@ export class BudgetOptimizer {
     return `
       <ul class="opt-line-list" style="list-style:none; padding:0; margin:0; max-height:260px; overflow:auto;">
         ${lines.map(l => `
-          <li style="display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px solid rgba(0,0,0,.06);">
+          <li style="display:flex; justify-content:space-between; gap:10px; padding:4px 0; border-bottom:1px solid var(--border-subtle);">
             <span>
               <strong>${escapeHtml(l.itemName)}</strong><br />
               <small style="opacity:.7;">${escapeHtml(l.zoneName)} • ${escapeHtml(l.slotLabel)} • ${l.quantity}×</small>
@@ -225,11 +225,11 @@ export class BudgetOptimizer {
                   ${Object.keys(EVENT_WEIGHTS).map(t => `<option value="${t}" ${this.eventType === t ? 'selected' : ''}>${t}</option>`).join('')}
                 </select>
               </label>
-              <button class="btn-optimize" type="button" style="padding:8px 14px; background:#2563eb; color:#fff; border:none; border-radius:4px; cursor:pointer;">Optimize</button>
+              <button class="btn-optimize" type="button" style="padding:8px 14px; background:var(--accent); color:var(--on-accent); border:none; border-radius:4px; cursor:pointer;">Optimize</button>
             </div>
 
             ${r ? `
-              <div class="optimizer-verdict" role="status" style="margin-bottom:16px; padding:12px 14px; border-radius:8px; border:1px solid ${r.feasible ? '#16a34a' : '#ef4444'}; background:${r.feasible ? 'rgba(22,163,74,.12)' : 'rgba(239,68,68,.12)'};">
+              <div class="optimizer-verdict" role="status" style="margin-bottom:16px; padding:12px 14px; border-radius:8px; border:1px solid ${r.feasible ? 'var(--positive)' : 'var(--critical)'}; background:${r.feasible ? 'var(--tint-positive)' : 'var(--tint-critical)'};">
                 ${r.feasible ? `
                   <strong>Optimised within budget.</strong>
                   Total ${formatMoney(r.total)} against a budget of ${formatMoney(this.budget)} —
@@ -244,17 +244,17 @@ export class BudgetOptimizer {
               </div>
             ` : ''}
 
-            <div class="optimizer-results" id="opt-results" style="display:${r ? 'flex' : 'none'}; gap:20px; margin-top:10px; background:#f8fafc; color:#0f172a; padding:15px; border-radius:8px;">
+            <div class="optimizer-results" id="opt-results" style="display:${r ? 'flex' : 'none'}; gap:20px; margin-top:10px; background:var(--bg-surface-hover); color:var(--text-main); padding:15px; border-radius:8px;">
               <div class="result-col" style="flex:1; min-width:0;">
-                <h3 style="border-bottom:1px solid #ccc; padding-bottom:5px;">Current selection</h3>
+                <h3 style="border-bottom:1px solid var(--border-subtle); padding-bottom:5px;">Current selection</h3>
                 <h4 style="margin:8px 0;">${formatMoney(current.total)}</h4>
                 ${this.renderList(current.lines)}
               </div>
               <div class="result-col" style="flex:1; min-width:0;">
-                <h3 style="border-bottom:1px solid #ccc; padding-bottom:5px; color:${r && !r.feasible ? '#b91c1c' : '#16a34a'};">
+                <h3 style="border-bottom:1px solid var(--border-subtle); padding-bottom:5px; color:${r && !r.feasible ? 'var(--critical)' : 'var(--positive)'};">
                   ${r && !r.feasible ? 'Cheapest possible' : 'Optimised'}
                 </h3>
-                <h4 style="margin:8px 0; color:${r && !r.feasible ? '#b91c1c' : '#16a34a'};">
+                <h4 style="margin:8px 0; color:${r && !r.feasible ? 'var(--critical)' : 'var(--positive)'};">
                   ${r ? formatMoney(r.total) : '—'}
                   ${r ? `<small style="font-weight:400; opacity:.75;">(${r.total <= current.total ? '−' : '+'}${formatMoney(Math.abs(current.total - r.total), { symbol: false })} vs current)</small>` : ''}
                 </h4>
@@ -275,7 +275,7 @@ export class BudgetOptimizer {
             ` : ''}
           </div>
           <div class="modal-footer">
-            <button class="btn-apply-ai" type="button" style="display:${r ? 'inline-block' : 'none'}; background:${r && !r.feasible ? '#b91c1c' : '#16a34a'}; color:#fff;">
+            <button class="btn-apply-ai" type="button" style="display:${r ? 'inline-block' : 'none'}; background:${r && !r.feasible ? 'var(--critical)' : 'var(--positive)'}; color:${r && !r.feasible ? 'var(--on-critical)' : 'var(--on-positive)'};">
               ${r && !r.feasible ? 'Apply cheapest configuration anyway' : 'Apply optimised configuration'}
             </button>
           </div>

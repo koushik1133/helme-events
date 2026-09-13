@@ -232,7 +232,7 @@ export class ESignatureFlow {
             </p>
 
             ${this.isSigned ? `
-              <div class="contract-signed-box" role="status" style="margin:12px 0; padding:12px 14px; border:1px solid #16a34a; border-radius:8px; background:rgba(22,163,74,.12);">
+              <div class="contract-signed-box" role="status" style="margin:12px 0; padding:12px 14px; border:1px solid var(--positive); border-radius:8px; background:var(--tint-positive);">
                 <strong>Signed on ${escapeHtml(formatDocDate(new Date(this.signedRecord.signedAt)))}</strong>
                 by ${escapeHtml(this.signedRecord.signatoryName || this.buyer.name)} for ${escapeHtml(this.signedRecord.company || this.buyer.company)}
                 at a contract value of <strong>${formatMoney(this.signedQuote().grandTotal)}</strong>.
@@ -242,7 +242,9 @@ export class ESignatureFlow {
                     issue a written variation under clause 4 to move the contract value.
                   </div>` : ''}
                 <div style="margin-top:8px;">
-                  ${this.signedRecord.signature ? `<img src="${this.signedRecord.signature}" alt="Recorded signature" style="max-width:240px; background:#fff; border:1px solid #ccc; border-radius:4px;" />` : ''}
+                  ${this.signedRecord.signature ? `<img src="${this.signedRecord.signature}" alt="Recorded signature" <!-- the ink is captured as dark strokes on white: the backing stays paper-white in
+                       both themes so the recorded signature stays legible and prints true -->
+                    style="max-width:240px; background:#fff; border:1px solid var(--border-strong); border-radius:4px;" />` : ''}
                 </div>
               </div>
             ` : ''}
@@ -264,11 +266,11 @@ export class ESignatureFlow {
                 <div class="contract-schedule-scroll" style="max-height:260px; overflow:auto;">
                   <table style="width:100%; border-collapse:collapse; font-size:12px;">
                     <thead><tr>
-                      <th style="text-align:left; padding:6px; border-bottom:1px solid #888;">Description</th>
-                      <th style="text-align:left; padding:6px; border-bottom:1px solid #888;">SAC</th>
-                      <th style="text-align:right; padding:6px; border-bottom:1px solid #888;">Qty</th>
-                      <th style="text-align:right; padding:6px; border-bottom:1px solid #888;">Rate</th>
-                      <th style="text-align:right; padding:6px; border-bottom:1px solid #888;">Amount</th>
+                      <th style="text-align:left; padding:6px; border-bottom:1px solid var(--border-strong);">Description</th>
+                      <th style="text-align:left; padding:6px; border-bottom:1px solid var(--border-strong);">SAC</th>
+                      <th style="text-align:right; padding:6px; border-bottom:1px solid var(--border-strong);">Qty</th>
+                      <th style="text-align:right; padding:6px; border-bottom:1px solid var(--border-strong);">Rate</th>
+                      <th style="text-align:right; padding:6px; border-bottom:1px solid var(--border-strong);">Amount</th>
                     </tr></thead>
                     <tbody>
                       ${quote.lines.map(l => `
@@ -296,7 +298,7 @@ export class ESignatureFlow {
               <label for="signatorySignatureName" style="display:block; font-size:12px; margin-bottom:6px;">Signatory name</label>
               <input type="text" id="signatorySignatureName" class="cart-input" value="${escapeHtml(this.buyer.name)}" autocomplete="off" style="max-width:400px; margin-bottom:10px;" />
               <canvas id="signature-pad" class="signature-pad" width="400" height="200"
-                      style="border:1px solid #ccc; background:#fff; cursor:crosshair; touch-action:none; max-width:100%;"
+                      style="border:1px solid var(--border-strong); background:#fff; cursor:crosshair; touch-action:none; max-width:100%;"
                       aria-label="Signature drawing area"></canvas>
               <div style="margin-top:10px;">
                 <button class="btn-clear-sig" type="button">Clear signature</button>
@@ -336,6 +338,9 @@ export class ESignatureFlow {
     ctx.lineWidth = 2.2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    // Deliberate literal: the pad is a sheet of paper, not a themed surface.
+    // The stroke is serialised into a PNG that is stored, re-displayed and
+    // printed, so it must be dark-on-white regardless of the active theme.
     ctx.strokeStyle = '#111827';
 
     let isDrawing = false;

@@ -184,6 +184,20 @@ html[data-theme="dark"] {
   --tint-warning:  rgba(240, 180, 41, 0.14);
   --tint-critical: rgba(255, 123, 110, 0.14);
 
+  /* ---- TEXT ON A TINTED CHIP GROUND. ----
+     `--positive` / `--warning` / `--critical` are the SOLID status colours: they
+     are correct as a fill, and correct as text on `--bg-surface`. They are NOT
+     automatically correct as text sitting on their own `--tint-*` wash, because
+     the wash lifts the background toward the hue. These four names are the text
+     colour to use whenever the ground is `--tint-*` — use them on status chips
+     rather than inventing a per-screen value.
+     In dark the tint barely lifts a near-black surface, so the solid colour is
+     already the right answer and these alias it. Light overrides them. */
+  --on-tint-positive: var(--positive);
+  --on-tint-warning:  var(--warning);
+  --on-tint-critical: var(--critical);
+  --on-tint-accent:   var(--accent);
+
   /* ---- LEGACY ACCENT NAMES.
      Components still reference these. They no longer name a hue — indigo,
      violet, sky and amber all resolve to the ONE accent, gold IS the accent,
@@ -292,6 +306,15 @@ html[data-theme="light"] {
   --tint-positive: rgba(14, 107, 52, 0.10);
   --tint-warning:  rgba(122, 83, 16, 0.10);
   --tint-critical: rgba(179, 35, 26, 0.10);
+
+  /* Text on a tinted chip ground (see the dark block for what these are for).
+     A 10% wash over white leaves a pale ground, so these are the solid colours
+     taken one step darker to keep >= 4.5:1 whether the chip sits on --bg-surface
+     (#ffffff) or on --bg-app (#f6f4f1). Measured in the changelog. */
+  --on-tint-positive: #0b5528;
+  --on-tint-warning:  #66450c;
+  --on-tint-critical: #991e16;
+  --on-tint-accent:   #664a0f;
 
   --btn-primary-hover: #64490d;
   --btn-secondary-bg: var(--bg-surface);
@@ -750,11 +773,15 @@ body {
    no per-theme rule to keep in step. */
 .icon-bell { display: block; flex: 0 0 auto; }
 
+/* Sun and moon are SVGs on currentColor for the same reason. Exactly one is in
+   the flow at a time; `display:block` keeps the 15px box from picking up
+   inline-box line-height and shifting the row. */
+.icon-sun, .icon-moon { flex: 0 0 auto; }
 [data-theme="light"] .icon-moon { display: none; }
-[data-theme="light"] .icon-sun { display: inline; }
+[data-theme="light"] .icon-sun { display: block; }
 
 [data-theme="dark"] .icon-sun { display: none; }
-[data-theme="dark"] .icon-moon { display: inline; }
+[data-theme="dark"] .icon-moon { display: block; }
 
 /* Preset Dropdown Apple Glass Popover */
 .preset-popover-wrapper {
@@ -3153,8 +3180,11 @@ body {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.n-icon.info { background: var(--tint-accent); color: var(--accent-indigo); }
-.n-icon.alert-item { background: var(--tint-critical); color: var(--accent-rose); }
+/* Tinted ground, so the TEXT colour is the --on-tint-* pair, not the solid
+   status colour. The solid colour is verified on --bg-surface; on its own wash
+   the ground has moved toward the hue and the pair is what stays legible. */
+.n-icon.info { background: var(--tint-accent); color: var(--on-tint-accent); }
+.n-icon.alert-item { background: var(--tint-critical); color: var(--on-tint-critical); }
 .n-content { flex: 1; font-size: var(--fs-md); }
 .n-empty { padding: var(--space-8); text-align: center; color: var(--text-muted); }
 
@@ -5786,16 +5816,21 @@ body {
 
 /* (moved to the navbar section so the responsive overrides can win) */
 
+/* The magnifier. It is an inline SVG on currentColor now (it used to be an empty
+   <span> — 0x0, no content, no background-image, no pseudo-element, so it painted
+   nothing in either theme), which is why this rule sets a themed COLOUR rather
+   than an opacity: a token carries the contrast, a 0.6 wash only guesses at it. */
 .nav-search-icon {
   position: absolute;
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: var(--fs-sm);
-  opacity: 0.6;
+  color: var(--text-dim);
   pointer-events: none;
-  transition: all 0.25s ease;
+  transition: color 0.25s ease;
 }
+
+.nav-search-wrapper:focus-within .nav-search-icon { color: var(--accent); }
 
 /* (the duplicate .adv-card / .adv-icon / .adv-card-header block that sat
    here was byte-identical to the one in section 15 and could never apply —

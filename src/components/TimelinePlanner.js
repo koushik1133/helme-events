@@ -424,9 +424,16 @@ export class TimelinePlanner {
       if (row === -1) { row = rowEnds.length; rowEnds.push(ext.end); }
       else rowEnds[row] = ext.end;
       const isConflict = conflicts.has(seg.id);
+      // THEME NOTE — opacity is pinned to 1 here on purpose. The stylesheet
+      // fades a non-conflict lane to .78, which fades the LABEL with it and
+      // drops the label onto a washed-out tint: measured 4.13:1 in dark and
+      // 3.17:1 in light at 11px, under the 4.5:1 body minimum in both themes.
+      // At full strength the same --on-accent label reads 8.8:1 on the dark
+      // accent and 6.3:1 on the light one. Separation from the strip ground
+      // comes from the accent itself, not from a fade.
       return `<span class="rs-strip-bar ${isConflict ? 'is-conflict' : ''}"
                     title="${escapeHtml(`${fmtTime(seg.start)}–${fmtTime(seg.end)} ${seg.label}`)}"
-                    style="left:${left.toFixed(2)}%; width:${width.toFixed(2)}%; top:${4 + row * 16}px;"
+                    style="left:${left.toFixed(2)}%; width:${width.toFixed(2)}%; top:${4 + row * 16}px; opacity:1;"
               ><span class="rs-strip-bar-label">${escapeHtml(seg.label)}</span></span>`;
     }).join('');
 

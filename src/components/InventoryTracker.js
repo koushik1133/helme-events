@@ -135,7 +135,7 @@ export class InventoryTracker {
           </div>
         </div>
         <div class="inventory-alerts" id="inventory-demand" style="margin-bottom:16px;padding:12px;border:1px solid var(--border-subtle);background:var(--bg-elevated);border-radius:10px;color:var(--text-main);"></div>
-        <div class="inventory-alerts" id="inventory-alerts" style="margin-bottom:16px;padding:12px;border:1px solid rgba(248,113,113,0.45);background:rgba(254,242,242,0.08);border-radius:10px;color:var(--text-main);"></div>
+        <div class="inventory-alerts" id="inventory-alerts" style="margin-bottom:16px;padding:12px;border:1px solid var(--critical);background:var(--tint-critical);border-radius:10px;color:var(--text-main);"></div>
         <div class="inventory-meta" id="inventory-meta" style="margin-bottom:12px;color:var(--text-muted);font-size:0.85rem;"></div>
         <div class="inventory-grid" id="inventory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;"></div>
       </div>
@@ -214,11 +214,11 @@ export class InventoryTracker {
       (short.length
         ? `<div style="color:var(--text-muted);margin-bottom:6px;">${short.length} of ${formatNumber(lineCount)} quoted line${lineCount === 1 ? '' : 's'} cannot be covered from stock:</div>` +
           short.map(r => `
-            <div style="color:#f87171;">
+            <div style="color:var(--critical);">
               ⚠️ ${escapeHtml(r.item.name)} — quote needs ${formatNumber(r.required)}, ${formatNumber(r.stock)} in stock,
               <strong>sub-hire ${formatNumber(r.gap)}</strong>
             </div>`).join('')
-        : `<div style="color:#4ade80;">All ${formatNumber(lineCount)} quoted line${lineCount === 1 ? '' : 's'} can be covered from stock.</div>`);
+        : `<div style="color:var(--positive);">All ${formatNumber(lineCount)} quoted line${lineCount === 1 ? '' : 's'} can be covered from stock.</div>`);
   }
 
   renderGrid() {
@@ -235,11 +235,11 @@ export class InventoryTracker {
     alerts.innerHTML =
       '<h3 style="margin:0 0 8px;color:var(--text-main);">Low Stock Alerts</h3>' +
       (low.length
-        ? low.map(item => `<div style="color:#f87171;">🚨 ${escapeHtml(item.name)} — ${formatNumber(this.inventory[item.id] || 0)} in stock (reorder at ${formatNumber(this.reorderLevel(item))})</div>`).join('')
-        : '<div style="color:#4ade80;">Every catalog line is above its reorder level.</div>');
+        ? low.map(item => `<div style="color:var(--critical);">🚨 ${escapeHtml(item.name)} — ${formatNumber(this.inventory[item.id] || 0)} in stock (reorder at ${formatNumber(this.reorderLevel(item))})</div>`).join('')
+        : '<div style="color:var(--positive);">Every catalog line is above its reorder level.</div>');
 
     if (this.storageWarning) {
-      alerts.innerHTML += `<div role="alert" style="margin-top:8px;color:#fbbf24;">⚠️ ${escapeHtml(this.storageWarning)}</div>`;
+      alerts.innerHTML += `<div role="alert" style="margin-top:8px;color:var(--warning);">⚠️ ${escapeHtml(this.storageWarning)}</div>`;
     }
 
     if (items.length === 0) {
@@ -251,9 +251,9 @@ export class InventoryTracker {
     const cards = items.map(item => {
       const stock = this.inventory[item.id] || 0;
       const reorder = this.reorderLevel(item);
-      let border = 'border-top:5px solid #22c55e;';
-      if (stock <= reorder) border = 'border-top:5px solid #ef4444;';
-      else if (stock <= reorder * 2) border = 'border-top:5px solid #eab308;';
+      let border = 'border-top:5px solid var(--positive);';
+      if (stock <= reorder) border = 'border-top:5px solid var(--critical);';
+      else if (stock <= reorder * 2) border = 'border-top:5px solid var(--warning);';
 
       return `
         <div class="inventory-card" data-item-id="${escapeHtml(item.id)}" style="border:1px solid var(--border-subtle);border-radius:12px;padding:12px;background:var(--bg-elevated);${border}">

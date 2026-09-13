@@ -49,12 +49,17 @@ const CSS = `
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.42), rgba(0,0,0,0));
+  /* This bar sits on a PHOTOGRAPH, not on a themed surface, so its legibility
+     cannot come from a token pair — the panoramas run to pure white in the
+     band the bar covers (measured: p95 154-220, max 253 across all eight
+     plates). The scrim plus the per-element text-shadow below keep white text
+     at >= 6:1 on the worst of them, in BOTH themes, by construction. */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.38) 62%, rgba(0,0,0,0) 100%);
 }
 .studio-modebar > * { pointer-events: auto; }
 .studio-modebar__spacer { flex: 1; pointer-events: none; }
 
-.studio-modebar__id { min-width: 0; }
+.studio-modebar__id { min-width: 0; flex: 1 1 auto; }
 .studio-modebar__name {
   margin: 0;
   font-family: var(--font-attio);
@@ -62,12 +67,14 @@ const CSS = `
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-on-media);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.72), 0 0 12px rgba(0,0,0,0.5);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .studio-modebar__sub {
   margin: 2px 0 0;
   font-size: var(--fs-xs);
   color: var(--text-on-media-dim);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.72), 0 0 12px rgba(0,0,0,0.5);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -184,7 +191,7 @@ const CSS = `
   cursor: pointer; transition: var(--transition-fast);
 }
 .studio-tab:hover { color: var(--text-main); background: var(--glass-1); }
-.studio-tab[aria-selected="true"] { color: var(--accent-gold); background: var(--tint-gold); }
+.studio-tab[aria-selected="true"] { color: var(--on-tint-accent); background: var(--tint-gold); }
 .studio-tab:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 .studio-panel__body {
@@ -256,7 +263,7 @@ const CSS = `
 .studio-option__text { min-width: 0; flex: 1; }
 .studio-option__name { font-size: var(--fs-sm); font-weight: 550; line-height: 1.35; overflow-wrap: anywhere; }
 .studio-option__price { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; margin-top: 1px; }
-.studio-option__check { flex: none; color: var(--accent-gold); opacity: 0; }
+.studio-option__check { flex: none; color: var(--on-tint-accent); opacity: 0; }
 .studio-option[aria-checked="true"] .studio-option__check { opacity: 1; }
 
 .studio-badge {
@@ -268,7 +275,7 @@ const CSS = `
   color: var(--text-muted);
   background: var(--glass-1);
 }
-.studio-badge--scene { color: var(--accent-gold); border-color: var(--border-gold); background: var(--tint-gold); }
+.studio-badge--scene { color: var(--on-tint-accent); border-color: var(--border-gold); background: var(--tint-gold); }
 .studio-badge__dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
 /* ------------------------------------------------------------ folded tools */
@@ -307,7 +314,8 @@ const CSS = `
 .studio-moodgrid button {
   position: absolute; inset-block-start: 4px; inset-inline-end: 4px;
   width: 22px; height: 22px; border-radius: 50%;
-  background: var(--scrim); color: #fff; border: 0; cursor: pointer; line-height: 1;
+  background: var(--bg-over-media); color: var(--text-on-media);
+  border: 1px solid var(--border-terminal); cursor: pointer; line-height: 1;
 }
 .studio-palette { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }
 .studio-palette span { width: 26px; height: 26px; border-radius: var(--radius-xs); border: 1px solid var(--border-subtle); }
@@ -347,9 +355,12 @@ const CSS = `
   .studio-shell.studio-edit-open { --studio-panel-w: 336px; }
 }
 
-/* Below 768 the dock becomes a bottom sheet: the canvas shrinks vertically
-   instead of horizontally, so the venue is still fully visible above it. */
-@media (max-width: 767px) {
+/* Below 840 the dock becomes a bottom sheet: the canvas shrinks vertically
+   instead of horizontally, so the venue is still fully visible above it.
+   840px is the SAME number src/shell/shellStyles.js uses for the equivalent
+   stage rule — the two must not disagree, or there is a band in which the
+   stage has stacked but the panel is still a side dock. */
+@media (max-width: 840px) {
   .studio-shell.studio-edit-open { --studio-panel-w: 0px; }
   .studio-stage { flex-direction: column; }
   .studio-shell.studio-edit-open .studio-canvas,
@@ -373,8 +384,20 @@ const CSS = `
   }
   .studio-panel[data-open="true"] { transform: none; }
   .studio-panel__head { padding-block-start: var(--space-4); }
-  .studio-modebar { padding: var(--space-3) var(--space-4); }
+  .studio-modebar { padding: var(--space-3) var(--space-4); gap: var(--space-2); }
   .studio-modebar__name { font-size: var(--fs-md); }
+  /* The spacer was competing with the venue name for the leftover width, so a
+     real subtitle ("Concert & Keynote Stage Setup") ellipsed at 390px. */
+  .studio-modebar__spacer { display: none; }
+  .studio-modebar__sub {
+    white-space: normal;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.35;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

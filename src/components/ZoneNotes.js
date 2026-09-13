@@ -4,7 +4,15 @@ import { readJSON, writeJSON, escapeHtml } from '../utils/format.js';
 const NOTES_KEY = 'helme_events_notes';
 
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
-const PRIORITY_COLORS = { Urgent: '#ef4444', High: '#f97316', Medium: '#eab308', Low: '#22c55e' };
+/* Priority swatches are themed pairs: the chip text is always --on-<role>,
+   so it reads on the fill in light AND dark. High has no role token of its
+   own and borrows the warning pair at full strength. */
+const PRIORITY_COLORS = {
+  Urgent: { bg: 'var(--critical)', fg: 'var(--on-critical)' },
+  High:   { bg: 'var(--warning)',  fg: 'var(--on-warning)' },
+  Medium: { bg: 'var(--accent)',   fg: 'var(--on-accent)' },
+  Low:    { bg: 'var(--positive)', fg: 'var(--on-positive)' }
+};
 
 export class ZoneNotes {
   constructor(containerElement, getCurrentZoneId) {
@@ -66,7 +74,7 @@ export class ZoneNotes {
 
     this.container.innerHTML = `
       <div class="modal-overlay notes-modal-overlay">
-        <div class="notes-modal" role="dialog" aria-modal="true" aria-labelledby="notes-title" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:520px; background:var(--bg-surface); color:var(--text-main); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:2000; display:flex; flex-direction:column; max-height:85vh; border:1px solid var(--border-subtle);">
+        <div class="notes-modal" role="dialog" aria-modal="true" aria-labelledby="notes-title" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:520px; background:var(--bg-surface); color:var(--text-main); border-radius:12px; box-shadow:var(--shadow-lg); z-index:2000; display:flex; flex-direction:column; max-height:85vh; border:1px solid var(--border-subtle);">
           <div style="padding:15px 20px; background:var(--bg-elevated); color:var(--text-main); border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle);">
             <h2 id="notes-title" style="margin:0; font-size:18px;">💬 Zone Notes &amp; Punch List</h2>
             <button type="button" id="close-notes-btn" aria-label="Close zone notes" style="background:none; border:none; color:var(--text-muted); font-size:24px; cursor:pointer;">&times;</button>
@@ -75,7 +83,7 @@ export class ZoneNotes {
           <div style="padding:20px; overflow-y:auto; flex:1;" id="notes-list-container"></div>
 
           <div style="padding:20px; border-top:1px solid var(--border-subtle); background:var(--bg-elevated); border-radius:0 0 12px 12px;">
-            <div id="notes-status" role="status" style="min-height:16px; font-size:12px; color:#fbbf24; margin-bottom:6px;">${escapeHtml(this.statusMessage)}</div>
+            <div id="notes-status" role="status" style="min-height:16px; font-size:12px; color:var(--warning); margin-bottom:6px;">${escapeHtml(this.statusMessage)}</div>
             <textarea id="note-text" aria-label="Note text" placeholder="Add a note for this zone…" style="width:100%; height:60px; padding:8px; box-sizing:border-box; margin-bottom:10px; border-radius:6px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-main);"></textarea>
 
             <div style="display:flex; gap:10px; margin-bottom:10px;">
@@ -88,8 +96,8 @@ export class ZoneNotes {
             </div>
 
             <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-              <button type="button" id="record-voice-btn" style="background:#ef4444; color:#fff; border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">🎤 Record Voice</button>
-              <span id="recording-status" role="status" style="color:#ef4444; font-size:12px; font-weight:bold; display:none;">Recording…</span>
+              <button type="button" id="record-voice-btn" style="background:var(--critical); color:var(--on-critical); border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">🎤 Record Voice</button>
+              <span id="recording-status" role="status" style="color:var(--critical); font-size:12px; font-weight:bold; display:none;">Recording…</span>
               <button type="button" id="add-note-btn" class="btn-primary" style="padding:8px 20px; cursor:pointer;">Add Note</button>
             </div>
           </div>
@@ -130,15 +138,15 @@ export class ZoneNotes {
         <div style="border:1px solid var(--border-subtle); border-radius:8px; padding:12px; margin-bottom:12px; background:var(--bg-elevated);">
           <div style="display:flex; justify-content:space-between; margin-bottom:8px; gap:8px;">
             <div>
-              <span style="font-size:12px; font-weight:bold; color:#fff; background:#475569; padding:2px 6px; border-radius:4px; margin-right:5px;">${escapeHtml(this.zoneName(note.zone))}</span>
-              <span style="font-size:12px; font-weight:bold; color:#fff; background:${pColor}; padding:2px 6px; border-radius:4px;">${escapeHtml(note.priority)}</span>
+              <span style="font-size:12px; font-weight:bold; color:var(--text-inverse); background:var(--text-muted); padding:2px 6px; border-radius:4px; margin-right:5px;">${escapeHtml(this.zoneName(note.zone))}</span>
+              <span style="font-size:12px; font-weight:bold; color:${pColor.fg}; background:${pColor.bg}; padding:2px 6px; border-radius:4px;">${escapeHtml(note.priority)}</span>
             </div>
             <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${escapeHtml(new Date(note.timestamp).toLocaleString('en-IN'))}</span>
           </div>
           <p style="margin:0; font-size:14px; color:var(--text-main); line-height:1.4; white-space:pre-wrap;">${escapeHtml(note.text)}</p>
           ${audioHtml}
           <div style="text-align:right; margin-top:5px;">
-            <button type="button" class="delete-note-btn" data-id="${escapeHtml(note.id)}" aria-label="Delete this note" style="background:none; border:none; color:#ef4444; font-size:12px; cursor:pointer; text-decoration:underline;">Delete</button>
+            <button type="button" class="delete-note-btn" data-id="${escapeHtml(note.id)}" aria-label="Delete this note" style="background:none; border:none; color:var(--critical); font-size:12px; cursor:pointer; text-decoration:underline;">Delete</button>
           </div>
         </div>
       `;

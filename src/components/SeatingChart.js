@@ -220,7 +220,7 @@ export class SeatingChart {
         </div>
       </div>
       <div id="seating-import-modal" hidden
-           style="position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center;
+           style="position:fixed; inset:0; background:var(--scrim); display:flex; align-items:center;
                   justify-content:center; z-index:999;">
         <div role="dialog" aria-modal="true" aria-label="Import guests from CSV"
              style="background:var(--bg-surface); color:var(--text-main); padding:1.25rem; border-radius:var(--radius-md);
@@ -418,10 +418,20 @@ Asha Mehta,Bride's Family
     const ctx = this.ctx;
     ctx.clearRect(0, 0, width, height);
 
-    const surface = token('--bg-surface-hover', '#2c2c2e');
+    // THEME NOTE — the canvas cannot inherit CSS, so every colour here is read
+    // back off the live custom properties. It used to draw the table with
+    // --bg-surface-hover and an empty seat with --bg-input, which are the SAME
+    // value in the dark theme (#201e1b): the whole chart collapsed into one
+    // grey and an empty seat became invisible against the table it belonged
+    // to. The table is now the canvas ground (--bg-surface) lifted by the
+    // themed --glass-3 veil, which goes LIGHTER in dark and DARKER in light,
+    // so an empty --bg-input seat separates from the table in both themes and
+    // in opposite directions. Occupied stays the themed --positive.
+    const ground = token('--bg-surface', '#161513');
+    const veil = token('--glass-3', 'rgba(255,250,240,0.14)');
     const line = token('--border-strong', 'rgba(255,255,255,0.2)');
     const text = token('--text-main', '#f5f5f7');
-    const occupied = token('--accent-emerald', '#30d158');
+    const occupied = token('--positive', '#4bd07a');
     const free = token('--bg-input', '#2c2c2e');
 
     const { tables, seatRadius, seatOrbit } = this.layout();
@@ -430,7 +440,9 @@ Asha Mehta,Bride's Family
     tables.forEach((t, i) => {
       ctx.beginPath();
       ctx.arc(t.cx, t.cy, t.radius, 0, Math.PI * 2);
-      ctx.fillStyle = surface;
+      ctx.fillStyle = ground;   // opaque base so the veil composites predictably
+      ctx.fill();
+      ctx.fillStyle = veil;
       ctx.fill();
       ctx.strokeStyle = line;
       ctx.lineWidth = 2;
@@ -449,8 +461,11 @@ Asha Mehta,Bride's Family
         ctx.arc(x, y, seatRadius, 0, Math.PI * 2);
         ctx.fillStyle = guest ? occupied : free;
         ctx.fill();
-        ctx.strokeStyle = line;
-        ctx.lineWidth = 1;
+        // An occupied seat carries its own state ring as well as its fill, so
+        // the taken/empty distinction survives even where the two fills are
+        // close together on screen.
+        ctx.strokeStyle = guest ? occupied : line;
+        ctx.lineWidth = guest ? 2 : 1;
         ctx.stroke();
       }
     });

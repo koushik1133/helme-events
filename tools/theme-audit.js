@@ -10,7 +10,32 @@
  *             spans, empty buttons, colour equal to background.
  *   LITERAL   is only detectable in source, not here — see the grep in BRIEF.
  */
+/*
+ * SETTLE FIRST — this is not optional.
+ *
+ * `body` carries `transition: color .3s` and most controls transition `all`.
+ * A Browser-pane tab that is not frontmost pauses compositing, so a theme flip
+ * there leaves getComputedStyle() reporting the OLD theme's colour against the
+ * NEW theme's background — a pair the app never actually paints. That artifact
+ * invented a 1.02:1 "failure" on elements that declare no colour at all.
+ * Killing transitions and finishing pending animations makes the reading real.
+ */
+window.helmSettle = function () {
+  let s = document.getElementById('helm-audit-settle');
+  if (!s) {
+    s = document.createElement('style');
+    s.id = 'helm-audit-settle';
+    s.textContent = '*,*::before,*::after{transition:none!important;animation-duration:0s!important}';
+    document.head.appendChild(s);
+  }
+  try { document.getAnimations().forEach(a => a.finish()); } catch (_) {}
+  return document.getAnimations().length;
+};
+
 window.helmAudit = async function (opts = {}) {
+  window.helmSettle();
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
   const srgb = c => (c /= 255) <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   const lum = ([r, g, b]) => 0.2126 * srgb(r) + 0.7152 * srgb(g) + 0.0722 * srgb(b);
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
