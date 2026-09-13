@@ -59,8 +59,6 @@
     so the model transfers unchanged when a backend lands, but the app says plainly
     what it is.
   -->
-  <div id="signInRoot" class="signin-root" hidden></div>
-
   <div id="workspace">
   <!-- Helm Events Navbar Header -->
   <header class="app-navbar">
@@ -343,6 +341,12 @@
 
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- "Sign in as" persona screen — a full-viewport overlay, shown when signed out -->
+  <div id="signInContainer" hidden></div>
+
+  <!-- Roles & permissions transparency screen -->
+  <div id="rolesMatrixContainer" hidden></div>
 
   <p class="demo-disclaimer">
     Demo workspace — roles shape what you see, they do not secure data.

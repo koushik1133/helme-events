@@ -6462,11 +6462,17 @@ summary:focus-visible,
   outline-offset: 2px;
 }
 
-/* A section fills the viewport; only one is ever visible. */
+/* A section fills the viewport; only one is ever visible.
+   `.app-viewport` is position:relative with overflow:hidden and the studio's
+   `.view-section`s are absolutely positioned against it — so a section has to be
+   a full-size positioned box itself, or the studio collapses to zero height and
+   renders black. */
 .app-section {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .app-section.hidden { display: none !important; }
@@ -6527,4 +6533,58 @@ summary:focus-visible,
     justify-content: flex-start;
   }
   .section-switcher::-webkit-scrollbar { display: none; }
+}
+
+/* ---------------------------------------------------------------------
+   Navbar ordering.
+   The header is a wrapping flex row driven by explicit `order` values. New
+   shell elements default to order:0, which threw them in front of the brand.
+   This is the single authoritative left-to-right sequence.
+   --------------------------------------------------------------------- */
+.app-navbar > .nav-brand            { order: 1; }
+.app-navbar > .section-switcher     { order: 2; }
+.app-navbar > .studio-only          { order: 3; }
+.app-navbar > .nav-search-wrapper   { order: 4; }
+.app-navbar > .preset-popover-wrapper { order: 5; }
+.app-navbar > .role-badge-slot      { order: 6; }
+.app-navbar > .nav-actions-group    { order: 7; }
+
+/* The live quotation card belongs to the Design Studio, not to Payments. */
+body:not([data-section="studio"]) #costCardContainer { display: none; }
+
+/* A section that owns the full viewport scrolls itself rather than the page. */
+#homeSection,
+#clientsSection,
+#dealsSection,
+#paymentsSection {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-app);
+}
+
+/* ---------------------------------------------------------------------
+   #workspace is now the flex column that used to be <body>.
+   `.app-viewport { flex: 1 }` only works if its PARENT is the column — when
+   everything moved inside #workspace the viewport collapsed to zero height and
+   the studio rendered black.
+   --------------------------------------------------------------------- */
+#workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#workspace > .app-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#workspace > .app-navbar,
+#workspace > .feature-toolbar,
+#workspace > .india-sub-bar,
+#workspace > .demo-disclaimer {
+  flex: 0 0 auto;
 }

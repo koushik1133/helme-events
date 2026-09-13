@@ -212,8 +212,8 @@ const CSS = `
 .hh-need[data-sev="critical"] .hh-need-bar { background: var(--accent-rose, #ff6961); }
 .hh-need[data-sev="warn"] .hh-need-bar { background: var(--accent-amber, #fbbf24); }
 .hh-need[data-sev="info"] .hh-need-bar { background: var(--accent-sky, #38bdf8); }
-.hh-need-t { font-size: var(--fs-md, 0.875rem); font-weight: 570; }
-.hh-need-m { font-size: var(--fs-xs, 0.75rem); color: var(--text-dim, #98989d); margin-top: 3px; }
+.hh-need-t { display: block; font-size: var(--fs-md, 0.875rem); font-weight: 570; line-height: 1.35; }
+.hh-need-m { display: block; font-size: var(--fs-xs, 0.75rem); color: var(--text-dim, #98989d); margin-top: 3px; }
 .hh-need-r { font-size: var(--fs-md, 0.875rem); font-weight: 620; white-space: nowrap; text-align: right; }
 .hh-need-r small { display: block; font-size: var(--fs-xs, 0.75rem); font-weight: 500; color: var(--text-dim, #98989d); }
 .hh-need-go { color: var(--text-dim, #98989d); font-size: 0.85rem; }
@@ -248,7 +248,8 @@ const CSS = `
 .hh-chip {
   font-size: 0.66rem; font-weight: 580; padding: 3px 6px; border-radius: 5px;
   background: var(--tint-indigo, rgba(10,132,255,0.16)); color: var(--accent-indigo, #409cff);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; line-height: 1.25; text-align: left;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 .hh-chip[data-kind="live"] { background: var(--tint-rose, rgba(255,69,58,0.15)); color: var(--accent-rose, #ff6961); }
 .hh-chip[data-kind="money"] { background: var(--tint-emerald, rgba(48,209,88,0.15)); color: var(--accent-emerald, #30d158); }
@@ -261,8 +262,8 @@ const CSS = `
   display: grid; place-items: center; font-size: 0.62rem; font-weight: 700;
   background: var(--glass-2, rgba(255,255,255,0.12)); color: var(--text-muted, #a1a1a6);
 }
-.hh-act-t { font-size: var(--fs-sm, 0.8125rem); line-height: 1.45; }
-.hh-act-w { font-size: var(--fs-xs, 0.75rem); color: var(--text-dim, #98989d); margin-top: 2px; }
+.hh-act-t { display: block; font-size: var(--fs-sm, 0.8125rem); line-height: 1.45; }
+.hh-act-w { display: block; font-size: var(--fs-xs, 0.75rem); color: var(--text-dim, #98989d); margin-top: 2px; }
 
 /* ----------------------------------------------------- receivables table */
 .hh-tablewrap { overflow-x: auto; }

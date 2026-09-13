@@ -1,12 +1,40 @@
 import { getItemById } from '../data/catalog.js';
-import { resolveSceneComposite, getPropImage, unbakedChanges } from '../data/sceneVariants.js';
-import { overlaySpec } from '../data/propOverlays.js';
-import { projectAnchor, angularHeight, pixelHeight, verticalFov } from './panoProjection.js';
+import { resolveSceneComposite, unbakedChanges } from '../data/sceneVariants.js';
+import { overlaySpec, loadCutoutManifest, cutoutFor, CAMERA_HEIGHT_M } from '../data/propOverlays.js';
+import { projectAnchor, verticalFov } from './panoProjection.js';
+import { EquirectViewer } from './EquirectViewer.js';
+import { PanoCompositor } from './PanoCompositor.js';
 import { formatMoney, escapeHtml } from '../utils/format.js';
 
 /**
- * Viewer360 — Pannellum equirectangular viewer with hotspot cards
- * and live prop overlays that reflect the currently selected furniture.
+ * Viewer360 — three.js equirectangular viewer with hotspot cards, over a
+ * panorama that is COMPOSITED at runtime from a base plate plus one
+ * transparent layer per swapped decor slot.
+ *
+ * THE REGRESSION THIS FIXES
+ * -------------------------
+ * The owner's report: "Previously, if I changed the item, it would have been
+ * updated on the screen in the 360 view, but it's not updating now." Confirmed
+ * by hashing the canvas across a scripted swap sequence — after the first slot,
+ * the panorama pixels were byte-identical. Two causes, both structural:
+ *
+ *  1. The variant table can only bake ONE slot into a plate, so every other
+ *     swapped slot fell back to a DOM <img> layered over the viewer. The
+ *     panorama itself never changed, and when that sprite failed to lay out it
+ *     changed nothing at all.
+ *  2. Pannellum has no `setPanorama()`, so every plate change was a
+ *     destroy-and-rebuild with a visible flash and a hand-restored camera.
+ *
+ * Now: a three.js inverted sphere is textured from a canvas this class owns
+ * (`PanoCompositor`). A swap redraws that canvas — base plate, then each
+ * swapped slot's contact shadow (multiply) and cut-out (over), rasterised into
+ * equirectangular space by the exact inverse map in `equirectBillboard.js` —
+ * and flips `texture.needsUpdate`. No reload, no flash, and the picture itself
+ * changes, so screenshots and exports change with it.
+ *
+ * The public surface (loadZone / updatePanorama / updateSlotDisplay /
+ * toggleAutoRotate / setAutoRotate / setTimeOfDay / hotspot clicks / the error
+ * state) is unchanged, so main.js did not have to move.
  */
 export class Viewer360 {
   constructor(containerEl, onSelectSlot, onNavigateZone = null) {
@@ -23,18 +51,21 @@ export class Viewer360 {
     this._overlayEl          = null;
     this._loopId             = null;
     this._positionLoopActive = false;
-    this._overlayBuilt       = false;
     this._loadGeneration     = 0;
     this._currentPanorama    = null;
-    this._overlayTimer       = null;
     this._timeKey            = 'day';
     this._engineFailed       = false;
     this._composite          = null;
+    this._compositor         = null;
+    this._THREE              = null;
+    this._forcedLayerSlot    = null;
+    this._lastSignature      = null;
   }
+
+  // ---------------------------------------------------------------- loading
 
   loadZone(zoneData, activeSelectionsObj = {}, overridePanoramaUrl = null) {
     this.currentZone = zoneData;
-
     const myGen = ++this._loadGeneration;
 
     zoneData.slots.forEach(slot => {
@@ -45,186 +76,236 @@ export class Viewer360 {
       else this.customWriting.delete(slot.id);
     });
 
-    // One composite decides EVERYTHING about this scene: which plate loads, which
-    // slot that plate genuinely depicts, and which changed slots it cannot show
-    // and must therefore be composited as billboards.
-    this._composite = resolveSceneComposite(zoneData.id, zoneData, activeSelectionsObj);
+    this._resolveComposite(zoneData, activeSelectionsObj, overridePanoramaUrl);
+    this._forcedLayerSlot = null;
 
-    let panoramaUrl = overridePanoramaUrl || this._composite.panorama || zoneData.panoramaUrl;
+    // Rebuild the hotspot layer synchronously so the UI is never empty while
+    // the GPU side boots; the panorama itself arrives when the plate decodes.
+    this._buildOverlayLayer(zoneData);
+
+    this._boot(myGen, zoneData);
+  }
+
+  _resolveComposite(zoneData, activeSelectionsObj, overridePanoramaUrl) {
+    this._composite = resolveSceneComposite(zoneData.id, zoneData, activeSelectionsObj);
     if (overridePanoramaUrl && overridePanoramaUrl !== this._composite.panorama) {
       // A caller forced a specific plate (theme preview, backdrop plate). We did
       // not render it, so we must not claim any slot is baked into it.
-      this._composite = { ...this._composite, bakedSlotId: null, bakedItemId: null,
+      this._composite = {
+        ...this._composite,
+        panorama: overridePanoramaUrl,
+        bakedSlotId: null,
+        bakedItemId: null,
         overlaySlots: zoneData.slots
           .map(s => ({ slotId: s.id,
                        itemId: activeSelectionsObj[s.id] || s.defaultItemId,
                        swapped: (activeSelectionsObj[s.id] || s.defaultItemId) !== s.defaultItemId }))
-          .filter(o => Boolean(o.itemId)) };
+          .filter(o => Boolean(o.itemId))
+      };
     }
-    this._currentPanorama = panoramaUrl;
+    this._currentPanorama = overridePanoramaUrl || this._composite.panorama || zoneData.panoramaUrl;
+  }
 
-    this._destroyViewer();
-    this._overlayBuilt = false;
-
-    if (!window.pannellum) {
-      this._loadFallback(panoramaUrl, zoneData);
+  /** Start (or reuse) the WebGL viewer and paint the current configuration. */
+  async _boot(myGen, zoneData) {
+    try {
+      if (!this._THREE) this._THREE = await import('three');
+      await loadCutoutManifest();
+    } catch (e) {
+      if (myGen !== this._loadGeneration) return;
+      this._loadFallback(this._currentPanorama, zoneData);
       return;
     }
-    this._engineFailed = false;
+    if (myGen !== this._loadGeneration) return;
 
-    this.container.innerHTML = '';
-    this.container.style.position = 'relative';
-
-    this.viewer = window.pannellum.viewer(this.container, {
-      type: 'equirectangular',
-      panorama: panoramaUrl,
-      autoLoad: true,
-      showZoomCtrl: false,
-      showFullscreenCtrl: false,
-      showControls: false,
-      autoRotate: this.autoRotate ? -2 : 0,
-      mouseZoom: true,
-      hfov: 100,
-      minHfov: 50,
-      maxHfov: 130,
-      pitch: 0,
-      yaw: 0,
-      compass: false
-    });
-
-    const buildOverlay = () => {
-      if (myGen !== this._loadGeneration) return;
-      if (this._overlayBuilt) return;
-      this._overlayBuilt = true;
-      if (this._overlayEl?.parentNode) this._overlayEl.parentNode.removeChild(this._overlayEl);
-      this._overlayEl = this._buildOverlay(zoneData);
-      this.container.appendChild(this._overlayEl);
-      this._renderCompositeNotice();
-      this._applyTimeOfDay();
-      this._startLoop();
-    };
+    if (!this._compositor) this._compositor = new PanoCompositor();
 
     try {
-      this.viewer.on('load', buildOverlay);
+      await this._compositor.setBase(this._currentPanorama);
+    } catch (e) {
+      if (myGen !== this._loadGeneration) return;
+      this._showEngineError(
+        'This 360° view could not be loaded.',
+        'The panorama image failed to load or decode.',
+        this._currentPanorama, zoneData);
+      return;
+    }
+    if (myGen !== this._loadGeneration) return;
+
+    await this._paint();
+    if (myGen !== this._loadGeneration) return;
+
+    if (!this.viewer || this.viewer.destroyed) {
+      // Rebuilding the canvas each zone would throw away the WebGL context for
+      // no reason — the sphere's texture is what changes, not the viewer.
+      this._teardownViewer();
+      try {
+        this.viewer = new EquirectViewer(this.container, this._THREE, {
+          hfov: 100, minHfov: 50, maxHfov: 130,
+          label: `${zoneData?.name || 'Venue'} — 360 degree view. `
+            + 'Drag or use the arrow keys to look around, plus and minus to zoom.'
+        });
+      } catch (e) {
+        this._loadFallback(this._currentPanorama, zoneData);
+        return;
+      }
       this.viewer.on('error', msg => {
         if (myGen !== this._loadGeneration) return;
-        this._showEngineError(
-          'This 360° view could not be loaded.',
-          String(msg || 'The panorama image failed to decode.'),
-          panoramaUrl,
-          zoneData
-        );
+        this._showEngineError('This 360° view could not be displayed.',
+          String(msg || 'WebGL is unavailable in this browser.'),
+          this._currentPanorama, zoneData);
       });
-    } catch (e) { /* older Pannellum builds may not expose .on */ }
-
-    // Safety net: some builds never fire 'load'. Tracked so it can be cancelled
-    // on the next zone load instead of leaking a pending timer per swap.
-    if (this._overlayTimer) clearTimeout(this._overlayTimer);
-    this._overlayTimer = setTimeout(() => {
-      this._overlayTimer = null;
-      buildOverlay();
-    }, 900);
-  }
-
-  updatePanorama(newPanoramaUrl, selectionsOverride = null) {
-    if (!newPanoramaUrl || this._currentPanorama === newPanoramaUrl) return;
-
-    let currentPitch = 0, currentYaw = 0, currentHfov = 100;
-    try {
-      if (typeof this.viewer?.getPitch === 'function') currentPitch = this.viewer.getPitch();
-      if (typeof this.viewer?.getYaw === 'function')   currentYaw   = this.viewer.getYaw();
-      if (typeof this.viewer?.getHfov === 'function')  currentHfov  = this.viewer.getHfov();
-    } catch (e) {}
-
-    if (this.currentZone) {
-      const activeObj = {};
-      if (selectionsOverride && typeof selectionsOverride === 'object') {
-        Object.assign(activeObj, selectionsOverride);
-        // Keep Map in sync so overlays match the new plate
-        Object.keys(selectionsOverride).forEach(key => {
-          if (key.startsWith('custom_text_')) {
-            this.customWriting.set(key.replace('custom_text_', ''), selectionsOverride[key]);
-          } else {
-            this.activeSelections.set(key, selectionsOverride[key]);
-          }
-        });
-      } else {
-        Object.assign(activeObj, this._selectionsAsObject());
-      }
-      this.loadZone(this.currentZone, activeObj, newPanoramaUrl);
-
-      setTimeout(() => {
-        try {
-          if (this.viewer?.setPitch) this.viewer.setPitch(currentPitch);
-          if (this.viewer?.setYaw)   this.viewer.setYaw(currentYaw);
-          if (this.viewer?.setHfov)  this.viewer.setHfov(currentHfov);
-        } catch (e) {}
-      }, 120);
+      this.viewer.setSourceCanvas(this._compositor.canvas);
+      this.container.appendChild(this._overlayEl);
+    } else {
+      this.viewer.markTextureDirty();
+      if (!this._overlayEl.parentNode) this.container.appendChild(this._overlayEl);
     }
+
+    this._engineFailed = false;
+    this.setAutoRotate(this.autoRotate);
+    this._applyTimeOfDay();
+    this._renderCompositeNotice();
+    this._startLoop();
   }
 
+  // ------------------------------------------------------------ compositing
+
+  /**
+   * Layer descriptors for everything the current plate does NOT depict.
+   *
+   * Only SWAPPED slots are composited. A slot sitting at its default is already
+   * in the photograph, and drawing it again would show the chair twice.
+   */
+  _layerSpecs() {
+    const zone = this.currentZone;
+    if (!zone) return [];
+    const specs = [];
+    for (const slot of zone.slots) {
+      const itemId = this.activeSelections.get(slot.id);
+      if (!itemId) continue;
+      const isBaked = this._composite?.bakedSlotId === slot.id;
+      const swapped = itemId !== slot.defaultItemId;
+      const forced  = this._forcedLayerSlot === slot.id;
+      if (!forced && (isBaked || !swapped)) continue;
+
+      const item = getItemById(itemId);
+      const spec = overlaySpec(slot, item);
+      const cut  = cutoutFor(itemId);
+      if (!spec || !cut) continue;
+      specs.push({
+        slotId: slot.id,
+        itemId,
+        cutoutUrl: cut.url,
+        contact: cut.contact,
+        yawDeg: spec.anchorYaw,
+        pitchDeg: spec.anchorPitch,
+        distanceM: spec.distanceM,
+        heightM: spec.heightM,
+        cameraHeightM: CAMERA_HEIGHT_M,
+        ground: spec.ground
+      });
+    }
+    return specs;
+  }
+
+  /** Signature of everything that determines the composited pixels. */
+  _signature(specs) {
+    return [this._currentPanorama, ...specs.map(s => `${s.slotId}=${s.itemId}`)].join('|');
+  }
+
+  async _paint() {
+    if (!this._compositor) return;
+    const specs = this._layerSpecs();
+    this._lastSignature = this._signature(specs);
+    this._compositor.setLayers(specs);
+    await this._compositor.render();
+    this.viewer?.markTextureDirty();
+  }
+
+  // ------------------------------------------------------------ public API
+
+  /**
+   * Swap the base plate without rebuilding the viewer.
+   *
+   * Under Pannellum this had to destroy and re-construct the whole viewer and
+   * then restore pitch/yaw/hfov on a timer. Here the camera is never touched.
+   */
+  async updatePanorama(newPanoramaUrl, selectionsOverride = null) {
+    if (!newPanoramaUrl) return;
+    if (!this.currentZone) return;
+
+    const activeObj = {};
+    if (selectionsOverride && typeof selectionsOverride === 'object') {
+      Object.assign(activeObj, selectionsOverride);
+      Object.keys(selectionsOverride).forEach(key => {
+        if (key.startsWith('custom_text_')) {
+          this.customWriting.set(key.replace('custom_text_', ''), selectionsOverride[key]);
+        } else {
+          this.activeSelections.set(key, selectionsOverride[key]);
+        }
+      });
+    } else {
+      Object.assign(activeObj, this._selectionsAsObject());
+    }
+
+    if (!this._compositor || !this.viewer || this.viewer.destroyed) {
+      this.loadZone(this.currentZone, activeObj, newPanoramaUrl);
+      return;
+    }
+
+    const myGen = ++this._loadGeneration;
+    this._resolveComposite(this.currentZone, activeObj, newPanoramaUrl);
+    try { await this._compositor.setBase(this._currentPanorama); }
+    catch (e) { return; }
+    if (myGen !== this._loadGeneration) return;
+    await this._paint();
+    this._refreshAllCards();
+    this._renderCompositeNotice();
+    this._applyTimeOfDay();
+  }
+
+  /**
+   * Apply one slot swap and repaint.
+   *
+   * Returns a promise so the swap audit (and any caller that wants to know the
+   * picture is final) can await the redraw instead of guessing a timeout.
+   */
   updateSlotDisplay(slotId, newItemId, writingText) {
     this.activeSelections.set(slotId, newItemId);
     if (writingText !== undefined) this.customWriting.set(slotId, writingText);
+    this._refreshCard(slotId, newItemId, writingText);
+    return this._recomposite(slotId);
+  }
 
-    if (!this._overlayEl) return;
-    const card = this._overlayEl.querySelector(`.hs-card[data-slot-id="${slotId}"]`);
-    if (!card) return;
+  async _recomposite(changedSlotId) {
+    if (!this.currentZone || !this._compositor) return;
+    const myGen = ++this._loadGeneration;
 
-    const item = getItemById(newItemId);
-    const slot = this.currentZone?.slots.find(s => s.id === slotId);
-    const isSwapped = slot && newItemId !== slot.defaultItemId;
+    this._forcedLayerSlot = null;
+    this._resolveComposite(this.currentZone, this._selectionsAsObject(), null);
 
-    const img = card.querySelector('.hs-card-img');
-    if (img && item?.imageUrl) { img.src = item.imageUrl; img.alt = item.name; }
-
-    const nameEl = card.querySelector('.hs-card-name');
-    if (nameEl && item) nameEl.textContent = item.name;
-
-    const priceEl = card.querySelector('.hs-card-price');
-    if (priceEl && item && slot) priceEl.textContent = formatMoney(Math.round(item.price * slot.quantity));
-
-    const writingEl = card.querySelector('.hs-card-writing');
-    if (writingText) {
-      if (writingEl) {
-        writingEl.textContent = `✍️ "${writingText}"`;
-      } else {
-        const info = card.querySelector('.hs-card-info');
-        if (info) {
-          const em = document.createElement('em');
-          em.className = 'hs-card-writing';
-          em.textContent = `✍️ "${writingText}"`;
-          info.appendChild(em);
-        }
-      }
+    // Every swap must visibly change the view. If the resolved plate AND the
+    // layer set are both unchanged — which happens when two catalogue options
+    // share one plate file — composite the changed item explicitly rather than
+    // letting the swap silently no-op.
+    let specs = this._layerSpecs();
+    if (this._signature(specs) === this._lastSignature && changedSlotId) {
+      this._forcedLayerSlot = changedSlotId;
+      specs = this._layerSpecs();
     }
 
-    const beacon = card.querySelector('.hs-beacon');
-    if (beacon) beacon.className = `hs-beacon${isSwapped ? ' hs-beacon-swapped' : ''}`;
+    try { await this._compositor.setBase(this._currentPanorama); }
+    catch (e) { return; }
+    if (myGen !== this._loadGeneration) return;
 
-    // Composited element layer. The ONLY slot that may go without one is the slot
-    // the currently-loaded plate actually depicts; everything else must be drawn
-    // or the picture stops matching the quote.
-    const isBaked = this._composite?.bakedSlotId === slotId;
-    let prop = this._overlayEl.querySelector(`.hs-prop[data-slot-id="${slotId}"]`);
-    if (isBaked) {
-      if (prop) { prop.remove(); prop = null; }   // in the photograph already
-    } else {
-      if (!prop && item && slot) {
-        prop = this._createProp(slot, item, newItemId);
-        if (prop) this._overlayEl.appendChild(prop);
-      }
-      if (prop && item) {
-        this._applyPropArt(prop, slot, item, newItemId);
-        prop.classList.add('hs-prop-flash');
-        setTimeout(() => prop.classList.remove('hs-prop-flash'), 700);
-      }
-    }
-
+    this._lastSignature = this._signature(specs);
+    this._compositor.setLayers(specs);
+    await this._compositor.render();
+    if (myGen !== this._loadGeneration) return;
+    this.viewer?.markTextureDirty();
+    this._applyTimeOfDay();
     this._renderCompositeNotice();
-
-    card.classList.add('hs-card-flash');
-    setTimeout(() => card.classList.remove('hs-card-flash'), 600);
   }
 
   navigateToZoneWithZoom(targetZoneId, targetPitch, targetYaw) {
@@ -232,16 +313,20 @@ export class Viewer360 {
       if (this.onNavigateZone) this.onNavigateZone(targetZoneId);
       return;
     }
-
     try {
-      if (typeof this.viewer.setPitch === 'function') this.viewer.setPitch(targetPitch, 400);
-      if (typeof this.viewer.setYaw === 'function')   this.viewer.setYaw(targetYaw, 400);
-      if (typeof this.viewer.setHfov === 'function')  this.viewer.setHfov(60, 400);
+      this.viewer.setPitch(targetPitch, 400);
+      this.viewer.setYaw(targetYaw, 400);
+      this.viewer.setHfov(60, 400);
     } catch (e) {}
+    setTimeout(() => { if (this.onNavigateZone) this.onNavigateZone(targetZoneId); }, 420);
+  }
 
-    setTimeout(() => {
-      if (this.onNavigateZone) this.onNavigateZone(targetZoneId);
-    }, 420);
+  // ------------------------------------------------------------- hotspots
+
+  _buildOverlayLayer(zoneData) {
+    if (this._overlayEl?.parentNode) this._overlayEl.parentNode.removeChild(this._overlayEl);
+    this.container.style.position = 'relative';
+    this._overlayEl = this._buildOverlay(zoneData);
   }
 
   _buildOverlay(zoneData) {
@@ -249,23 +334,8 @@ export class Viewer360 {
     overlay.className = 'hs-overlay';
     overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:50;overflow:visible;';
 
-    // Composited element layers. Exactly ONE slot is baked into the loaded plate
-    // (`_composite.bakedSlotId`); every other slot is this overlay's job.
-    //
-    // The old test here was `hasSceneVariant(zone, slot, item)` — "does a plate
-    // exist for this item anywhere" — which suppressed the sprite for an element
-    // that was NOT in the plate currently on screen. That is what made a swapped
-    // podium vanish the moment the chairs were swapped.
-    zoneData.slots.forEach(slot => {
-      if (this._composite?.bakedSlotId === slot.id) return;
-      const selId = this.activeSelections.get(slot.id);
-      const item = getItemById(selId);
-      if (!item) return;
-      const prop = this._createProp(slot, item, selId);
-      if (prop) overlay.appendChild(prop);
-    });
-
-    // Item slot cards
+    // No prop sprites here any more. Decor lives in the panorama texture, which
+    // is the only place it can live and still be part of the picture.
     zoneData.slots.forEach(slot => {
       const selId   = this.activeSelections.get(slot.id);
       const item    = getItemById(selId);
@@ -302,7 +372,6 @@ export class Viewer360 {
       overlay.appendChild(card);
     });
 
-    // Navigation arrows
     if (zoneData.navLinks && zoneData.navLinks.length) {
       zoneData.navLinks.forEach(link => {
         const arrow = document.createElement('div');
@@ -336,55 +405,51 @@ export class Viewer360 {
     return overlay;
   }
 
-  /**
-   * Build one composited element layer for a slot, or null if there is no art.
-   *
-   * The layer is a billboard pinned at an angular anchor with an ANGULAR size.
-   * Its pixel geometry is recomputed every frame in `_updateCardPositions`, so
-   * it tracks pan and zoom exactly rather than sitting at a fixed CSS width.
-   */
-  _createProp(slot, item, itemId) {
-    const spec = overlaySpec(slot, item);
-    const propSrc = getPropImage(itemId, item?.imageUrl);
-    if (!propSrc || !spec) return null;
-    const prop = document.createElement('div');
-    prop.className = 'hs-prop';
-    prop.setAttribute('data-slot-id', slot.id);
-    prop.setAttribute('data-pitch', String(spec.anchorPitch));
-    prop.setAttribute('data-yaw', String(spec.anchorYaw));
-    // Angular height in radians: theta = 2*atan(h / 2D). Constant per item, so
-    // the per-frame cost is one tan().
-    prop.setAttribute('data-theta', String(angularHeight(spec.heightM, spec.distanceM)));
-    prop.style.cssText = 'display:none;position:absolute;pointer-events:none;';
-    // Sized from JS every frame, so the element must fill its measured box.
-    // (The stylesheet's fixed `clamp()` width is deliberately overridden here.)
-    prop.innerHTML = `
-      <img alt="" loading="lazy"
-           style="height:100%;width:auto;max-width:none;display:block;object-fit:contain;" />
-      <span class="hs-prop-tag" hidden
-            style="position:absolute;left:50%;bottom:-4px;transform:translate(-50%,100%);
-                   white-space:nowrap;font-size:11px;font-weight:700;letter-spacing:0.02em;
-                   padding:2px 8px;border-radius:999px;
-                   background:var(--surface-2, rgba(0,0,0,0.72));color:var(--text-primary, #fff);
-                   border:1px solid var(--accent, #f59e0b);"></span>`;
-    this._applyPropArt(prop, slot, item, itemId);
-    return prop;
+  /** Update one hotspot card in place. */
+  _refreshCard(slotId, newItemId, writingText) {
+    if (!this._overlayEl) return;
+    const card = this._overlayEl.querySelector(`.hs-card[data-slot-id="${slotId}"]`);
+    if (!card) return;
+
+    const item = getItemById(newItemId);
+    const slot = this.currentZone?.slots.find(s => s.id === slotId);
+    const isSwapped = slot && newItemId !== slot.defaultItemId;
+
+    const img = card.querySelector('.hs-card-img');
+    if (img && item?.imageUrl) { img.src = item.imageUrl; img.alt = item.name; }
+
+    const nameEl = card.querySelector('.hs-card-name');
+    if (nameEl && item) nameEl.textContent = item.name;
+
+    const priceEl = card.querySelector('.hs-card-price');
+    if (priceEl && item && slot) priceEl.textContent = formatMoney(Math.round(item.price * slot.quantity));
+
+    const writingEl = card.querySelector('.hs-card-writing');
+    if (writingText) {
+      if (writingEl) {
+        writingEl.textContent = `✍️ "${writingText}"`;
+      } else {
+        const info = card.querySelector('.hs-card-info');
+        if (info) {
+          const em = document.createElement('em');
+          em.className = 'hs-card-writing';
+          em.textContent = `✍️ "${writingText}"`;
+          info.appendChild(em);
+        }
+      }
+    }
+
+    const beacon = card.querySelector('.hs-beacon');
+    if (beacon) beacon.className = `hs-beacon${isSwapped ? ' hs-beacon-swapped' : ''}`;
+
+    card.classList.add('hs-card-flash');
+    setTimeout(() => card.classList.remove('hs-card-flash'), 600);
   }
 
-  /** Point an existing layer at a new item and label it honestly. */
-  _applyPropArt(prop, slot, item, itemId) {
-    const src = getPropImage(itemId, item?.imageUrl);
-    const img = prop.querySelector('img');
-    if (img && src) { img.src = src; img.alt = `${item.name} — composited preview`; }
-    const swapped = slot && itemId !== slot.defaultItemId;
-    prop.classList.toggle('hs-prop-swapped', Boolean(swapped));
-    const tag = prop.querySelector('.hs-prop-tag');
-    if (tag) {
-      tag.textContent = item?.name || '';
-      tag.hidden = !swapped;
-    }
-    const spec = overlaySpec(slot, item);
-    if (spec) prop.setAttribute('data-theta', String(angularHeight(spec.heightM, spec.distanceM)));
+  _refreshAllCards() {
+    this.currentZone?.slots.forEach(slot => {
+      this._refreshCard(slot.id, this.activeSelections.get(slot.id), this.customWriting.get(slot.id));
+    });
   }
 
   /**
@@ -396,19 +461,13 @@ export class Viewer360 {
   _renderCompositeNotice() {
     if (!this._overlayEl) return;
     let note = this._overlayEl.querySelector('.v360-composite-note');
-    const changed = unbakedChanges(this._composite);
+    const drawn = (this._compositor?._layers || []).map(l => getItemById(l.itemId)?.name).filter(Boolean);
 
-    const names = changed
-      .map(c => getItemById(c.itemId)?.name)
-      .filter(Boolean);
+    if (!drawn.length) { if (note) note.remove(); return; }
 
-    // Guard on what we can actually NAME, not on the raw change count: an item id
-    // that no longer resolves would otherwise render "0 changes are shown ... : ."
-    if (!names.length) { if (note) note.remove(); return; }
-
-    const text = names.length === 1
-      ? `${names[0]} is shown as a composited layer over this photograph — the room and the other elements are the real plate.`
-      : `${names.length} changes are shown as composited layers over this photograph: ${names.join(', ')}.`;
+    const text = drawn.length === 1
+      ? `${drawn[0]} is drawn into this photograph as a composited layer — the room and the other elements are the real plate.`
+      : `${drawn.length} changes are drawn into this photograph as composited layers: ${drawn.join(', ')}.`;
 
     if (!note) {
       note = document.createElement('div');
@@ -426,39 +485,25 @@ export class Viewer360 {
   }
 
   /**
-   * Exact rectilinear placement for every overlay element.
-   *
-   * Pannellum renders a perspective projection of the sphere, so the screen
-   * offset of an angular anchor goes as tan(), not linearly, and yaw and pitch
-   * are coupled through a 3D rotation. The previous implementation used
-   * `x = W/2 + (dYaw/halfHfov) * W/2` with `halfV = hfov*H/W/2`, which is only
-   * correct at the exact centre of the screen: at a quarter of the way to the
-   * edge it is off by ~70 px on a 1280 px viewport, and the vertical field of
-   * view it assumed was 56.25 deg where the true value is 67.7 deg. Cards and
-   * element layers visibly slid off their objects during a pan. See
-   * `panoProjection.js` for the derivation.
+   * Exact rectilinear placement for the hotspot cards and nav arrows.
+   * See `panoProjection.js` for the derivation; the camera here is the same
+   * rotation-only spherical camera the plates were shot with.
    */
   _updateCardPositions() {
-    if (!this.viewer || !this._overlayEl) return;
+    if (!this.viewer || this.viewer.destroyed || !this._overlayEl) return;
 
     const W = this.container.clientWidth  || 1;
     const H = this.container.clientHeight || 1;
 
     let cam;
     try {
-      cam = {
-        yaw:   this.viewer.getYaw()   ?? 0,
-        pitch: this.viewer.getPitch() ?? 0,
-        hfov:  this.viewer.getHfov()  ?? 100
-      };
+      cam = { yaw: this.viewer.getYaw(), pitch: this.viewer.getPitch(), hfov: this.viewer.getHfov() };
     } catch { return; }
 
-    // Cull generously in angle space so an element only partly on screen still
-    // renders (its centre can be outside the frustum while its body is inside).
     const halfH = cam.hfov / 2;
     const halfV = verticalFov(cam.hfov, W, H) / 2;
 
-    this._overlayEl.querySelectorAll('.hs-card, .nav-arrow-hotspot, .hs-prop').forEach(el => {
+    this._overlayEl.querySelectorAll('.hs-card, .nav-arrow-hotspot').forEach(el => {
       const hp = parseFloat(el.getAttribute('data-pitch'));
       const hy = parseFloat(el.getAttribute('data-yaw'));
       if (Number.isNaN(hp) || Number.isNaN(hy)) return;
@@ -468,12 +513,7 @@ export class Viewer360 {
       while (dYaw < -180) dYaw += 360;
 
       const proj = projectAnchor(hy, hp, cam, W, H);
-      const isProp = el.classList.contains('hs-prop');
-      const margin = isProp ? 30 : 25;
-
-      if (!proj.visible
-          || Math.abs(dYaw) > halfH + margin
-          || Math.abs(hp - cam.pitch) > halfV + margin) {
+      if (!proj.visible || Math.abs(dYaw) > halfH + 25 || Math.abs(hp - cam.pitch) > halfV + 25) {
         el.style.display = 'none';
         return;
       }
@@ -481,21 +521,9 @@ export class Viewer360 {
       el.style.display = 'block';
       el.style.left = `${proj.x}px`;
       el.style.top  = `${proj.y}px`;
-
-      if (isProp) {
-        // Angular size -> exact pixel size for this zoom level. Zooming in now
-        // grows the element with the room, which a fixed CSS width never did.
-        const theta = parseFloat(el.getAttribute('data-theta')) || 0.15;
-        const px = pixelHeight(theta, proj);
-        el.style.height = `${px}px`;
-        el.style.width  = 'auto';
-        // Anchored at the element's centre, matching `overlaySpec`.
-        el.style.transform = 'translate(-50%, -50%)';
-      } else {
-        el.style.transform = el.classList.contains('hs-card')
-          ? 'translate(-50%, -100%)'
-          : 'translate(-50%, -50%)';
-      }
+      el.style.transform = el.classList.contains('hs-card')
+        ? 'translate(-50%, -100%)'
+        : 'translate(-50%, -50%)';
     });
   }
 
@@ -512,104 +540,85 @@ export class Viewer360 {
 
   _stopLoop() {
     this._positionLoopActive = false;
-    if (this._loopId) {
-      cancelAnimationFrame(this._loopId);
-      this._loopId = null;
-    }
+    if (this._loopId) { cancelAnimationFrame(this._loopId); this._loopId = null; }
   }
 
-  _destroyViewer() {
+  _teardownViewer() {
     this._stopLoop();
-    if (this._overlayTimer) {
-      clearTimeout(this._overlayTimer);
-      this._overlayTimer = null;
-    }
-    if (this._overlayEl?.parentNode) {
-      this._overlayEl.parentNode.removeChild(this._overlayEl);
-      this._overlayEl = null;
-    }
-    if (this.viewer) {
-      try { this.viewer.destroy(); } catch (e) {}
-      this.viewer = null;
-    }
+    if (this._overlayEl?.parentNode) this._overlayEl.parentNode.removeChild(this._overlayEl);
+    if (this.viewer) { try { this.viewer.destroy(); } catch (e) {} this.viewer = null; }
   }
+
+  /** Release the WebGL context and every cached patch. */
+  dispose() {
+    this._loadGeneration++;
+    this._teardownViewer();
+    this._overlayEl = null;
+    this._compositor?.dispose();
+    this._compositor = null;
+  }
+
+  // ------------------------------------------------------------ view state
 
   /**
    * Explicitly set auto-rotation. The guided tour needs to turn rotation ON
    * regardless of the current state, which `toggleAutoRotate()` cannot do.
-   * @param {boolean} on
-   * @returns {boolean} the resulting state
    */
   setAutoRotate(on) {
     this.autoRotate = Boolean(on);
-    if (!this.viewer) return this.autoRotate;
+    if (!this.viewer || this.viewer.destroyed) return this.autoRotate;
     try {
-      if (this.autoRotate) {
-        if (typeof this.viewer.startAutoRotate === 'function') this.viewer.startAutoRotate(-2);
-      } else if (typeof this.viewer.stopAutoRotate === 'function') {
-        this.viewer.stopAutoRotate();
-      }
-    } catch (e) { /* viewer torn down mid-flight */ }
+      if (this.autoRotate) this.viewer.startAutoRotate(-2);
+      else this.viewer.stopAutoRotate();
+    } catch (e) {}
     return this.autoRotate;
   }
 
-  toggleAutoRotate() {
-    return this.setAutoRotate(!this.autoRotate);
-  }
+  toggleAutoRotate() { return this.setAutoRotate(!this.autoRotate); }
 
-  /**
-   * Soft day/night grade over the panorama canvas (CSS filter).
-   * The key is remembered and re-applied after every zone load / element swap,
-   * because Pannellum builds a brand new <canvas> each time.
-   */
+  /** Soft day/night grade over the panorama canvas (CSS filter). */
   setTimeOfDay(timeKey = 'day') {
     this._timeKey = timeKey || 'day';
     this._applyTimeOfDay();
     return this._timeKey;
   }
 
-  /** Current time-of-day key, so callers can restore UI state. */
-  getTimeOfDay() {
-    return this._timeKey;
-  }
+  getTimeOfDay() { return this._timeKey; }
 
   _applyTimeOfDay() {
-    const timeKey = this._timeKey;
-    const canvas = this.container?.querySelector('canvas')
-      || this.container?.querySelector('.v360-fallback-img')
-      || this.container;
-    if (!canvas) return;
+    const target = this.viewer?.canvas
+      || this.container?.querySelector('canvas')
+      || this.container?.querySelector('.v360-fallback-img');
+    if (!target) return;
     const filters = {
       dawn: 'brightness(0.95) saturate(1.15) hue-rotate(-8deg)',
       day: 'none',
       dusk: 'brightness(0.85) saturate(1.25) hue-rotate(12deg)',
       night: 'brightness(0.55) saturate(0.85) contrast(1.1)'
     };
-    canvas.style.filter = filters[timeKey] || filters.day;
-    canvas.style.transition = 'filter 0.6s ease';
+    target.style.filter = filters[this._timeKey] || filters.day;
+    target.style.transition = 'filter 0.6s ease';
   }
 
   /**
-   * Pannellum is loaded from a CDN. When that fails (blocked network, CSP,
-   * offline demo) we still show the venue photo, but we say plainly that this
-   * is a flat still and not the interactive 360 view — silently degrading to a
-   * photo while the UI still promises "360°" is exactly the kind of claim this
+   * The 3D engine could not start — no WebGL, or the module failed to load. We
+   * still show the venue photo, but we say plainly that this is a flat still
+   * and not the interactive 360 view, because silently degrading to a photo
+   * while the UI still promises "360°" is exactly the kind of claim this
    * product cannot afford to get caught making.
    */
   _loadFallback(panoramaUrl, zoneData) {
-    this._engineFailed = true;
     this._showEngineError(
       '360° engine unavailable — showing a flat still',
-      'The Pannellum viewer could not be loaded (network, firewall or ad-blocker). '
-        + 'Panning, hotspots and live swaps are disabled until it loads. Reconnect and reload to restore them.',
-      panoramaUrl,
-      zoneData
-    );
+      'The 3D viewer could not start (WebGL is disabled or unsupported in this browser). '
+        + 'Panning, hotspots and live swaps are disabled until it is available.',
+      panoramaUrl, zoneData);
   }
 
   /** Visible, accessible failure state layered over the still image. */
   _showEngineError(title, detail, panoramaUrl, zoneData) {
-    this._stopLoop();
+    this._engineFailed = true;
+    this._teardownViewer();
     this.container.innerHTML = `
       <div class="v360-error" style="position:relative;width:100%;height:100%;background:#090a0f;overflow:hidden;">
         <img class="v360-fallback-img" src="${escapeHtml(panoramaUrl || '')}"
@@ -650,6 +659,6 @@ export class Viewer360 {
 
   /** True when the 360 engine failed and the viewer is showing a flat still. */
   isEngineAvailable() {
-    return !this._engineFailed && Boolean(this.viewer);
+    return !this._engineFailed && Boolean(this.viewer) && !this.viewer.destroyed;
   }
 }

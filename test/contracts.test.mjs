@@ -344,3 +344,158 @@ test('a resolved plate always belongs to its own zone', async () => {
     }
   }
 });
+
+// ------------------------------------------------------------------ CRM money
+// Appended by the CRM work. These cover the India-specific arithmetic that,
+// if wrong, makes every corporate deal in the book look permanently unpaid.
+
+test('TDS is deducted on the EX-GST base, not the gross', async () => {
+  const { computeTds, expectedRemittance } = await import('../src/crm/finance.js');
+  // ₹10,00,000 ex-GST, 194C, company payee => 2%.
+  assert.equal(computeTds(1000000, '194C', 'company'), 20000);
+  // Individual/HUF payees are deducted at 1%, not 2%.
+  assert.equal(computeTds(1000000, '194C', 'individual_huf'), 10000);
+  // 194J professional fee is 10%.
+  assert.equal(computeTds(1000000, '194J'), 100000);
+  // Deducting on the GROSS would give 2% of 11,80,000 = 23,600. It must not.
+  const r = expectedRemittance(1000000, { placeOfSupplyCode: '36', tdsSection: '194C' });
+  assert.equal(r.tds, 20000);
+  assert.notEqual(r.tds, 23600);
+});
+
+test('a corporate deal settled net of TDS shows ZERO outstanding', async () => {
+  const { dealFinancials } = await import('../src/crm/finance.js');
+  // ₹10,00,000 + 18% = ₹11,80,000. Client withholds ₹20,000 (194C @2% of the
+  // ex-GST base) and transfers ₹11,60,000. The deal is FULLY SETTLED.
+  const deal = { id: 'd1', quotedValue: 1000000, discount: 0, stage: 'delivered',
+    venue: { stateCode: '36' }, eventDates: [{ date: '2026-08-01' }] };
+  const client = { id: 'c1', billing: { tdsApplicable: true, tdsSection: '194C', tdsDeducteeType: 'company', placeOfSupply: '36' } };
+  const milestones = [{ id: 'm1', dealId: 'd1', sequence: 1, label: 'Full', percent: 100, amountDue: 1000000, dueRule: 'on_booking', dueDate: '2026-07-01' }];
+  const receipts = [{ id: 'r1', dealId: 'd1', clientId: 'c1', amount: 1160000, tdsDeducted: 20000,
+    tdsSection: '194C', receivedOn: '2026-08-10', allocations: [{ milestoneId: 'm1', amount: 1160000, tds: 20000 }] }];
+
+  const fin = dealFinancials(deal, client, milestones, receipts, [], '2026-09-13');
+  assert.equal(fin.contractGross, 1180000);
+  assert.equal(fin.received, 1160000);
+  assert.equal(fin.tdsWithheld, 20000);
+  assert.equal(fin.outstanding, 0, 'outstanding must be invoiced − received − tdsWithheld');
+  assert.equal(fin.fullySettled, true);
+  assert.equal(fin.collectionPct, 100);
+  assert.equal(fin.milestones[0].balance, 0);
+  assert.equal(fin.milestones[0].status, 'paid');
+  assert.equal(fin.overdue, 0, 'a TDS-settled milestone must never age into the overdue bucket');
+});
+
+test('place of supply is the VENUE state, so an out-of-state client can still be intra-state', async () => {
+  const { dealFinancials, placeOfSupplyFor } = await import('../src/crm/finance.js');
+  // Client registered in Karnataka (29); event at HICC Hyderabad (36). Supplier
+  // is Telangana, so this is INTRA-state: CGST + SGST, never IGST.
+  const client = { id: 'c', billing: { placeOfSupply: '29', address: { stateCode: '29' } } };
+  const deal = { id: 'd', quotedValue: 1000000, discount: 0, venue: { stateCode: '36' }, eventDates: [] };
+  assert.equal(placeOfSupplyFor(deal, client), '36');
+  const fin = dealFinancials(deal, client, [], [], []);
+  assert.equal(fin.gstMode, 'intra');
+  assert.equal(fin.gst.cgst + fin.gst.sgst, 180000);
+  assert.equal(fin.gst.igst, 0);
+
+  // Same client, venue in Rajasthan => inter-state => IGST only.
+  const away = dealFinancials({ ...deal, venue: { stateCode: '08' } }, client, [], [], []);
+  assert.equal(away.gstMode, 'inter');
+  assert.equal(away.gst.igst, 180000);
+  assert.equal(away.gst.cgst + away.gst.sgst, 0);
+});
+
+test('a milestone schedule always re-sums to the contract value exactly', async () => {
+  const { buildMilestones } = await import('../src/crm/finance.js');
+  const { MILESTONE_TEMPLATES } = await import('../src/crm/schema.js');
+  const deal = { createdAt: '2026-01-01', eventDates: [{ date: '2026-06-10' }, { date: '2026-06-12' }] };
+  for (const template of MILESTONE_TEMPLATES) {
+    for (const net of [1000000, 333333, 2750001, 87]) {
+      const rows = buildMilestones(template, deal, net);
+      const sum = rows.reduce((a, r) => a + r.amountDue, 0);
+      assert.equal(sum, net, `${template.id} @ ${net} lost or invented rupees in rounding`);
+      assert.equal(rows.reduce((a, r) => a + r.percent, 0), 100, `${template.id} percentages must total 100`);
+    }
+  }
+});
+
+test('a vendor payout is four numbers: gross, GST, TDS, net', async () => {
+  const { vendorPayout } = await import('../src/crm/finance.js');
+  const p = vendorPayout({ gross: 1000000, gstRate: 18, tdsSection: '194C', deducteeType: 'company' });
+  assert.equal(p.gross, 1000000);
+  assert.equal(p.gst, 180000);
+  assert.equal(p.inputCredit, 180000, 'vendor GST is reclaimable input credit, not a sunk cost');
+  assert.equal(p.tds, 20000);
+  assert.equal(p.net, 1160000);
+  // An individual/HUF tent house is deducted at 1%.
+  const huf = vendorPayout({ gross: 1000000, gstRate: 18, tdsSection: '194C', deducteeType: 'individual_huf' });
+  assert.equal(huf.tds, 10000);
+});
+
+test('receivables split upcoming from overdue and never merge them', async () => {
+  const { receivables } = await import('../src/crm/finance.js');
+  const today = '2026-09-13';
+  const client = { id: 'c', billing: {} };
+  const deal = { id: 'd', clientId: 'c', stage: 'delivered', quotedValue: 200000, discount: 0,
+    venue: { stateCode: '36' }, eventDates: [{ date: '2026-05-01' }] };
+  const milestones = [
+    { id: 'm1', dealId: 'd', sequence: 1, label: 'Advance', percent: 50, amountDue: 100000, dueDate: '2026-03-01', dueRule: 'on_booking' },
+    { id: 'm2', dealId: 'd', sequence: 2, label: 'Balance', percent: 50, amountDue: 100000, dueDate: '2026-12-01', dueRule: 'days_after_event' }
+  ];
+  const r = receivables([deal], [client], milestones, [], [], today);
+  assert.equal(r.overdue.length, 1);
+  assert.equal(r.upcoming.length, 1);
+  assert.equal(r.overdue[0].bucket, '90+', '2026-03-01 is more than 90 days before 2026-09-13');
+  assert.equal(r.totalOverdue, 118000);
+  assert.equal(r.totalUpcoming, 118000);
+  const bucketSum = Object.values(r.buckets).reduce((a, b) => a + b, 0);
+  assert.equal(bucketSum, r.totalOverdue, 'the ageing buckets must account for every overdue rupee');
+});
+
+test('the seeded book is believable and internally consistent', async () => {
+  const { seedCrm } = await import('../src/crm/seed.js');
+  const { dealFinancials, receivables } = await import('../src/crm/finance.js');
+  const s = seedCrm();
+  assert.ok(s.clients.length >= 10, 'the demo book needs enough clients to look real');
+  assert.ok(s.deals.length >= 10);
+
+  // Every client carries a source — the field the research calls the most
+  // forgotten and the least recoverable.
+  for (const c of s.clients) assert.ok(c.source, `${c.name} has no acquisition source`);
+
+  // Multi-day is represented, not just single-date events.
+  assert.ok(s.deals.some(d => (d.eventDates || []).length >= 3), 'no multi-day event in the seed');
+  assert.ok(s.deals.some(d => (d.functions || []).length >= 5), 'no five-function wedding in the seed');
+
+  // All three segments and both terminal money states are present.
+  for (const cat of ['wedding', 'corporate', 'political']) {
+    assert.ok(s.deals.some(d => d.category === cat), `no ${cat} deal in the seed`);
+  }
+  assert.ok(s.deals.some(d => d.stage === 'cancelled'), 'cancelled is a distinct state and must be demonstrated');
+  assert.ok(s.deals.some(d => d.stage === 'lost'));
+
+  // Exactly the TDS case: a corporate deal fully settled by a SHORT bank credit.
+  const clientById = new Map(s.clients.map(c => [c.id, c]));
+  const tdsSettled = s.deals
+    .map(d => ({ d, fin: dealFinancials(d, clientById.get(d.clientId), s.milestones, s.receipts, s.invoices) }))
+    .filter(x => x.fin.tdsWithheld > 0 && x.fin.fullySettled && x.fin.received < x.fin.contractGross);
+  assert.ok(tdsSettled.length >= 1, 'the seed must contain a corporate deal settled net of TDS');
+
+  // And at least one genuinely aged receivable, or the ageing table is theatre.
+  const r = receivables(s.deals, s.clients, s.milestones, s.receipts, s.invoices);
+  assert.ok(r.totalOverdue > 0, 'the seed must contain a real overdue receivable');
+  assert.ok(r.buckets['90+'] > 0, 'the seed must exercise the 90+ ageing bucket');
+});
+
+test('no stored financial totals — every rupee is derived', async () => {
+  const { makeMilestone, makeDeal } = await import('../src/crm/schema.js');
+  const milestone = makeMilestone({ dealId: 'd', amountDue: 100000 });
+  for (const forbidden of ['status', 'amountReceived', 'balance', 'gstAmount', 'amountDueGross']) {
+    assert.ok(!(forbidden in milestone),
+      `PaymentMilestone must not store "${forbidden}" — a stored balance is a stale balance`);
+  }
+  const deal = makeDeal({ quotedValue: 100000 });
+  for (const forbidden of ['netValue', 'grossValue', 'outstanding', 'received', 'margin']) {
+    assert.ok(!(forbidden in deal), `Deal must not store "${forbidden}" — it is derived in finance.js`);
+  }
+});

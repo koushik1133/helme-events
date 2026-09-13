@@ -13,6 +13,12 @@ import { ApiService } from './services/apiService.js';
 import { K as STORAGE_KEYS, loadRaw, saveRaw } from './services/storage.js';
 import { formatMoney, formatNumber, escapeHtml } from './utils/format.js';
 
+// Roles & personas. `session` is observable in the same style as eventState.
+import { session } from './auth/session.js';
+import { SignInScreen } from './components/SignInScreen.js';
+import { RoleBadge } from './components/RoleBadge.js';
+import { RolesMatrixScreen } from './components/RolesMatrixScreen.js';
+
 // Original Components
 import { InteractiveMap } from './components/InteractiveMap.js';
 import { ItemSwapperModal } from './components/ItemSwapperModal.js';
@@ -89,6 +95,46 @@ class Event360App {
 
     // Restore asynchronously — first paint must never wait on the API probe.
     this.restoreSavedState();
+
+    this.initAuth();
+  }
+
+  /**
+   * Personas. There is no authentication here — no backend, nothing secured. This
+   * chooses a VIEW of the workspace rather than granting access to it, and the app
+   * says so permanently in the footer. See docs/roles.md.
+   */
+  initAuth() {
+    this.rolesScreen = new RolesMatrixScreen(document.getElementById('rolesMatrixContainer'));
+    this.signInScreen = new SignInScreen(
+      document.getElementById('signInContainer'),
+      () => this.onPersonaChanged()
+    );
+    this.signInScreen.onShowRoles = () => this.rolesScreen.open();
+
+    this.roleBadge = new RoleBadge(document.getElementById('roleBadgeSlot'), {
+      onSwitch: (user) => {
+        this.onPersonaChanged();
+        this.showToast(`Now viewing as ${user.name}`);
+      },
+      onShowRoles: () => this.rolesScreen.open(),
+      onSignOut: () => this.signInScreen.open()
+    });
+    this.roleBadge.mount();
+
+    if (!session.isSignedIn()) this.signInScreen.open();
+    else this.onPersonaChanged();
+  }
+
+  /**
+   * Repaint whatever depends on who is signed in. Permission checks deliberately
+   * do NOT live here — call `can(...)` at the point of render so the rule stays in
+   * one table rather than being duplicated per surface.
+   */
+  onPersonaChanged() {
+    this.roleBadge?.render();
+    // `activeSection` is this shell's field name; setSection is idempotent.
+    this.setSection(this.activeSection || loadRaw('helm.v1.section', 'home'));
   }
 
   /**
@@ -835,6 +881,10 @@ class Event360App {
       this.indiaSubBar?.classList.add('hidden');
       this.featureToolbarOpen = false;
     }
+
+    // Lets the stylesheet scope studio-only chrome (the live quotation card)
+    // without every component needing to know about sections.
+    document.body.setAttribute('data-section', target);
 
     this.renderSection(target);
     saveRaw(STORAGE_KEYS.section || 'helm.v1.section', target);

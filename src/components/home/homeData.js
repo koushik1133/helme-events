@@ -190,9 +190,26 @@ export function buildHomeModel(deps = {}) {
 
 /* ---------------------------------------------------------- derivations */
 
+/** A workspace with nothing in it at all — deserves onboarding, not "all clear". */
+export function isFresh(model) {
+  return !model.deals.length && !model.clients.length;
+}
+
 export function clientName(model, deal) {
   const c = deal && model.clientById.get(deal.clientId);
   return (c && c.name) || (deal && deal.clientName) || 'Unnamed client';
+}
+
+/**
+ * "Client — Event title", without saying the client's name twice when the
+ * title already carries it (real titles often do: "Reddy Wedding — full").
+ */
+export function dealHeading(model, deal) {
+  const client = clientName(model, deal);
+  const title = String((deal && deal.title) || '').trim();
+  if (!title) return client;
+  if (title.toLowerCase().startsWith(client.toLowerCase())) return title;
+  return `${client} — ${title}`;
 }
 
 export function dealValue(deal) {
@@ -353,9 +370,22 @@ export function calendarStrip(model, { includeMoney = false, days = 7 } = {}) {
   return out;
 }
 
-/** Newest-first activity, capped. */
+const MONEY_KINDS = ['payment', 'receipt', 'invoice', 'refund', 'quote', 'proposal_value'];
+const MONEY_TEXT = /₹|\bINR\b|invoice|receipt|payment|paid|refund/i;
+
+/**
+ * Newest-first activity, capped — and scrubbed of money for roles that must
+ * not see it. Without this the Event Manager home leaks "Recorded ₹11,58,000"
+ * into the activity feed, which defeats the whole point of that screen.
+ */
 export function recentActivity(model, limit = 6) {
+  const showMoney = model.can('view_financials');
   return [...model.activity]
+    .filter(a => {
+      if (showMoney) return true;
+      if (a && MONEY_KINDS.includes(String(a.kind || '').toLowerCase())) return false;
+      return !MONEY_TEXT.test(String((a && (a.text || a.label)) || ''));
+    })
     .sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))
     .slice(0, limit);
 }
