@@ -594,6 +594,17 @@ export class CustomEventBriefWizard {
     return 'reception';
   }
 
+  /** The three political concepts are shared; lead with the one that matches
+   *  the chosen sub-type so the heading and the first card agree. */
+  orderConcepts(list) {
+    if (this.conceptKey() !== 'political') return list;
+    const lead = { rally: 0, town_hall: 1, press_conf: 2 }[this.formData.subCategory] ?? 0;
+    if (lead === 0) return list;
+    const reordered = [list[lead], ...list.filter((_, i) => i !== lead)];
+    // Keep concept-1 / -2 / -3 as the positional ids the selection state uses.
+    return reordered.map((c, i) => ({ ...c, id: `concept-${i + 1}` }));
+  }
+
   /**
    * Zone data is owned elsewhere and its allow-lists can change. Never hand
    * the editor an item a slot will not accept — fall back to the slot default.
@@ -613,7 +624,7 @@ export class CustomEventBriefWizard {
   generateSubEventConcepts() {
     const key = this.conceptKey();
     // Deep-ish clone so keyword overrides never mutate the library.
-    const concepts = CONCEPT_LIBRARY[key].map(c => ({ ...c, selections: { ...c.selections } }));
+    const concepts = this.orderConcepts(CONCEPT_LIBRARY[key]).map(c => ({ ...c, selections: { ...c.selections } }));
 
     const raw = String(this.formData.aiPrompt || '').trim();
     if (!raw) {
@@ -1060,7 +1071,7 @@ export class CustomEventBriefWizard {
         <div class="ai-prompt-bar-box">
           <div class="ai-prompt-input-row">
             <span class="ai-sparkle-icon" aria-hidden="true">🎨</span>
-            <label class="sr-only" for="aiPromptInput">Style keywords</label>
+            <label style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;" for="aiPromptInput">Style keywords</label>
             <input type="text" id="aiPromptInput" class="ai-prompt-input"
                    placeholder="Style keywords, e.g. 'deep violet lighting, marigold entrance, red carpet'"
                    value="${escapeHtml(f.aiPrompt)}" />

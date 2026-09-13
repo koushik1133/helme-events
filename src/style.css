@@ -278,7 +278,8 @@ body {
   background-color: var(--bg-app);
   color: var(--text-main);
   overflow-x: hidden;
-  height: 100vh;
+  height: 100vh;      /* fallback */
+  height: 100dvh;     /* mobile Safari's collapsing toolbar */
   display: flex;
   flex-direction: column;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -2608,7 +2609,7 @@ body {
 }
 
 /* Modals Content */
-.modal-content, .theme-designer-modal, .compare-modal, .collab-modal, .style-lib-modal, .vendor-modal, .vendor-modal-content, .notes-modal, .qr-modal, .brief-modal, .budget-modal, .contract-modal, .invoice-modal, .walkthrough-modal, .moodboard-modal {
+.modal-content, .modal-card, .theme-designer-modal, .compare-modal, .collab-modal, .style-lib-modal, .vendor-modal, .vendor-modal-content, .notes-modal, .qr-modal, .brief-modal, .budget-modal, .contract-modal, .invoice-modal, .walkthrough-modal, .moodboard-modal {
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -2888,7 +2889,8 @@ body {
   color: var(--text-main);
   margin-top: 12px;
 }
-.collab-users { display: flex; gap: -8px; }
+.collab-users { display: flex; gap: 0; } /* was an invalid `gap: -8px` */
+.collab-users > * + * { margin-left: -8px; }
 
 /* Calendar */
 .cal-day {
@@ -3174,6 +3176,7 @@ body {
   /* Modals */
   .swapper-modal-card,
   .modal-content,
+  .modal-card,
   .style-lib-modal,
   .invoice-modal,
   .budget-modal,
@@ -3761,7 +3764,10 @@ body {
   z-index: var(--z-modal);
 }
 
-#threeDEditorContainer:empty {
+/* `:empty` breaks on a stray whitespace text node; guard on content instead. */
+#threeDEditorContainer:empty,
+#threeDEditorContainer.hidden,
+#threeDEditorContainer:not(:has(*)) {
   display: none;
 }
 
@@ -3811,6 +3817,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   background: var(--scrim);
   backdrop-filter: blur(25px) saturate(180%);
   -webkit-backdrop-filter: blur(25px) saturate(180%);
@@ -3890,8 +3897,24 @@ body {
 .three-editor-workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: 260px 1fr 280px;
+  grid-template-columns: 260px minmax(0, 1fr) 280px;
   height: calc(100% - 65px);
+  min-height: 0;
+}
+
+/* Without min-width/min-height:0 a grid or flex child sizes to its CONTENT
+   minimum — the WebGL canvas then pushed the right-hand inspector off-screen. */
+.three-editor-workspace > * {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.three-editor-workspace canvas,
+.editor-canvas-area canvas,
+.seating-canvas-container canvas {
+  max-width: 100%;
+  display: block;
 }
 
 /* Left Sidebar */
@@ -5921,3 +5944,560 @@ body {
 }
 
 
+
+
+/* ==========================================================================
+   16. PREVIOUSLY UNSTYLED COMPONENT CLASSES
+   Every rule below covers a class that JS templates emit but the stylesheet
+   had no selector for, so the markup rendered with browser defaults.
+   ========================================================================== */
+
+/* ── Shared modal chrome (used by WeatherSimulator and friends) ──────────── */
+.modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.modal-badge {
+  align-self: flex-start;
+  background: var(--tint-indigo);
+  color: var(--accent-indigo);
+  border: 1px solid var(--border-indigo);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 10px;
+  text-transform: uppercase;
+}
+
+.modal-close-btn,
+.notif-close-btn {
+  background: var(--glass-1);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: var(--fs-xl);
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.modal-close-btn:hover,
+.notif-close-btn:hover {
+  background: var(--glass-hover);
+  color: var(--text-main);
+}
+
+.modal-desc {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-4);
+  line-height: 1.5;
+}
+
+/* ── Weather & Time-of-Day Simulator ─────────────────────────────────────── */
+.weather-modal-card {
+  max-width: 680px;
+}
+
+.weather-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.weather-opt-card {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: var(--transition-fast);
+}
+
+.weather-opt-card:hover {
+  border-color: var(--accent-indigo);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.weather-opt-card.active {
+  border-color: var(--accent-gold);
+  background: var(--tint-gold);
+}
+
+.weather-opt-card strong {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.weather-opt-card small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.weather-icon {
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+}
+
+.weather-suggestion-banner {
+  display: none;
+  margin-top: var(--space-4);
+  background: var(--tint-gold);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-ms);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.weather-suggestion-banner.show { display: block; }
+
+/* ── Notification centre header & item text ─────────────────────────────── */
+.notif-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.notif-bell-icon { font-size: var(--fs-lg); }
+
+.notif-actions-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.n-title {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.n-msg {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.n-time {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+}
+
+/* ── Interactive map overlay plumbing ───────────────────────────────────── */
+.map-canvas-container { position: relative; }
+
+.dots-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dots-overlay > * { pointer-events: auto; }
+
+.btn-launch {
+  width: 100%;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-launch:hover { background: var(--btn-primary-hover); }
+
+/* ── n8n AI Ops containers ──────────────────────────────────────────────── */
+.n8n-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.n8n-tab-content,
+.flow-tab-container,
+.simulator-tab-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.type-1-card,
+.type-2-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-indigo);
+  border-radius: var(--radius-ms);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+
+.type-2-card { border-left-color: var(--accent-gold); }
+
+.badge-icon { font-size: var(--fs-md); line-height: 1; }
+
+.roi-list { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* ── 3D editor header split ─────────────────────────────────────────────── */
+.header-left,
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.inspector-cost {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+/* ── Inventory tracker ──────────────────────────────────────────────────── */
+.inventory-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.inv-adj {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  border-radius: var(--radius-xs);
+  width: 26px;
+  height: 26px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.inv-adj:hover { background: var(--bg-surface-hover); border-color: var(--border-strong); }
+
+/* ── Empty states — a blank panel is a defect ───────────────────────────── */
+.cart-empty-state,
+.cost-empty-state,
+.proposals-empty-state,
+.venue-menu-empty,
+.nav-search-empty,
+.ism-empty,
+.n-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.ism-empty-icon { font-size: var(--fs-3xl); opacity: 0.7; }
+
+/* ── Error / warning surfaces ───────────────────────────────────────────── */
+.payment-error-box,
+.wizard-field-error,
+.v360-error {
+  background: var(--tint-rose);
+  border: 1px solid var(--accent-rose);
+  color: var(--accent-rose);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.v360-error {
+  position: absolute;
+  inset: auto 50% 16px auto;
+  transform: translateX(50%);
+  z-index: var(--z-hud);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.v360-error-retry {
+  background: var(--solid-rose);
+  color: var(--on-rose);
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v360-fallback-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.demo-banner {
+  background: var(--tint-gold);
+  border: 1px solid var(--border-gold);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+/* ── Small utilities the templates assume exist ─────────────────────────── */
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.text-muted { color: var(--text-muted); }
+.text-gold { color: var(--accent-gold); }
+.muted { color: var(--text-muted); }
+.badge-inr {
+  background: var(--tint-emerald);
+  color: var(--accent-emerald);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   17. KEYBOARD ACCESSIBILITY
+   ========================================================================== */
+
+/* One visible focus treatment for every interactive element. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
+}
+
+/* The zone card used to reveal only on :hover, which made its
+   "Enter 360° Studio" button unreachable by keyboard and invisible on touch. */
+.photo-zone-card:focus-within,
+.map-zone-card:focus-within,
+.photo-node-wrapper:focus-within .photo-zone-card,
+.map-dot-wrapper:focus-within .photo-zone-card {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ==========================================================================
+   18. MOTION PREFERENCES
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Element-level kill switch for the infinite loops, including the ones whose
+     keyframes are injected from JS (ARQRGenerator `pulse`, WeatherSimulator
+     `rainDrop`) — those set the shorthand inline, so the properties above are
+     restated here at the same !important weight. */
+  .beacon,
+  .pulse-beacon,
+  .hs-beacon,
+  .hs-beacon-swapped,
+  .hs-beacon-dot,
+  .hs-dot-wrapper::before,
+  .nav-arrow-hotspot,
+  .nav-arrow-pulse,
+  .nav-arrow-chevron,
+  .rain-overlay,
+  [class*="rain"],
+  [style*="rainDrop"],
+  [style*="pulse 2s"] {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   19. PRINT
+   Four buttons in this app call window.print(). Without this block they print
+   the live dark UI — black pages, navigation chrome, floating overlays.
+   ========================================================================== */
+
+@media print {
+  :root,
+  [data-theme="dark"],
+  [data-theme="light"] {
+    --bg-app: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-surface-hover: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-nav: #ffffff;
+    --bg-input: #ffffff;
+    --bg-pill: #ffffff;
+    --bg-panel: #ffffff;
+    --bg-media: #eeeeee;
+    --bg-over-media: #ffffff;
+    --bg-terminal: #ffffff;
+    --text-terminal: #000000;
+    --glass-1: transparent;
+    --glass-2: transparent;
+    --glass-3: transparent;
+    --glass-hover: transparent;
+    --scrim: #ffffff;
+    --scrim-soft: #ffffff;
+    --border-subtle: #cccccc;
+    --border-strong: #999999;
+    --border-glass: #cccccc;
+    --border-terminal: #cccccc;
+    --text-main: #000000;
+    --text-muted: #333333;
+    --text-dim: #444444;
+    --text-on-media: #000000;
+    --text-on-media-dim: #333333;
+    --shadow-card: none;
+    --shadow-lg: none;
+    --shadow-panel: none;
+    --tint-gold: transparent;
+    --tint-indigo: transparent;
+    --tint-emerald: transparent;
+    --tint-rose: transparent;
+    --tint-sky: transparent;
+    --tint-violet: transparent;
+  }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body { display: block !important; }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Chrome that must never reach paper */
+  .app-navbar,
+  .feature-toolbar,
+  .india-sub-bar,
+  .hud-top-bar,
+  .hud-bottom-bar,
+  .hud-inventory-drawer,
+  .cost-card-wrapper,
+  .notification-panel,
+  .preset-popover-menu,
+  .toast-container,
+  .dots-overlay,
+  .hs-overlay,
+  .viewer360-hotspot-overlay,
+  .nav-arrow-hotspot,
+  .modal-footer,
+  .modal-close-btn,
+  .ism-close,
+  .ism-footer,
+  #threeDEditorContainer,
+  #colorThemeContainer {
+    display: none !important;
+  }
+
+  /* A modal being printed is the document — unpin it and let it flow. */
+  .modal-overlay,
+  .modal-backdrop,
+  .ism-overlay,
+  .cart-modal-overlay,
+  .custom-brief-modal-overlay {
+    position: static !important;
+    display: block !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+
+  .modal-content,
+  .modal-card,
+  .ism-panel,
+  .invoice-modal,
+  .contract-modal,
+  .brief-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .view-section.hidden { display: none !important; }
+  .view-section.active { display: block !important; overflow: visible !important; }
+
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.7em; color: #555555; }
+
+  table, figure, .invoice-row, .contract-clause { break-inside: avoid; }
+  h1, h2, h3, h4 { break-after: avoid; }
+}

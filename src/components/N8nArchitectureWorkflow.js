@@ -797,7 +797,7 @@ export class N8nArchitectureWorkflow {
             </div>
 
             <table style="${TABLE_STYLE}">
-              <caption class="sr-only">Traditional coordination cost lines</caption>
+              <caption style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;">Traditional coordination cost lines</caption>
               <thead>
                 <tr><th style="${TH_STYLE}" scope="col">Cost line</th>
                     <th style="${TH_STYLE}text-align:right;" scope="col">Amount</th></tr>
@@ -837,7 +837,7 @@ export class N8nArchitectureWorkflow {
             </div>
 
             <table style="${TABLE_STYLE}">
-              <caption class="sr-only">Automated dispatch cost lines</caption>
+              <caption style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;">Automated dispatch cost lines</caption>
               <thead>
                 <tr><th style="${TH_STYLE}" scope="col">Cost line</th>
                     <th style="${TH_STYLE}text-align:right;" scope="col">Amount</th></tr>

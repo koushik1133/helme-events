@@ -1,131 +1,203 @@
+import { escapeHtml } from '../utils/format.js';
+import { drawQRToCanvas } from '../utils/qr.js';
+
+/**
+ * Renders a REAL, scannable QR code (src/utils/qr.js — a full ISO/IEC 18004
+ * encoder) pointing at a deep link into this planner.
+ *
+ * Honesty note: the QR encodes a genuine URL that opens the Helm 360 planner
+ * on the scanning device. It does NOT launch a native AR session — nothing in
+ * this build does — so the copy says "open on your phone", not "view in AR".
+ */
+
+const MAX_URL_LENGTH = 420; // Beyond this the symbol gets too dense to scan on a phone.
+
 export class ARQRGenerator {
   constructor(containerElement, activeSelections) {
     this.container = containerElement;
     this.activeSelections = activeSelections || {};
+    this.currentUrl = '';
+    this.lastSymbol = null;
+    this._bound = false;
   }
-  
+
   open() {
     this.container.style.display = 'block';
     this.render();
   }
-  
+
   close() {
     this.container.style.display = 'none';
     this.container.innerHTML = '';
   }
-  
+
+  /**
+   * Build the link the QR encodes. Selections travel as a compact
+   * `slot~item!slot~item` string so the URL stays short enough to scan.
+   */
+  buildUrl() {
+    const base = `${location.origin}${location.pathname}`;
+    const pairs = Object.entries(this.activeSelections || {})
+      .filter(([key, value]) => typeof value === 'string' && value && !key.startsWith('custom_text_'))
+      .map(([key, value]) => `${key.replace(/^slot-/, '')}~${value}`);
+
+    const withState = `${base}?view=360&state=${encodeURIComponent(pairs.join('!'))}`;
+    if (pairs.length && withState.length <= MAX_URL_LENGTH) {
+      return { url: withState, includesState: true, itemCount: pairs.length };
+    }
+    return { url: `${base}?view=360`, includesState: false, itemCount: pairs.length };
+  }
+
   render() {
+    const { url, includesState, itemCount } = this.buildUrl();
+    this.currentUrl = url;
+
     this.container.innerHTML = `
       <div class="modal-overlay qr-modal-overlay">
-        <div class="qr-modal" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:650px; background:var(--bg-surface); color:var(--text-main); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.4); z-index:2000; overflow:hidden; display:flex; border:1px solid var(--border-subtle);">
-        
-        <div style="flex:1; padding:30px; display:flex; flex-direction:column; align-items:center; border-right:1px solid #e2e8f0;">
-          <h2 style="margin:0 0 5px 0; text-align:center;">✨ AR Preview</h2>
-          <p style="color:#64748b; text-align:center; font-size:14px; margin-bottom:20px;">Scan this code with your phone to view the event setup in Augmented Reality.</p>
-          
-          <div style="padding:15px; background:white; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.05); margin-bottom:20px;">
-            <canvas id="qr-canvas" width="200" height="200"></canvas>
-          </div>
-          
-          <button id="download-qr-btn" style="width:100%; padding:12px; background:#0f172a; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">
-            Download QR as PNG
-          </button>
-        </div>
-        
-        <div style="flex:1; background:#f8fafc; padding:30px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-          <div style="width:160px; height:320px; border:8px solid #334155; border-radius:24px; position:relative; background:black; overflow:hidden; box-shadow:0 10px 20px rgba(0,0,0,0.2);">
-            <div style="position:absolute; top:5px; left:50%; transform:translateX(-50%); width:50px; height:15px; background:#334155; border-radius:0 0 10px 10px; z-index:2;"></div>
-            <div style="width:100%; height:100%; background:linear-gradient(45deg, #1e293b, #0f172a); display:flex; flex-direction:column; align-items:center; justify-content:center;">
-              <span style="font-size:40px; margin-bottom:10px;">📱</span>
-              <span style="color:white; font-size:12px; text-align:center; padding:0 20px;">Point camera to scan the code</span>
-              
-              <div style="margin-top:20px; width:100px; height:100px; border:2px dashed #4ade80; border-radius:8px; animation: pulse 2s infinite;"></div>
+        <div class="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title"
+             style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:92%; max-width:680px;
+                    background:var(--bg-surface); color:var(--text-main); border-radius:var(--radius-md);
+                    box-shadow:var(--shadow-lg); z-index:var(--z-modal); overflow:hidden; display:flex;
+                    flex-wrap:wrap; border:1px solid var(--border-subtle);">
+
+          <div style="flex:1 1 280px; padding:var(--space-6); display:flex; flex-direction:column; align-items:center;
+                      border-right:1px solid var(--border-subtle);">
+            <h2 id="qr-modal-title" style="margin:0 0 var(--space-1) 0; font-size:var(--fs-xl); text-align:center;">
+              Scan to open on your phone
+            </h2>
+            <p style="color:var(--text-muted); text-align:center; font-size:var(--fs-sm); margin:0 0 var(--space-5) 0;">
+              A real QR code. Point any phone camera at it to open this venue setup in the 360° planner.
+            </p>
+
+            <!-- QR modules MUST stay true black on true white regardless of theme:
+                 contrast is what makes a code scannable, not a style choice. -->
+            <div style="padding:var(--space-3); background:#ffffff; border-radius:var(--radius-sm); margin-bottom:var(--space-4);">
+              <canvas id="qr-canvas" width="264" height="264"
+                      role="img" aria-label="QR code linking to this venue setup"
+                      style="display:block; width:236px; height:236px; image-rendering:pixelated;"></canvas>
             </div>
+
+            <p id="qr-meta" style="margin:0 0 var(--space-3) 0; font-size:var(--fs-2xs); color:var(--text-dim); text-align:center;"></p>
+
+            <button id="download-qr-btn" class="btn-primary"
+                    style="width:100%; padding:var(--space-3); border-radius:var(--radius-xs); cursor:pointer; font-weight:600;">
+              Download QR as PNG
+            </button>
           </div>
+
+          <div style="flex:1 1 280px; background:var(--bg-elevated); padding:var(--space-6); display:flex;
+                      flex-direction:column; justify-content:center; gap:var(--space-4);">
+            <div>
+              <h3 style="margin:0 0 var(--space-2) 0; font-size:var(--fs-md);">Or copy the link</h3>
+              <p style="margin:0 0 var(--space-2) 0; font-size:var(--fs-xs); color:var(--text-muted);">
+                ${includesState
+                  ? `Includes all ${itemCount} selected item${itemCount === 1 ? '' : 's'}.`
+                  : itemCount
+                    ? 'Opens the planner. The selection list was too long to fit in a scannable code, so it is not included.'
+                    : 'Opens the planner. Nothing is selected yet, so no setup is attached.'}
+              </p>
+              <input id="qr-url-field" type="text" readonly aria-label="Shareable link" value="${escapeHtml(url)}"
+                     style="width:100%; box-sizing:border-box; padding:var(--space-2); font-family:var(--font-mono);
+                            font-size:var(--fs-2xs); background:var(--bg-input); color:var(--text-main);
+                            border:1px solid var(--border-subtle); border-radius:var(--radius-xs);" />
+              <button id="copy-qr-url-btn" class="btn-secondary"
+                      style="margin-top:var(--space-2); width:100%; padding:var(--space-2); border-radius:var(--radius-xs); cursor:pointer;">
+                Copy link
+              </button>
+              <p id="qr-copy-status" role="status" aria-live="polite"
+                 style="margin:var(--space-2) 0 0 0; font-size:var(--fs-2xs); color:var(--accent-emerald); min-height:1em;"></p>
+            </div>
+
+            <p style="margin:0; font-size:var(--fs-2xs); color:var(--text-dim); line-height:1.5;">
+              Opening the link shows the 360° walkthrough in the phone browser. Native AR (Scene Viewer /
+              AR Quick Look) is not part of this build.
+            </p>
+          </div>
+
+          <button id="close-qr-btn" aria-label="Close QR panel"
+                  style="position:absolute; top:var(--space-3); right:var(--space-3); background:var(--bg-elevated);
+                         color:var(--text-main); border:1px solid var(--border-subtle); border-radius:var(--radius-pill);
+                         width:30px; height:30px; cursor:pointer; font-weight:bold; line-height:1;">&times;</button>
         </div>
-        
-        <button id="close-qr-btn" style="position:absolute; top:15px; right:15px; background:white; border:1px solid #e2e8f0; border-radius:50%; width:30px; height:30px; cursor:pointer; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">&times;</button>
       </div>
-      <style>
-        @keyframes pulse {
-          0% { border-color: rgba(74, 222, 128, 0.4); }
-          50% { border-color: rgba(74, 222, 128, 1); }
-          100% { border-color: rgba(74, 222, 128, 0.4); }
-        }
-      </style>
     `;
-    
-    this.generateFakeQR();
+
+    this.paintQR();
     this.bindEvents();
   }
-  
-  generateFakeQR() {
+
+  paintQR() {
     const canvas = this.container.querySelector('#qr-canvas');
+    const meta = this.container.querySelector('#qr-meta');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    const size = 200;
-    const grid = 20; // 20x20 blocks
-    const blockSize = size / grid;
-    
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, size, size);
-    
-    // Draw position markers (the big squares in corners)
-    const drawMarker = (x, y) => {
-      ctx.fillStyle = 'black';
-      ctx.fillRect(x * blockSize, y * blockSize, 7 * blockSize, 7 * blockSize);
-      ctx.fillStyle = 'white';
-      ctx.fillRect((x + 1) * blockSize, (y + 1) * blockSize, 5 * blockSize, 5 * blockSize);
-      ctx.fillStyle = 'black';
-      ctx.fillRect((x + 2) * blockSize, (y + 2) * blockSize, 3 * blockSize, 3 * blockSize);
-    };
-    
-    drawMarker(1, 1); // Top left
-    drawMarker(12, 1); // Top right
-    drawMarker(1, 12); // Bottom left
-    
-    // Hash state for fake data
-    const stateStr = JSON.stringify(this.activeSelections);
-    let hash = 0;
-    for (let i = 0; i < stateStr.length; i++) {
-      hash = ((hash << 5) - hash) + stateStr.charCodeAt(i);
-      hash |= 0;
-    }
-    
-    // Random seeded pattern
-    const random = (seed) => {
-      var x = Math.sin(seed++) * 10000;
-      return x - Math.floor(x);
-    };
-    
-    let seed = hash;
-    ctx.fillStyle = 'black';
-    for (let i = 0; i < grid; i++) {
-      for (let j = 0; j < grid; j++) {
-        // Skip marker areas
-        if ((i < 9 && j < 9) || (i > 10 && j < 9) || (i < 9 && j > 10)) continue;
-        
-        if (random(seed++) > 0.5) {
-          ctx.fillRect(i * blockSize, j * blockSize, blockSize, blockSize);
-        }
+    try {
+      // ECC level M: ~15% recovery, the standard choice for on-screen codes.
+      this.lastSymbol = drawQRToCanvas(canvas, this.currentUrl, {
+        ecl: 'M',
+        quietZone: 4,
+        pixelSize: 264
+      });
+      canvas.style.width = `${this.lastSymbol.pixelSize}px`;
+      canvas.style.height = `${this.lastSymbol.pixelSize}px`;
+      if (meta) {
+        meta.textContent =
+          `QR version ${this.lastSymbol.version} · ${this.lastSymbol.size}×${this.lastSymbol.size} modules · error correction M`;
       }
+    } catch (err) {
+      this.lastSymbol = null;
+      if (meta) meta.textContent = 'Could not render a QR code for this link — use the copyable link instead.';
+      const btn = this.container.querySelector('#download-qr-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'QR unavailable';
+      }
+      console.warn('[ARQRGenerator] QR encoding failed:', err);
     }
   }
-  
+
+  setStatus(message) {
+    const el = this.container.querySelector('#qr-copy-status');
+    if (el) el.textContent = message;
+  }
+
   bindEvents() {
+    // Bound once against the persistent container — re-rendering must never
+    // stack another copy of this handler.
+    if (this._bound) return;
+    this._bound = true;
+
     this.container.addEventListener('click', e => {
-      if (e.target.id === 'close-qr-btn' || e.target.classList.contains('qr-modal-overlay')) {
+      const closeBtn = e.target.closest('#close-qr-btn');
+      if (closeBtn || e.target.classList.contains('qr-modal-overlay')) {
         this.close();
-      } else if (e.target.id === 'download-qr-btn') {
+        return;
+      }
+
+      if (e.target.closest('#download-qr-btn')) {
         const canvas = this.container.querySelector('#qr-canvas');
-        const url = canvas.toDataURL('image/png');
+        if (!canvas || !this.lastSymbol) return;
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `ar_experience_${Date.now()}.png`;
+        a.href = canvas.toDataURL('image/png');
+        a.download = `helm_setup_qr_${Date.now()}.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        return;
+      }
+
+      if (e.target.closest('#copy-qr-url-btn')) {
+        const field = this.container.querySelector('#qr-url-field');
+        if (!field) return;
+        const done = () => this.setStatus('Link copied.');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(field.value).then(done, () => {
+            field.select();
+            this.setStatus('Press Ctrl/Cmd+C to copy the selected link.');
+          });
+        } else {
+          field.select();
+          this.setStatus('Press Ctrl/Cmd+C to copy the selected link.');
+        }
       }
     });
   }

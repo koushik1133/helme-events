@@ -3,7 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Helm Events 360° | Venue & India Events Studio</title>
+  <title>Helm Events 360° | Venue &amp; India Events Studio</title>
+
+  <!-- Identity -->
+  <meta name="description" content="Helm Events 360° — walk clients through venue previews, swap decor live and quote the exact cost in rupees before anyone signs." />
+  <meta name="theme-color" content="#0B1220" />
+  <meta name="author" content="Helm Events" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!--
+    SET THE PRODUCTION DOMAIN BEFORE LAUNCH.
+    Replace every REPLACE-WITH-PRODUCTION-DOMAIN below with the real host
+    (e.g. helm-events.vercel.app). Social crawlers do NOT resolve relative
+    URLs — leave these unset and a shared link gets no preview image at all.
+  -->
+  <link rel="canonical" href="https://REPLACE-WITH-PRODUCTION-DOMAIN/" />
+
+  <!-- Open Graph: WhatsApp, LinkedIn, Slack, iMessage -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Helm Events" />
+  <meta property="og:title" content="Helm Events 360° — see the venue before you book it" />
+  <meta property="og:description" content="Walk clients through venue previews, swap decor live and quote the exact cost in rupees before anyone signs." />
+  <meta property="og:url" content="https://REPLACE-WITH-PRODUCTION-DOMAIN/" />
+  <meta property="og:locale" content="en_IN" />
+  <meta property="og:image" content="https://REPLACE-WITH-PRODUCTION-DOMAIN/images/venue_map_aerial.jpg" />
+  <meta property="og:image:width" content="1376" />
+  <meta property="og:image:height" content="768" />
+  <meta property="og:image:alt" content="Aerial view of a Helm Events venue with decor zones marked." />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Helm Events 360° — see the venue before you book it" />
+  <meta name="twitter:description" content="Walk clients through venue previews, swap decor live and quote the exact cost in rupees before anyone signs." />
+  <meta name="twitter:image" content="https://REPLACE-WITH-PRODUCTION-DOMAIN/images/venue_map_aerial.jpg" />
+  <meta name="twitter:image:alt" content="Aerial view of a Helm Events venue with decor zones marked." />
 
   <!-- Google Fonts: Inter (Helm Events Font Stack) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +46,9 @@
 
   <!-- Pannellum 360 Panorama Viewer CSS & JS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css" />
-  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"
+          crossorigin="anonymous"
+          onerror="window.__pannellumFailed = true"></script>
 
   <link rel="stylesheet" href="/src/style.css" />
 </head>

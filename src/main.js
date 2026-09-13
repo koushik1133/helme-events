@@ -1,10 +1,16 @@
-import confetti from 'canvas-confetti';
+// canvas-confetti is only ever needed after a user action, never at first paint.
+let _confetti = null;
+async function confetti(options) {
+  if (!_confetti) _confetti = (await import('canvas-confetti')).default;
+  return _confetti(options);
+}
 import { VENUE_ZONES } from './data/zones.js';
 import { getItemById, allItems } from './data/catalog.js';
 import { resolveScenePanorama, hasSceneVariant } from './data/sceneVariants.js';
 import { Viewer360 } from './engine/Viewer360.js';
 import { AudioEngine } from './engine/AudioEngine.js';
 import { ApiService } from './services/apiService.js';
+import { K as STORAGE_KEYS, loadRaw, saveRaw } from './services/storage.js';
 import { formatMoney, escapeHtml } from './utils/format.js';
 
 // Original Components
@@ -50,7 +56,6 @@ import { InvoiceGenerator } from './components/InvoiceGenerator.js';
 import { BudgetOptimizer } from './components/BudgetOptimizer.js';
 import { EventBriefGenerator } from './components/EventBriefGenerator.js';
 import { CustomEventBriefWizard } from './components/CustomEventBriefWizard.js';
-import { ThreeDLiveSpaceEditor } from './components/ThreeDLiveSpaceEditor.js';
 import { N8nArchitectureWorkflow } from './components/N8nArchitectureWorkflow.js';
 
 class Event360App {
@@ -58,7 +63,9 @@ class Event360App {
     this.activeView = 'map';
     this.currentZoneId = 'zone-stage';
     this.indiaMode = 'election';
-    this.theme = localStorage.getItem('event360_theme') || 'dark';
+    // Migrate legacy localStorage keys BEFORE anything reads storage.
+    ApiService.initStorage();
+    this.theme = loadRaw(STORAGE_KEYS.theme, 'dark');
     this.activeSelections = {};
     this.featureToolbarOpen = false;
 
@@ -67,18 +74,46 @@ class Event360App {
         this.activeSelections[slot.id] = slot.defaultItemId;
       });
     });
+    // Captured before any restore overlays them, so "reset to defaults" stays possible.
+    this.defaultSelections = { ...this.activeSelections };
 
     this.applyTheme(this.theme);
     this.initUI();
     this.initComponents();
     this.bindGlobalEvents();
     this.switchView(this.activeView);
+
+    // Restore asynchronously — first paint must never wait on the API probe.
+    this.restoreSavedState();
+  }
+
+  /**
+   * Restore the user's last session. localStorage is authoritative; the local dev
+   * API may upgrade it but can never blank it. Never blocks first paint, never throws:
+   * defaults are already on screen by the time this runs.
+   */
+  async restoreSavedState() {
+    try {
+      const restored = await ApiService.restoreState(this.defaultSelections);
+      if (restored?.currentZoneId && restored.currentZoneId !== this.currentZoneId) {
+        this.currentZoneId = restored.currentZoneId;
+      }
+      const incoming = restored?.activeSelections || {};
+      const changed = Object.keys(incoming).some(k => incoming[k] !== this.activeSelections[k]);
+      if (!changed) return;
+      this.updateAllComponents({ ...this.activeSelections, ...incoming });
+      if (restored.source && restored.source !== 'default') {
+        this.showToast('Restored your last saved design.');
+      }
+    } catch (err) {
+      console.error('[Helm] state restore failed, continuing with defaults', err);
+    }
   }
 
   applyTheme(themeMode) {
     this.theme = themeMode;
     document.documentElement.setAttribute('data-theme', themeMode);
-    localStorage.setItem('event360_theme', themeMode);
+    saveRaw(STORAGE_KEYS.theme, themeMode);
 
     const toggleBtnLabel = document.querySelector('.theme-mode-label');
     if (toggleBtnLabel) {
@@ -365,19 +400,9 @@ class Event360App {
       }
     );
 
-    this.threeDLiveSpaceEditor = new ThreeDLiveSpaceEditor(
-      this.threeDEditorContainer,
-      this.activeSelections,
-      (selections) => this.updateAllComponents(selections)
-    );
-
-    // The 3D floor plan is a SEPARATE costing surface from the zone catalogue.
-    // We record the layout (so proposals and exports can show it) but deliberately
-    // do NOT fold its total into the venue subtotal — the zones already price
-    // tables, chairs and staging, and adding both would double-count.
-    this.threeDLiveSpaceEditor.onLayoutChange = (layout) => {
-      this.floorPlanLayout = layout;
-    };
+    // Built on first open — see the #btnOpen3DEditor handler. Keeping this lazy is
+    // what keeps three.js (121 kB gzip) off the critical path for first paint.
+    this.threeDLiveSpaceEditor = null;
 
     this.customEventBriefWizard = new CustomEventBriefWizard(
       this.customBriefWizardContainer,
@@ -412,7 +437,7 @@ class Event360App {
 
         this.showToast(`📋 Custom ${formData.category.toUpperCase()} event setup generated & applied!`);
         confetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
-        setTimeout(() => this.threeDLiveSpaceEditor.open(), 350);
+        setTimeout(() => this.open3DEditor(), 350);
       }
     );
 
@@ -477,7 +502,7 @@ class Event360App {
     }
 
     if (this.btnOpen3DEditor) {
-      this.btnOpen3DEditor.addEventListener('click', () => this.threeDLiveSpaceEditor.open());
+      this.btnOpen3DEditor.addEventListener('click', () => this.open3DEditor());
     }
 
     if (this.btnSoundToggle) {
@@ -1123,6 +1148,58 @@ class Event360App {
       ['venueMenuModal', this.venueMenuModal, this.venueMenuContainer],
       ['cartPaymentModal', this.cartPaymentModal, this.cartModalContainer]
     ].filter(([, component]) => component);
+  }
+
+  /**
+   * Open the 3D editor, importing it on first use.
+   *
+   * three.js is 121 kB gzipped and the editor sits behind a button, so it is kept
+   * off the critical path and pulled in here. Every entry point (the toolbar button
+   * and the brief wizard's hand-off) must come through this method.
+   */
+  async open3DEditor() {
+    const btn = this.btnOpen3DEditor;
+    if (btn?.dataset.loading === '1') return;
+
+    if (!this.threeDLiveSpaceEditor) {
+      const label = btn?.textContent;
+      if (btn) {
+        btn.dataset.loading = '1';
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.textContent = 'Loading 3D editor…';
+      }
+      try {
+        const { ThreeDLiveSpaceEditor } = await import('./components/ThreeDLiveSpaceEditor.js');
+        this.threeDLiveSpaceEditor = new ThreeDLiveSpaceEditor(
+          this.threeDEditorContainer,
+          this.activeSelections,
+          (selections) => this.updateAllComponents(selections)
+        );
+        // The 3D floor plan is a SEPARATE costing surface from the zone catalogue.
+        // Record the layout for proposals and exports, but do NOT fold its total
+        // into the venue subtotal — the zones already price tables, chairs and
+        // staging, so counting both would double-charge the client.
+        this.threeDLiveSpaceEditor.onLayoutChange = (layout) => {
+          this.floorPlanLayout = layout;
+        };
+      } catch (err) {
+        console.error('[Helm] 3D editor failed to load', err);
+        this.showToast('The 3D editor could not load. Check your connection and try again.');
+        return;
+      } finally {
+        if (btn) {
+          btn.dataset.loading = '0';
+          btn.disabled = false;
+          btn.removeAttribute('aria-busy');
+          btn.textContent = label;
+        }
+      }
+    }
+
+    this._lastTrigger = btn || null;
+    this.noteModalOpened('threeDLiveSpaceEditor');
+    this.threeDLiveSpaceEditor.open();
   }
 
   /** Record that a modal was opened, so Escape knows which one is on top. */
