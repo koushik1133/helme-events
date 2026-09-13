@@ -131,7 +131,15 @@ class EventState {
    * Returns the new snapshot. No-ops (and does not notify) if nothing changed.
    */
   set(patch, meta = {}) {
-    const next = sanitize({ ...this.state, ...(patch || {}) });
+    // Drop undefined/null entries first. sanitize() spreads the patch over current
+    // state and then falls back to DEFAULTS for anything that isn't a valid value,
+    // so `set({ eventName: undefined })` would otherwise RESET the name rather than
+    // leave it untouched — a trap for every caller building a patch from optional fields.
+    const clean = {};
+    for (const [key, value] of Object.entries(patch || {})) {
+      if (value !== undefined && value !== null) clean[key] = value;
+    }
+    const next = sanitize({ ...this.state, ...clean });
     const changed = Object.keys(next).filter(k => next[k] !== this.state[k]);
     if (changed.length === 0) return this.get();
     this.state = next;

@@ -4,6 +4,23 @@ export class WeatherSimulator {
     this.studio360Container = studio360Container;
     this.isOpen = false;
     this.currentMode = 'morning';
+    this.observer = null;
+    this.watchForCanvasSwap();
+  }
+
+  /**
+   * The 360 viewer recreates its <canvas> on every zone change, which silently
+   * dropped the active weather filter. Re-apply it whenever that happens.
+   */
+  watchForCanvasSwap() {
+    if (!this.studio360Container || typeof MutationObserver === 'undefined') return;
+    this.observer = new MutationObserver(() => {
+      if (this.currentMode && this.currentMode !== 'morning') {
+        const target = this.studio360Container.querySelector('canvas');
+        if (target && target.style.filter === '') this.applyWeather(this.currentMode);
+      }
+    });
+    this.observer.observe(this.studio360Container, { childList: true, subtree: true });
   }
 
   open() {
@@ -37,23 +54,23 @@ export class WeatherSimulator {
             <p class="modal-desc">Select lighting and weather conditions to preview the 360° venue atmosphere in real-time:</p>
             
             <div class="weather-options-grid">
-              <button class="weather-opt-card ${this.currentMode === 'morning' ? 'active' : ''}" data-mode="morning">
-                <span class="weather-icon">☀️</span>
+              <button class="weather-opt-card ${this.currentMode === 'morning' ? 'active' : ''}" data-mode="morning" aria-pressed="${this.currentMode === 'morning'}">
+                <span class="weather-icon" aria-hidden="true">☀️</span>
                 <strong>Morning Daylight</strong>
                 <small>Crisp bright natural sun</small>
               </button>
-              <button class="weather-opt-card ${this.currentMode === 'sunset' ? 'active' : ''}" data-mode="sunset">
-                <span class="weather-icon">🌅 Golden Sunset</span>
+              <button class="weather-opt-card ${this.currentMode === 'sunset' ? 'active' : ''}" data-mode="sunset" aria-pressed="${this.currentMode === 'sunset'}">
+                <span class="weather-icon" aria-hidden="true">🌅</span>
                 <strong>Golden Hour</strong>
                 <small>Warm amber twilight glow</small>
               </button>
-              <button class="weather-opt-card ${this.currentMode === 'night' ? 'active' : ''}" data-mode="night">
-                <span class="weather-icon">🌙 Midnight Gala</span>
+              <button class="weather-opt-card ${this.currentMode === 'night' ? 'active' : ''}" data-mode="night" aria-pressed="${this.currentMode === 'night'}">
+                <span class="weather-icon" aria-hidden="true">🌙</span>
                 <strong>Night Atmosphere</strong>
                 <small>Deep blue night lighting</small>
               </button>
-              <button class="weather-opt-card ${this.currentMode === 'rain' ? 'active' : ''}" data-mode="rain">
-                <span class="weather-icon">🌧️ Monsoon Rain</span>
+              <button class="weather-opt-card ${this.currentMode === 'rain' ? 'active' : ''}" data-mode="rain" aria-pressed="${this.currentMode === 'rain'}">
+                <span class="weather-icon" aria-hidden="true">🌧️</span>
                 <strong>Monsoon Rain</strong>
                 <small>Live rain overlay effect</small>
               </button>

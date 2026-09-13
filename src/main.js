@@ -58,6 +58,7 @@ import { EventBriefGenerator } from './components/EventBriefGenerator.js';
 import { CustomEventBriefWizard } from './components/CustomEventBriefWizard.js';
 import { N8nArchitectureWorkflow } from './components/N8nArchitectureWorkflow.js';
 import { EventDetailsPanel } from './components/EventDetailsPanel.js';
+import { eventState } from './data/eventState.js';
 
 class Event360App {
   constructor() {
@@ -410,11 +411,41 @@ class Event360App {
       this.customBriefWizardContainer,
       this.activeSelections,
       (selections, formData) => {
-        Object.assign(this.activeSelections, selections);
-        this.updateAllComponents(this.activeSelections);
+        // theme_panorama / panoramaUrl are hand-off hints, not slots. Keep them out
+        // of activeSelections, which is a flat slotId -> itemId map.
+        const { theme_panorama, panoramaUrl, ...slotSelections } = selections;
+
+        // Keep the full brief, and push the parts the rest of the app models into
+        // the shared event store so seating, timeline, analytics and the GST split
+        // all follow the wizard instead of keeping their own private copies.
+        this.currentBrief = formData || null;
+        if (formData) {
+          // Only send keys we actually have. eventState.set() spreads the patch over
+          // current state before sanitising, so an explicit `undefined` would reset
+          // the field to its default rather than leave it alone.
+          const patch = {
+            eventName: formData.conceptTitle || formData.eventName,
+            eventType: formData.category,
+            clientName: formData.clientName,
+            clientState: formData.venueState,
+            startDate: formData.eventDate,
+            endDate: formData.eventDate,
+            guestCount: Number(formData.guestCount)
+          };
+          for (const [k, v] of Object.entries(patch)) {
+            if (v === undefined || v === null || v === '' || (typeof v === 'number' && !Number.isFinite(v))) {
+              delete patch[k];
+            }
+          }
+          if (Object.keys(patch).length) {
+            eventState.set(patch, { source: 'CustomEventBriefWizard' });
+          }
+        }
+
+        this.updateAllComponents({ ...this.activeSelections, ...slotSelections });
 
         // Prefer launching into the concept's 360 plate when provided
-        const themePano = selections.theme_panorama || selections.panoramaUrl;
+        const themePano = theme_panorama || panoramaUrl;
         let targetZoneId = this.currentZoneId;
         if (formData?.category === 'political' || formData?.subCategory === 'rally') {
           targetZoneId = 'zone-india-election';

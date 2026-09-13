@@ -492,6 +492,32 @@ body {
   margin-left: 0.15rem;
 }
 
+/* Global Header Search Bar */
+.nav-search-wrapper {
+  position: relative;
+  margin: 0;
+  flex: 0 1 240px;
+  min-width: 180px;   /* never let the field collapse to an unusable stub */
+}
+
+.nav-search-input {
+  width: 100%;
+  padding: 7px 12px 7px 32px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 100px;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.nav-search-input:focus {
+  border-color: var(--accent-gold);
+  background: var(--bg-surface);
+  box-shadow: var(--focus-ring);
+}
+
 .nav-action-btn {
   background: var(--bg-surface);
   color: var(--text-main);
@@ -5855,31 +5881,7 @@ body {
   font-weight: 700;
 }
 
-/* Global Header Search Bar */
-.nav-search-wrapper {
-  position: relative;
-  margin: 0;
-  flex: 0 1 240px;
-  min-width: 180px;   /* never let the field collapse to an unusable stub */
-}
-
-.nav-search-input {
-  width: 100%;
-  padding: 7px 12px 7px 32px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: 100px;
-  color: var(--text-main);
-  font-size: 0.82rem;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.nav-search-input:focus {
-  border-color: var(--accent-gold);
-  background: var(--bg-surface);
-  box-shadow: 0 0 12px rgba(217, 119, 6, 0.3);
-}
+/* (moved to the navbar section so the responsive overrides can win) */
 
 .nav-search-icon {
   position: absolute;

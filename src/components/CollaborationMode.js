@@ -3,14 +3,25 @@ import { readJSON, writeJSON, escapeHtml } from '../utils/format.js';
 
 const COLLAB_KEY = 'helme_events_collab';
 
+/** Every slot's factory default — anything matching one is not worth sending. */
+function slotDefaults() {
+  const defaults = {};
+  VENUE_ZONES.forEach(z => z.slots.forEach(s => { defaults[s.id] = s.defaultItemId; }));
+  return defaults;
+}
+
 /**
  * Encode the flat `slotId -> itemId` selection map into a URL-safe string.
- * Kept compact: the fragment carries only the slot/item pairs, nothing else.
+ * Compact by design: only entries that DIFFER from the venue defaults travel
+ * in the fragment, so a lightly customised design makes a short link.
  */
 export function encodeDesignState(selections) {
+  const defaults = slotDefaults();
   const flat = {};
   Object.entries(selections || {}).forEach(([key, value]) => {
-    if (typeof value === 'string' && value) flat[key] = value;
+    if (typeof value !== 'string' || !value) return;
+    if (defaults[key] === value) return;
+    flat[key] = value;
   });
   const json = JSON.stringify(flat);
   // btoa handles Latin-1 only; encode to UTF-8 bytes first so any future
