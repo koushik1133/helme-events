@@ -85,6 +85,53 @@ export function ensureShellStyles() {
 
 #studioEditPanelHost[hidden] { display: none; }
 
+/* ---------------------------------------------------------------- hotspots */
+/*
+  In VIEW mode the venue is the product and nothing should compete with it. The
+  hotspot cards — image, label and price per slot — collapse to a quiet beacon
+  that only opens its card on hover or keyboard focus. In EDIT mode they are
+  working controls again and stay open, because that is when you are aiming at them.
+
+  This is presentation only: the cards keep their position, their data and their
+  click handlers in both modes, so nothing about the interaction is lost.
+*/
+body[data-studio-mode="view"] .hs-card .hs-card-inner {
+  opacity: 0;
+  transform: scale(0.94);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+body[data-studio-mode="view"] .hs-card:hover .hs-card-inner,
+body[data-studio-mode="view"] .hs-card:focus-within .hs-card-inner {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+body[data-studio-mode="view"] .hs-beacon {
+  opacity: 0.55;
+  transform: scale(0.8);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+body[data-studio-mode="view"] .hs-card:hover .hs-beacon,
+body[data-studio-mode="view"] .hs-card:focus-within .hs-beacon {
+  opacity: 1;
+  transform: none;
+}
+
+/* The composited-layer notice is an EDITING disclosure. It belongs where the
+   swap is being made, not across the venue during a client presentation. */
+/* Viewer360 sets this element's display via inline cssText, so an ordinary rule
+   loses to it — !important is the correct tool here, not a code smell. */
+body[data-studio-mode="view"] .v360-composite-note { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-studio-mode="view"] .hs-card .hs-card-inner,
+  body[data-studio-mode="view"] .hs-beacon { transition: none; }
+}
+
 /* ------------------------------------------------------------------ mobile */
 /*
   Below 840px a side dock leaves no venue. The panel becomes a bottom sheet: the

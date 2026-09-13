@@ -1041,6 +1041,7 @@ class Event360App {
           this.openStudio360(this.currentZoneId);
         } else {
           const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
+          this.setStudioMode(this.studioMode === 'edit' ? 'edit' : 'view');
           if (zone) this.refreshStudioChrome(zone);
         }
         break;
@@ -1133,6 +1134,10 @@ class Event360App {
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     this.activateSection(this.studioContainer, this.tab360View);
 
+    // Entering a zone always lands in VIEW mode. Edit is something you choose,
+    // never something you arrive in — this is also what sets the body attribute
+    // the stylesheet keys off to quieten the hotspots.
+    this.setStudioMode(this.studioMode === 'edit' ? 'edit' : 'view');
     this.refreshStudioChrome(zone);
     this.viewer360.loadZone(zone, this.activeSelections);
     if (this.audioEngine.isPlaying) this.audioEngine.playZoneSound(zoneId);
