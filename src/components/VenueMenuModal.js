@@ -1,6 +1,7 @@
 import { VENUE_ZONES } from '../data/zones.js';
 import { formatMoney, escapeHtml } from '../utils/format.js';
 import { buildQuote } from '../utils/quote.js';
+import { zonesInScope } from '../data/eventState.js';
 
 export class VenueMenuModal {
   constructor(containerElement, onSelectZone, activeSelections) {
@@ -25,9 +26,17 @@ export class VenueMenuModal {
     if (this.isOpen) this.render();
   }
 
-  calculateZoneCost(zone) {
-    const bucket = buildQuote(this.activeSelections).zones.find(z => z.zoneId === zone.id);
-    return bucket ? bucket.zoneTotal : 0;
+  /**
+   * Zone costs come from ONE quote build, not one per card — and a zone that is
+   * not in scope for this event type is labelled as such rather than priced at ₹0.
+   */
+  zoneCosts() {
+    const allIds = VENUE_ZONES.map(z => z.id);
+    const scope = new Set(zonesInScope(allIds));
+    const quote = buildQuote(this.activeSelections, { zoneIds: allIds });
+    const costs = new Map();
+    quote.zones.forEach(z => costs.set(z.zoneId, z.zoneTotal));
+    return { costs, scope };
   }
 
   render() {
@@ -53,13 +62,18 @@ export class VenueMenuModal {
                 <p>The venue catalogue could not be loaded. Reload the page or contact your Helm Events producer.</p>
               </div>
             ` : ''}
-            ${VENUE_ZONES.map(zone => {
-              const cost = this.calculateZoneCost(zone);
+            ${(() => {
+              const { costs, scope } = this.zoneCosts();
+              return VENUE_ZONES.map(zone => {
+              const cost = costs.get(zone.id) || 0;
+              const inScope = scope.has(zone.id);
               return `
                 <div class="venue-menu-item-card" data-zone-id="${zone.id}" tabindex="0" role="button" aria-label="Open ${escapeHtml(zone.name)} in the 360 studio">
                   <div class="venue-card-img-wrap">
                     <img src="${escapeHtml(zone.panoramaUrl)}" alt="${escapeHtml(zone.name)}" class="venue-card-img" />
-                    <span class="venue-card-badge">Decor from ${formatMoney(cost)}</span>
+                    <span class="venue-card-badge">${inScope
+                      ? `Decor from ${formatMoney(cost)}`
+                      : `Not in this event's scope • ${formatMoney(cost)} if added`}</span>
                   </div>
                   <div class="venue-card-body">
                     <h4>${escapeHtml(zone.name)}</h4>
@@ -70,7 +84,8 @@ export class VenueMenuModal {
                   </div>
                 </div>
               `;
-            }).join('')}
+              }).join('');
+            })()}
           </div>
 
         </div>

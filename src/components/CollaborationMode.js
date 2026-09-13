@@ -58,14 +58,19 @@ export class CollaborationMode {
     const saved = readJSON(COLLAB_KEY, []);
     this.comments = Array.isArray(saved) ? saved : [];
 
-    this.currentUser = 'Planner';
+    this.attributedTo = 'Client';
     this.draft = '';
     this.draftZone = 'general';
     this.shareMessage = '';
-    this.collaborators = [
-      { name: 'Planner', initials: 'PL', color: '#1976d2' },
-      { name: 'Client', initials: 'CL', color: '#388e3c' },
-      { name: 'Decorator', initials: 'DE', color: '#f57c00' }
+    // Who a note is ATTRIBUTED to. This is not a login and never claimed to
+    // be: one salesperson is sitting with the file, writing down who said
+    // what. The previous version dressed these up as avatars you "log in as",
+    // which read as a multi-user collaboration feature the product does not
+    // have.
+    this.voices = [
+      { name: 'Client', color: '#388e3c' },
+      { name: 'Planner', color: '#1976d2' },
+      { name: 'Decorator', color: '#f57c00' }
     ];
     this._bound = false;
   }
@@ -86,7 +91,7 @@ export class CollaborationMode {
     }
   }
 
-  /** Keep whatever is half-typed so a persona switch does not destroy it. */
+  /** Keep whatever is half-typed so a re-render does not destroy it. */
   captureDraft() {
     const textEl = this.container.querySelector('#collab-text');
     const zoneEl = this.container.querySelector('#collab-zone-select');
@@ -100,22 +105,22 @@ export class CollaborationMode {
       <div class="modal-content collab-modal" role="dialog" aria-modal="true" aria-labelledby="collab-title" style="width: 400px; max-width: 92vw; height: 90vh; max-height: 800px; padding: 20px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-subtle); border-radius: 8px; position: fixed; right: 20px; top: 5vh; z-index: 1000; box-shadow: -4px 0 20px rgba(0,0,0,0.35); display: flex; flex-direction: column;">
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h2 id="collab-title" style="margin:0;">🤝 Collaboration</h2>
-          <button type="button" id="collab-close-btn" class="btn-icon" aria-label="Close collaboration panel" style="font-size: 1.5em; border:none; background:none; color: var(--text-muted); cursor:pointer;">&times;</button>
+          <h2 id="collab-title" style="margin:0;">🤝 Client Review</h2>
+          <button type="button" id="collab-close-btn" class="btn-icon" aria-label="Close client review panel" style="font-size: 1.5em; border:none; background:none; color: var(--text-muted); cursor:pointer;">&times;</button>
         </div>
 
         <p style="margin:0 0 12px; font-size:11px; color:var(--text-muted);">
-          Review thread for this proposal. Switch persona to see the conversation from each side — comments are stored on this device.
+          Log what the client asks for as you walk the venue, and mark each zone approved or
+          needing revision. Notes are kept on this device. The review link carries the design
+          itself, so anyone who opens it sees exactly this build.
         </p>
 
-        <div class="collab-users" style="display: flex; gap: 10px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-subtle); align-items:center;">
-          ${this.collaborators.map(c => `
-            <button type="button" class="collab-avatar ${c.name === this.currentUser ? 'active' : ''}" data-name="${escapeHtml(c.name)}"
-              aria-pressed="${c.name === this.currentUser}" aria-label="Comment as ${escapeHtml(c.name)}" title="Comment as ${escapeHtml(c.name)}"
-              style="width: 40px; height: 40px; border-radius: 50%; background: ${c.color}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; border: ${c.name === this.currentUser ? '3px solid var(--text-main)' : '3px solid transparent'};">
-              ${escapeHtml(c.initials)}
-            </button>
-          `).join('')}
+        <div class="collab-users" style="display: flex; gap: 8px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-subtle); align-items:center; flex-wrap:wrap;">
+          <label for="collab-voice" style="font-size:11px; color:var(--text-muted);">Note from</label>
+          <select id="collab-voice" aria-label="Who this note is from"
+            style="padding:6px 8px; border-radius:6px; border:1px solid var(--border-subtle); background:var(--bg-elevated); color:var(--text-main); font-size:12px;">
+            ${this.voices.map(v => `<option value="${escapeHtml(v.name)}" ${v.name === this.attributedTo ? 'selected' : ''}>${escapeHtml(v.name)}</option>`).join('')}
+          </select>
           <button type="button" id="collab-share-btn" class="btn-secondary" style="margin-left: auto; font-size: 12px; padding: 5px 10px;">🔗 Copy Review Link</button>
         </div>
 
@@ -144,11 +149,16 @@ export class CollaborationMode {
 
   renderComments() {
     if (this.comments.length === 0) {
-      return '<div style="text-align: center; color: var(--text-muted); margin-top: 50px;">No comments yet. Start the conversation!</div>';
+      return `<div style="text-align: center; color: var(--text-muted); margin-top: 50px; padding: 0 16px;">
+        <div style="font-size:28px; margin-bottom:8px;" aria-hidden="true">🗒️</div>
+        <strong style="display:block; margin-bottom:4px;">No review notes yet</strong>
+        Record the client's asks against a zone, or mark a zone approved.
+      </div>`;
     }
 
     return this.comments.map(c => {
-      const user = this.collaborators.find(u => u.name === c.author) || this.collaborators[0];
+      const voice = this.voices.find(u => u.name === c.author) || this.voices[0];
+      const initials = String(c.author || '?').slice(0, 2).toUpperCase();
       const zoneName = c.zone === 'general' ? 'General' : VENUE_ZONES.find(z => z.id === c.zone)?.name || c.zone;
 
       let statusHtml = '';
@@ -161,8 +171,8 @@ export class CollaborationMode {
 
       return `
         <div class="collab-message" style="display: flex; gap: 10px;">
-          <div style="width: 30px; height: 30px; border-radius: 50%; background: ${user.color}; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0;">
-            ${escapeHtml(user.initials)}
+          <div style="width: 30px; height: 30px; border-radius: 50%; background: ${voice.color}; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0;">
+            ${escapeHtml(initials)}
           </div>
           <div style="background: var(--bg-elevated); border: 1px solid var(--border-subtle); padding: 10px; border-radius: 8px; flex: 1;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px; gap: 8px;">
@@ -172,6 +182,11 @@ export class CollaborationMode {
             <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px;">Zone: ${escapeHtml(zoneName)}</div>
             <div style="font-size: 14px; white-space: pre-wrap;">${escapeHtml(c.text)}</div>
             ${statusHtml}
+            <div style="text-align:right; margin-top:6px;">
+              <button type="button" class="collab-delete-btn" data-id="${escapeHtml(c.id)}"
+                aria-label="Delete this review note"
+                style="background:none; border:none; color:#f87171; font-size:11px; cursor:pointer; text-decoration:underline;">Delete</button>
+            </div>
           </div>
         </div>
       `;
@@ -185,7 +200,7 @@ export class CollaborationMode {
 
     this.comments.push({
       id: 'c' + Date.now(),
-      author: this.currentUser,
+      author: this.attributedTo,
       text: text || (status === 'approved' ? 'Design Approved' : 'Revision Requested'),
       timestamp: Date.now(),
       zone: this.draftZone,
@@ -214,6 +229,10 @@ export class CollaborationMode {
     if (this._bound) return;
     this._bound = true;
 
+    this.container.addEventListener('change', e => {
+      if (e.target.id === 'collab-voice') this.attributedTo = e.target.value;
+    });
+
     this.container.addEventListener('click', e => {
       const target = e.target;
 
@@ -222,10 +241,11 @@ export class CollaborationMode {
         return;
       }
 
-      const avatar = target.closest?.('.collab-avatar');
-      if (avatar && this.container.contains(avatar)) {
-        this.captureDraft();
-        this.currentUser = avatar.dataset.name;
+      const del = target.closest?.('.collab-delete-btn');
+      if (del) {
+        if (!window.confirm('Delete this review note?')) return;
+        this.comments = this.comments.filter(c => c.id !== del.dataset.id);
+        this.save();
         this.render();
         return;
       }

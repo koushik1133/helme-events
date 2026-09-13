@@ -219,7 +219,17 @@ export class TimelinePlanner {
     }
   }
 
-  /** Duplicate dates and intra-day time overlaps, computed fresh on each render. */
+  /**
+   * Duplicate dates and genuine resource clashes, computed fresh on each render.
+   *
+   * A run-of-show runs things in PARALLEL on purpose — high tea is served while
+   * the mehendi is going on, dinner opens while the sangeet performances are
+   * still running. Flagging every time overlap as a conflict marked four items
+   * in the shipped wedding template as problems and taught the planner to
+   * ignore the warning. A conflict is therefore an overlap where the SAME
+   * OWNER is booked in two places at once — a real, actionable double-booking.
+   * Plain overlaps between different owners are reported as parallel tracks.
+   */
   analyse() {
     const byDate = new Map();
     this.days.forEach(d => {
@@ -231,7 +241,9 @@ export class TimelinePlanner {
       .filter(([, list]) => list.length > 1)
       .map(([date, list]) => ({ date, names: list.map(d => d.name) }));
 
-    const conflicts = new Map(); // segmentId -> reason
+    const conflicts = new Map(); // segmentId -> reason (same owner, double-booked)
+    const parallel = new Map();  // segmentId -> reason (different owners, fine)
+
     byDate.forEach((list) => {
       const all = [];
       list.forEach(day => {
@@ -243,19 +255,27 @@ export class TimelinePlanner {
       all.sort((a, b) => a.start - b.start);
       for (let i = 0; i < all.length; i++) {
         for (let j = i + 1; j < all.length; j++) {
-          if (all[j].start < all[i].end) {
-            conflicts.set(all[i].seg.id, `Overlaps “${all[j].seg.label}”`);
-            conflicts.set(all[j].seg.id, `Overlaps “${all[i].seg.label}”`);
+          if (all[j].start >= all[i].end) continue;
+          const ownerA = String(all[i].seg.owner || '').trim().toLowerCase();
+          const ownerB = String(all[j].seg.owner || '').trim().toLowerCase();
+          if (ownerA && ownerA === ownerB) {
+            const who = all[i].seg.owner;
+            conflicts.set(all[i].seg.id, `${who} is also on “${all[j].seg.label}” at the same time`);
+            conflicts.set(all[j].seg.id, `${who} is also on “${all[i].seg.label}” at the same time`);
+          } else {
+            if (!conflicts.has(all[i].seg.id)) parallel.set(all[i].seg.id, `Runs alongside “${all[j].seg.label}”`);
+            if (!conflicts.has(all[j].seg.id)) parallel.set(all[j].seg.id, `Runs alongside “${all[i].seg.label}”`);
           }
         }
       }
     });
 
-    return { duplicateDates, conflicts };
+    conflicts.forEach((_, id) => parallel.delete(id));
+    return { duplicateDates, conflicts, parallel };
   }
 
   render() {
-    const { duplicateDates, conflicts } = this.analyse();
+    const { duplicateDates, conflicts, parallel } = this.analyse();
     const ev = eventState.get();
     const totalSegments = this.days.reduce((n, d) => n + d.segments.length, 0);
 
@@ -278,14 +298,15 @@ export class TimelinePlanner {
     const conflictCount = conflicts.size;
     const conflictWarning = conflictCount
       ? `<div role="alert" style="margin-bottom:1rem; padding:.6rem .9rem; border-radius:var(--radius-sm);
-           border:1px solid var(--accent-gold); color:var(--accent-gold); font-size:.85rem;">
-           ⏱️ ${conflictCount} timeline item${conflictCount === 1 ? '' : 's'} overlap another item on the same day — highlighted below.
+           border:1px solid var(--accent-rose); color:var(--accent-rose); font-size:.85rem;">
+           ⏱️ ${conflictCount} item${conflictCount === 1 ? ' books its owner' : 's book their owners'} in two places
+           at once — highlighted below. Items that simply run in parallel under different owners are not flagged.
          </div>`
       : '';
 
     const body = this.days.length
       ? `<div class="timeline-grid" id="timeline-grid">
-           ${this.days.map((day, i) => this.renderDayCard(day, i, conflicts)).join('')}
+           ${this.days.map((day, i) => this.renderDayCard(day, i, conflicts, parallel)).join('')}
          </div>`
       : this.renderEmptyState();
 
@@ -299,6 +320,10 @@ export class TimelinePlanner {
               · ${totalSegments} timeline item${totalSegments === 1 ? '' : 's'}
               ${this.days.length ? `· ${escapeHtml(formatEventDate(this.days[0].date))} – ${escapeHtml(formatEventDate(this.days[this.days.length - 1].date))}` : ''}
             </p>
+            <p style="color:var(--text-dim); font-size:.75rem; margin-top:.15rem;">
+              Functions sort by date, then by first start time. ⚠️ marks an owner booked in two places at once;
+              ⇉ marks items that simply run in parallel.
+            </p>
           </div>
           <div style="display:flex; gap:.5rem;">
             <button class="btn-secondary" id="timeline-seed-btn" type="button">Load Indian wedding template</button>
@@ -307,10 +332,23 @@ export class TimelinePlanner {
         </div>
         ${banner}${dupWarning}${conflictWarning}
         ${body}
+        <datalist id="timeline-owner-options">
+          ${this.knownOwners().map(o => `<option value="${escapeHtml(o)}"></option>`).join('')}
+        </datalist>
       </div>
     `;
     this.message = null;
     this.bindEvents();
+  }
+
+  /** Owners already used anywhere in the plan, so the next one is one keystroke. */
+  knownOwners() {
+    const seen = new Set();
+    this.days.forEach(d => d.segments.forEach(s => {
+      const o = String(s.owner || '').trim();
+      if (o) seen.add(o);
+    }));
+    return [...seen].sort((a, b) => a.localeCompare(b));
   }
 
   renderEmptyState() {
@@ -328,7 +366,58 @@ export class TimelinePlanner {
     `;
   }
 
-  renderDayCard(day, index, conflicts) {
+  /**
+   * A proportional run-of-show strip for one day: every segment drawn against
+   * the day's own span, so a planner can see the shape of the day — the long
+   * setup block, the gap before guests arrive, the overlapping service — in
+   * one glance instead of reading a list of times.
+   */
+  renderGantt(day, conflicts) {
+    const placed = day.segments
+      .map(seg => ({ seg, ext: segmentExtent(seg) }))
+      .filter(x => x.ext)
+      .sort((a, b) => a.ext.start - b.ext.start);
+    if (!placed.length) return '';
+
+    const from = Math.min(...placed.map(p => p.ext.start));
+    const to = Math.max(...placed.map(p => p.ext.end));
+    const span = Math.max(1, to - from);
+
+    const hourMarks = [];
+    const firstHour = Math.ceil(from / 60) * 60;
+    for (let t = firstHour; t <= to; t += 120) {
+      const left = ((t - from) / span) * 100;
+      const hh = Math.floor((t / 60) % 24);
+      hourMarks.push(`
+        <span aria-hidden="true" style="position:absolute; left:${left.toFixed(2)}%; top:0; bottom:0;
+              border-left:1px solid var(--border-subtle);"></span>
+        <span aria-hidden="true" style="position:absolute; left:${left.toFixed(2)}%; bottom:-14px;
+              transform:translateX(-50%); font-size:.6rem; color:var(--text-dim);
+              font-family:var(--font-mono);">${String(hh).padStart(2, '0')}</span>`);
+    }
+
+    const bars = placed.map(({ seg, ext }, i) => {
+      const left = ((ext.start - from) / span) * 100;
+      const width = Math.max(1.5, (ext.duration / span) * 100);
+      const isConflict = conflicts.has(seg.id);
+      const colour = isConflict ? 'var(--accent-rose)' : 'var(--accent-indigo)';
+      // Stagger rows so parallel items are both visible.
+      const row = i % 2;
+      return `<span title="${escapeHtml(`${fmtTime(seg.start)}–${fmtTime(seg.end)} ${seg.label}`)}"
+                    style="position:absolute; left:${left.toFixed(2)}%; width:${width.toFixed(2)}%;
+                           top:${row === 0 ? '4px' : '18px'}; height:12px; background:${colour};
+                           opacity:${isConflict ? 1 : 0.75}; border-radius:2px;"></span>`;
+    }).join('');
+
+    return `
+      <div aria-hidden="true" style="position:relative; height:34px; margin:.1rem 0 1.1rem;
+                  background:var(--bg-surface-hover); border:1px solid var(--border-subtle);
+                  border-radius:var(--radius-xs);">
+        ${hourMarks.join('')}${bars}
+      </div>`;
+  }
+
+  renderDayCard(day, index, conflicts, parallel) {
     const isActive = day.id === this.activeDayId;
     const extents = day.segments.map(segmentExtent).filter(Boolean);
     const dayMinutes = extents.reduce((n, e) => n + e.duration, 0);
@@ -352,12 +441,14 @@ export class TimelinePlanner {
           · ${itemCount} design item${itemCount === 1 ? '' : 's'} saved
         </div>
 
+        ${this.renderGantt(day, conflicts)}
+
         <div style="display:flex; flex-direction:column; gap:.35rem; margin:.5rem 0;">
           ${day.segments.length
             ? day.segments
                 .slice()
                 .sort((a, b) => (toMinutes(a.start) ?? 0) - (toMinutes(b.start) ?? 0))
-                .map(seg => this.renderSegment(day, seg, conflicts.get(seg.id)))
+                .map(seg => this.renderSegment(day, seg, conflicts.get(seg.id), parallel.get(seg.id)))
                 .join('')
             : `<p style="color:var(--text-muted); font-size:.8rem; margin:.25rem 0;">
                  No run-of-show items yet — add the first one below.
@@ -367,6 +458,11 @@ export class TimelinePlanner {
         <div style="display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.5rem;">
           <input type="text" class="seg-label-input" data-id="${escapeHtml(day.id)}" placeholder="e.g. Varmala"
                  aria-label="New item name" style="flex:1 1 8rem; min-width:0; padding:.35rem; font-size:.8rem;
+                 background:var(--bg-input); color:var(--text-main); border:1px solid var(--border-subtle);
+                 border-radius:var(--radius-xs);" />
+          <input type="text" class="seg-owner-input" data-id="${escapeHtml(day.id)}" placeholder="Owner (e.g. AV crew)"
+                 aria-label="New item owner" list="timeline-owner-options"
+                 style="flex:1 1 7rem; min-width:0; padding:.35rem; font-size:.8rem;
                  background:var(--bg-input); color:var(--text-main); border:1px solid var(--border-subtle);
                  border-radius:var(--radius-xs);" />
           <input type="time" class="seg-start-input" data-id="${escapeHtml(day.id)}" value="19:00"
@@ -392,9 +488,9 @@ export class TimelinePlanner {
     `;
   }
 
-  renderSegment(day, seg, conflictReason) {
+  renderSegment(day, seg, conflictReason, parallelReason) {
     const ext = segmentExtent(seg);
-    const border = conflictReason ? 'var(--accent-gold)' : 'var(--border-subtle)';
+    const border = conflictReason ? 'var(--accent-rose)' : 'var(--border-subtle)';
     return `
       <div style="display:flex; align-items:center; gap:.5rem; padding:.35rem .5rem;
                   border:1px solid ${border}; border-radius:var(--radius-xs); background:var(--bg-surface-hover);">
@@ -409,8 +505,12 @@ export class TimelinePlanner {
           ${escapeHtml(formatDuration(ext ? ext.duration : 0))}
         </span>
         ${conflictReason
-          ? `<span title="${escapeHtml(conflictReason)}" style="color:var(--accent-gold); font-size:.75rem;">⚠️</span>`
-          : ''}
+          ? `<span role="img" aria-label="Conflict: ${escapeHtml(conflictReason)}" title="${escapeHtml(conflictReason)}"
+                   style="color:var(--accent-rose); font-size:.75rem;">⚠️</span>`
+          : parallelReason
+            ? `<span role="img" aria-label="Parallel: ${escapeHtml(parallelReason)}" title="${escapeHtml(parallelReason)}"
+                     style="color:var(--text-dim); font-size:.7rem;">⇉</span>`
+            : ''}
         <button class="btn-icon seg-remove-btn" type="button"
                 data-day="${escapeHtml(day.id)}" data-seg="${escapeHtml(seg.id)}"
                 aria-label="Remove ${escapeHtml(seg.label)}" style="font-size:.7rem;">✕</button>
@@ -513,6 +613,7 @@ export class TimelinePlanner {
       if (!day) return;
       const card = e.currentTarget.closest('.timeline-card');
       const label = card.querySelector('.seg-label-input').value.trim();
+      const owner = card.querySelector('.seg-owner-input').value.trim();
       const start = card.querySelector('.seg-start-input').value;
       const end = card.querySelector('.seg-end-input').value;
       if (!label) {
@@ -525,13 +626,7 @@ export class TimelinePlanner {
         this.render();
         return;
       }
-      day.segments.push({
-        id: 'seg-' + Date.now(),
-        label,
-        start,
-        end,
-        owner: ''
-      });
+      day.segments.push({ id: 'seg-' + Date.now(), label, start, end, owner });
       this.save();
       this.render();
     });

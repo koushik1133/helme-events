@@ -73,6 +73,7 @@ export class SeatingChart {
     this.guests = this.loadGuests();
     this.selectedGuestId = null;
     this.message = null;
+    this.filter = '';
 
     this.unsubscribe = eventState.subscribe((snap, changed) => {
       if (changed.includes('guestCount')) this.render();
@@ -103,13 +104,17 @@ export class SeatingChart {
 
   /**
    * Table count is derived, never invented: whichever is larger of the shared
-   * event guest count and the actual guest list, divided by real per-table
-   * capacity.
+   * event guest count and the number of guests who still need a seat, divided
+   * by real per-table capacity. A guest who has declined does not need a chair,
+   * so RSVP "no" is excluded from the attending count.
    */
+  attendingCount() {
+    return this.guests.filter(g => g.rsvp !== 'no').length;
+  }
+
   calculateTables() {
     const planned = eventState.getGuestCount() || 0;
-    const actual = this.guests.length;
-    const people = Math.max(planned, actual);
+    const people = Math.max(planned, this.attendingCount());
     return Math.max(MIN_TABLES, Math.ceil(people / SEATS_PER_TABLE));
   }
 
@@ -146,6 +151,9 @@ export class SeatingChart {
     const planned = eventState.getGuestCount();
     const capacity = this.tableCount * SEATS_PER_TABLE;
     const seated = this.guests.filter(g => g.tableNumber).length;
+    const rsvpYes = this.guests.filter(g => g.rsvp === 'yes').length;
+    const rsvpNo = this.guests.filter(g => g.rsvp === 'no').length;
+    const rsvpPending = this.guests.filter(g => g.rsvp === 'pending').length;
 
     this.container.innerHTML = `
       <div class="seating-wrapper" style="display:flex; gap:20px; height:100%;">
@@ -157,6 +165,13 @@ export class SeatingChart {
             ${formatNumber(this.tableCount)} tables × ${SEATS_PER_TABLE} seats =
             ${formatNumber(capacity)} seats · planned headcount ${formatNumber(planned)}
             ${planned > capacity ? `<span style="color:var(--accent-rose);"> — ${formatNumber(planned - capacity)} over capacity</span>` : ''}
+          </p>
+          <p style="color:var(--text-muted); font-size:.8rem; margin:0 0 .5rem;">
+            RSVP: <strong style="color:var(--accent-emerald);">${formatNumber(rsvpYes)} yes</strong> ·
+            ${formatNumber(rsvpPending)} awaiting reply ·
+            ${formatNumber(rsvpNo)} declined.
+            Tables are sized for the ${formatNumber(Math.max(planned, this.attendingCount()))} still attending —
+            change the headcount in <strong>Event Details</strong> and this chart re-sizes.
           </p>
           ${this.renderMessage()}
           <div class="seating-canvas-container" style="position:relative; min-height:0;">
@@ -183,6 +198,10 @@ export class SeatingChart {
             <button class="btn-secondary" id="seating-import-btn" type="button" style="flex:1;">Import CSV</button>
             <button class="btn-secondary" id="seating-export-btn" type="button" style="flex:1;">Export CSV</button>
           </div>
+          <input type="search" id="seating-filter" placeholder="Filter by name or group" aria-label="Filter guest list"
+            value="${escapeHtml(this.filter)}"
+            style="padding:6px; background:var(--bg-input); color:var(--text-main);
+                   border:1px solid var(--border-subtle); border-radius:var(--radius-xs);">
           <div class="seating-guest-list" id="seating-guest-list"
                style="overflow-y:auto; flex:1; border:1px solid var(--border-subtle); padding:10px;
                       border-radius:var(--radius-sm); background:var(--bg-surface);">
@@ -235,8 +254,17 @@ Asha Mehta,Bride's Family
             </div>`;
   }
 
+  visibleGuests() {
+    const q = this.filter.trim().toLowerCase();
+    if (!q) return this.guests;
+    return this.guests.filter(g =>
+      g.name.toLowerCase().includes(q) || g.group.toLowerCase().includes(q));
+  }
+
   renderGuestList() {
     const listEl = this.container.querySelector('#seating-guest-list');
+    if (!listEl) return;
+
     if (!this.guests.length) {
       listEl.innerHTML = `
         <div style="text-align:center; color:var(--text-muted); padding:1.5rem .5rem;">
@@ -247,33 +275,104 @@ Asha Mehta,Bride's Family
       return;
     }
 
-    listEl.innerHTML = this.guests.map(g => {
+    const visible = this.visibleGuests();
+    if (!visible.length) {
+      listEl.innerHTML = `
+        <div style="text-align:center; color:var(--text-muted); padding:1.5rem .5rem;">
+          <p style="margin:.5rem 0; color:var(--text-main);">No guest matches “${escapeHtml(this.filter)}”.</p>
+          <p style="font-size:.8rem;">Clear the filter to see all ${formatNumber(this.guests.length)} guests.</p>
+        </div>`;
+      return;
+    }
+
+    const RSVP_LABEL = { yes: 'Attending', pending: 'Awaiting reply', no: 'Declined' };
+    const RSVP_COLOR = { yes: 'var(--accent-emerald)', pending: 'var(--text-muted)', no: 'var(--accent-rose)' };
+
+    listEl.innerHTML = visible.map(g => {
       const selected = g.id === this.selectedGuestId;
       return `
       <div class="seating-guest-card ${selected ? 'selected' : ''}" data-id="${escapeHtml(g.id)}"
-           role="button" tabindex="0" aria-pressed="${selected}"
-           aria-label="${escapeHtml(g.name)}, ${escapeHtml(g.group)}, ${g.tableNumber ? `table ${g.tableNumber} seat ${g.seatNumber}` : 'unassigned'}"
            style="padding:8px; border:1px solid ${selected ? 'var(--accent-indigo)' : 'var(--border-subtle)'};
                   margin-bottom:5px; border-radius:var(--radius-xs);
-                  background:${selected ? 'var(--bg-surface-hover)' : 'var(--bg-surface)'}; cursor:pointer;">
+                  background:${selected ? 'var(--bg-surface-hover)' : 'var(--bg-surface)'};">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
-          <strong style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis;">${escapeHtml(g.name)}</strong>
-          <span style="font-size:.75rem; color:var(--text-muted); white-space:nowrap;">${escapeHtml(g.group)}</span>
+          <button type="button" class="guest-select-btn" data-id="${escapeHtml(g.id)}"
+                  aria-pressed="${selected}"
+                  aria-label="${escapeHtml(g.name)}, ${escapeHtml(g.group)}, ${escapeHtml(RSVP_LABEL[g.rsvp])}, ${g.tableNumber ? `seated at table ${g.tableNumber} seat ${g.seatNumber}` : 'unassigned'}. Select to seat."
+                  style="flex:1; min-width:0; text-align:left; background:none; border:0; padding:0;
+                         cursor:pointer; color:var(--text-main); font: inherit;">
+            <strong style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(g.name)}</strong>
+            <span style="font-size:.72rem; color:var(--text-muted);">${escapeHtml(g.group)}</span>
+          </button>
+          <button type="button" class="guest-delete-btn btn-icon" data-id="${escapeHtml(g.id)}"
+                  aria-label="Remove ${escapeHtml(g.name)} from the guest list"
+                  style="font-size:.7rem;">🗑️</button>
         </div>
-        <div style="font-size:.75rem; color:${g.tableNumber ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">
-          ${g.tableNumber ? `Table ${g.tableNumber}, Seat ${g.seatNumber}` : 'Unassigned'}
+        <div style="display:flex; align-items:center; gap:.4rem; margin-top:.35rem;">
+          <select class="guest-rsvp-select" data-id="${escapeHtml(g.id)}"
+                  aria-label="RSVP for ${escapeHtml(g.name)}"
+                  style="font-size:.7rem; padding:.1rem .2rem; background:var(--bg-input);
+                         color:${RSVP_COLOR[g.rsvp]}; border:1px solid var(--border-subtle);
+                         border-radius:var(--radius-xs);">
+            ${['yes', 'pending', 'no'].map(v =>
+              `<option value="${v}" ${g.rsvp === v ? 'selected' : ''}>${RSVP_LABEL[v]}</option>`).join('')}
+          </select>
+          <span style="flex:1; font-size:.72rem; color:${g.tableNumber ? 'var(--accent-emerald)' : 'var(--text-dim)'};">
+            ${g.tableNumber ? `Table ${g.tableNumber}, Seat ${g.seatNumber}` : 'Unassigned'}
+          </span>
+          ${g.tableNumber
+            ? `<button type="button" class="guest-unseat-btn btn-icon" data-id="${escapeHtml(g.id)}"
+                       aria-label="Unseat ${escapeHtml(g.name)}" style="font-size:.65rem;">Unseat</button>`
+            : ''}
         </div>
       </div>`;
     }).join('');
 
-    listEl.querySelectorAll('.seating-guest-card').forEach(card => {
-      const select = () => {
-        this.selectedGuestId = this.selectedGuestId === card.dataset.id ? null : card.dataset.id;
+    listEl.querySelectorAll('.guest-select-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectedGuestId = this.selectedGuestId === btn.dataset.id ? null : btn.dataset.id;
         this.renderGuestList();
-      };
-      card.addEventListener('click', select);
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); }
+      });
+    });
+
+    listEl.querySelectorAll('.guest-rsvp-select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const guest = this.guests.find(g => g.id === sel.dataset.id);
+        if (!guest) return;
+        guest.rsvp = sel.value;
+        // A guest who has declined should not keep holding a chair.
+        if (guest.rsvp === 'no' && guest.tableNumber) {
+          guest.tableNumber = null;
+          guest.seatNumber = null;
+          this.message = { kind: 'warn', text: `${guest.name} declined — their seat has been freed.` };
+        }
+        this.save();
+        this.render();
+      });
+    });
+
+    listEl.querySelectorAll('.guest-unseat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const guest = this.guests.find(g => g.id === btn.dataset.id);
+        if (!guest) return;
+        guest.tableNumber = null;
+        guest.seatNumber = null;
+        this.save();
+        this.message = { kind: 'warn', text: `${guest.name} moved back to Unassigned.` };
+        this.render();
+      });
+    });
+
+    listEl.querySelectorAll('.guest-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const guest = this.guests.find(g => g.id === btn.dataset.id);
+        if (!guest) return;
+        if (!window.confirm(`Remove ${guest.name} from the guest list?`)) return;
+        this.guests = this.guests.filter(g => g.id !== guest.id);
+        if (this.selectedGuestId === guest.id) this.selectedGuestId = null;
+        this.save();
+        this.message = { kind: 'warn', text: `${guest.name} removed from the guest list.` };
+        this.render();
       });
     });
   }
@@ -388,8 +487,9 @@ Asha Mehta,Bride's Family
         }
         guest.tableNumber = t.id;
         guest.seatNumber = s + 1;
-        // Keep momentum: auto-advance to the next unassigned guest.
-        const next = this.guests.find(g => !g.tableNumber && g.id !== guest.id);
+        // Keep momentum: auto-advance to the next guest who still needs a seat.
+        // Anyone who has declined is skipped — they do not need one.
+        const next = this.guests.find(g => !g.tableNumber && g.rsvp !== 'no' && g.id !== guest.id);
         this.selectedGuestId = next ? next.id : null;
         this.save();
         this.render();
@@ -431,6 +531,15 @@ Asha Mehta,Bride's Family
     });
 
     this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
+
+    const filterEl = q('#seating-filter');
+    if (filterEl) {
+      // Re-render only the list, so typing never steals focus from the box.
+      filterEl.addEventListener('input', () => {
+        this.filter = filterEl.value;
+        this.renderGuestList();
+      });
+    }
 
     const modal = q('#seating-import-modal');
     q('#seating-import-btn').addEventListener('click', () => {

@@ -108,6 +108,12 @@ export const BASELINE_GUESTS = 250;
 /** Categories whose quantity genuinely follows the guest count. */
 export const GUEST_SCALED_CATEGORIES = new Set(['chairs', 'tables']);
 
+/**
+ * Below this base quantity a line is a fixed feature, not guest capacity — the
+ * two mandap thrones are for the couple, and do not become three at 400 guests.
+ */
+export const GUEST_SCALE_MIN_BASE = 4;
+
 function sanitizeBasket(raw) {
   const out = { quantities: {}, excluded: [] };
   if (!raw || typeof raw !== 'object') return out;
@@ -180,6 +186,12 @@ export function restoreLine(slotId) {
   persistBasket();
 }
 
+/** Replace the whole basket (used when a saved proposal is loaded back). */
+export function applyBasket(snapshot) {
+  basket = sanitizeBasket(snapshot);
+  persistBasket();
+}
+
 /** Put every removed line back and drop every quantity override. */
 export function resetBasket() {
   basket = { quantities: {}, excluded: [] };
@@ -198,7 +210,9 @@ export function resetBasket() {
  */
 export function slotQuantity(slot, itemId, options = {}) {
   if (!slot) return 1;
-  const override = basket.quantities[slot.id];
+  // A saved proposal carries its own basket, so it re-prices exactly as saved.
+  const quantities = options.quantities || basket.quantities;
+  const override = Number(quantities[slot.id]);
   if (options.ignoreOverride !== true && Number.isFinite(override) && override > 0) return override;
 
   const byItem = itemId != null && slot.quantityByItem ? slot.quantityByItem[itemId] : undefined;
@@ -206,9 +220,11 @@ export function slotQuantity(slot, itemId, options = {}) {
   const base = Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 1;
 
   if (options.scaleWithGuests === false) return base;
-  if (!GUEST_SCALED_CATEGORIES.has(slot.category)) return base;
+  if (!GUEST_SCALED_CATEGORIES.has(slot.category) || base < GUEST_SCALE_MIN_BASE) return base;
 
-  const guests = Math.max(1, Math.round(Number(eventState.getGuestCount()) || BASELINE_GUESTS));
+  const guests = Math.max(1, Math.round(
+    Number(options.guestCount != null ? options.guestCount : eventState.getGuestCount()) || BASELINE_GUESTS
+  ));
   return Math.max(1, Math.round((base * guests) / BASELINE_GUESTS));
 }
 
@@ -247,15 +263,23 @@ export function buildQuoteLines(activeSelections = {}, options = {}) {
   const inScope = new Set(scope);
 
   const includeRemoved = options.includeRemoved === true;
+  // `options.basket` lets a saved proposal or a recorded order re-price against
+  // the basket it was saved with, rather than whatever is on screen now.
+  const snapshot = options.basket && typeof options.basket === 'object'
+    ? sanitizeBasket(options.basket)
+    : null;
+  const quantities = snapshot ? snapshot.quantities : basket.quantities;
+  const excluded = new Set(snapshot ? snapshot.excluded : basket.excluded);
+  const qtyOptions = { quantities, guestCount: options.guestCount };
 
   VENUE_ZONES.filter(zone => inScope.has(zone.id)).forEach(zone => {
     zone.slots.forEach(slot => {
-      const removed = isLineRemoved(slot.id);
+      const removed = excluded.has(slot.id);
       if (removed && !includeRemoved) return;
       const itemId = resolveItemId(activeSelections[slot.id], slot.defaultItemId);
       const item = getItemById(itemId);
       if (!item) return;
-      const quantity = slotQuantity(slot, item.id);
+      const quantity = slotQuantity(slot, item.id, qtyOptions);
       lines.push({
         zoneId: zone.id,
         zoneName: zone.name,
@@ -268,8 +292,8 @@ export function buildQuoteLines(activeSelections = {}, options = {}) {
         sac: sacFor(item.category),
         unitPrice: Math.round(Number(item.price) || 0),
         quantity,
-        defaultQuantity: slotQuantity(slot, item.id, { ignoreOverride: true }),
-        isCustomQuantity: Object.prototype.hasOwnProperty.call(basket.quantities, slot.id),
+        defaultQuantity: slotQuantity(slot, item.id, { ...qtyOptions, ignoreOverride: true }),
+        isCustomQuantity: Object.prototype.hasOwnProperty.call(quantities, slot.id),
         removed,
         lineTotal: Math.round((Number(item.price) || 0) * quantity)
       });

@@ -1,11 +1,16 @@
 import { formatMoney, escapeHtml, readJSON, writeJSON } from '../utils/format.js';
 import {
   buildQuote,
+  getBasket,
+  applyBasket,
+  subscribeBasket,
   renderInvoiceDocument,
   getOrCreateDocNumber,
   printHtmlDocument,
   formatDocDate
 } from '../utils/quote.js';
+import { eventState, zonesInScope } from '../data/eventState.js';
+import { VENUE_ZONES } from '../data/zones.js';
 
 const PROPOSALS_KEY = 'event360_proposals';
 const MAX_PROPOSALS = 40;
@@ -42,7 +47,17 @@ export class ProposalsManager {
       this.persist();
     }
 
+    this.unsubscribeBasket = subscribeBasket(() => this.render());
+    this.unsubscribeEvent = eventState.subscribe((snap, changed) => {
+      if (changed.includes('guestCount') || changed.includes('eventType')) this.render();
+    });
+
     this.render();
+  }
+
+  destroy() {
+    if (this.unsubscribeBasket) this.unsubscribeBasket();
+    if (this.unsubscribeEvent) this.unsubscribeEvent();
   }
 
   updateSelections(activeSelections) {
@@ -55,24 +70,42 @@ export class ProposalsManager {
     writeJSON(PROPOSALS_KEY, this.proposals);
   }
 
-  /** A proposal's total is always computed from its own selections. */
-  buildProposal({ id, title, client, date, selections }) {
-    const quote = buildQuote(selections || {});
-    return {
+  /**
+   * A proposal's total is always computed from its own selections — and from
+   * the basket and guest count it was saved with, so loading it back reproduces
+   * the exact price the client was shown.
+   */
+  buildProposal({ id, title, client, date, selections, basket, guestCount, eventType, zoneIds }) {
+    const ev = eventState.get();
+    const snapshot = {
       id,
       title,
       client,
       date,
       selections: { ...(selections || {}) },
+      basket: basket || getBasket(),
+      guestCount: Number(guestCount) > 0 ? Math.round(Number(guestCount)) : ev.guestCount,
+      eventType: eventType || ev.eventType,
+      zoneIds: Array.isArray(zoneIds) && zoneIds.length
+        ? zoneIds
+        : zonesInScope(VENUE_ZONES.map(z => z.id))
+    };
+    const quote = this.quoteFor(snapshot);
+    return {
+      ...snapshot,
       subtotal: quote.subtotal,
       total: quote.grandTotal,
       itemCount: quote.itemCount
     };
   }
 
-  /** Re-derive totals for a stored proposal (catalogue or quantities may have moved). */
+  /** Re-derive totals for a stored proposal, against ITS saved basket. */
   quoteFor(prop) {
-    return buildQuote(prop.selections || {});
+    return buildQuote(prop.selections || {}, {
+      basket: prop.basket,
+      guestCount: prop.guestCount,
+      zoneIds: Array.isArray(prop.zoneIds) && prop.zoneIds.length ? prop.zoneIds : undefined
+    });
   }
 
   saveCurrentProposal(title, client, date) {
@@ -217,7 +250,17 @@ export class ProposalsManager {
     this.container.querySelectorAll('.btn-load-prop[data-prop-id]').forEach(btn => {
       btn.addEventListener('click', () => {
         const prop = this.proposals.find(p => p.id === btn.getAttribute('data-prop-id'));
-        if (prop && this.onLoadProposal) this.onLoadProposal(prop.selections || {});
+        if (!prop) return;
+        // Restore the COMMERCIAL state as well as the design, or the price the
+        // client agreed to would not come back with it.
+        if (prop.basket) applyBasket(prop.basket);
+        const patch = {};
+        if (Number(prop.guestCount) > 0) patch.guestCount = Math.round(Number(prop.guestCount));
+        if (prop.eventType) patch.eventType = prop.eventType;
+        if (Array.isArray(prop.zoneIds) && prop.zoneIds.length) patch.scopeZoneIds = prop.zoneIds;
+        if (Object.keys(patch).length) eventState.set(patch, { reason: 'proposal-load' });
+        if (this.onLoadProposal) this.onLoadProposal(prop.selections || {});
+        this.render();
       });
     });
 

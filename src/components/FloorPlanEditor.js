@@ -1,9 +1,17 @@
 import { VENUE_ZONES } from '../data/zones.js';
 import { getItemById } from '../data/catalog.js';
-import { readJSON, writeJSON, escapeHtml } from '../utils/format.js';
-import { eventState } from '../data/eventState.js';
+import { readJSON, writeJSON, escapeHtml, formatMoney } from '../utils/format.js';
+import { eventState, zonesInScope } from '../data/eventState.js';
 
 const LAYOUT_KEY = 'helm_floorplan_layout_v1';
+
+/**
+ * The plan has a DECLARED SCALE. Without one, "drag things around a grid" is a
+ * doodle; with one, the footprints and clearances mean something. One grid
+ * square is one metre, so a node's drawn footprint is a real measurement and
+ * the ruler at the top of the plan can be trusted.
+ */
+const METRES_PER_GRID = 1;
 
 /** Layout constants — the canvas is sized from these, never hardcoded. */
 const COLS = 4;
@@ -41,11 +49,24 @@ export class FloorPlanEditor {
     if (!this.savedLayout || typeof this.savedLayout !== 'object') this.savedLayout = {};
     this.boundMouseUp = null;
 
+    // The plan must show the same zones as the quote. It used to draw all eight,
+    // so a wedding plan included the election rally stage and the summit podium.
+    this.unsubscribe = eventState.subscribe((snap, changed) => {
+      if (changed.includes('eventType') || changed.includes('scopeZoneIds')) this.render();
+    });
+
     this.render();
   }
 
   destroy() {
     if (this.boundMouseUp) window.removeEventListener('mouseup', this.boundMouseUp);
+    if (this.unsubscribe) this.unsubscribe();
+  }
+
+  /** The zones this event actually uses — the same set the quote is scoped to. */
+  scopedZones() {
+    const inScope = new Set(zonesInScope(VENUE_ZONES.map(z => z.id)));
+    return VENUE_ZONES.filter(z => inScope.has(z.id));
   }
 
   updateSelections(activeSelections) {
@@ -71,7 +92,7 @@ export class FloorPlanEditor {
 
     let y = MARGIN_TOP;
 
-    VENUE_ZONES.forEach(zone => {
+    this.scopedZones().forEach(zone => {
       const rows = Math.ceil(zone.slots.length / COLS);
       const bandTop = y - ZONE_HEADER_H;
       this.zoneBands.push({
@@ -98,6 +119,11 @@ export class FloorPlanEditor {
           slotLabel: slot.label,
           itemId: itemId,
           itemName: item ? item.name : 'Object',
+          itemPrice: item ? Number(item.price || 0) : 0,
+          quantity: Number(slot.quantityByItem?.[itemId] ?? slot.quantity ?? 1) || 1,
+          allowedItemIds: Array.isArray(slot.allowedItemIds) ? slot.allowedItemIds : [],
+          slotQuantity: Number(slot.quantity ?? 1) || 1,
+          quantityByItem: slot.quantityByItem || null,
           category: slot.category,
           defaultX,
           defaultY,
@@ -186,8 +212,10 @@ export class FloorPlanEditor {
           <div>
             <h3>📐 2D Site Floor Plan Editor</h3>
             <p>
-              Drag, rotate, resize and snap venue equipment across every zone. Positions are saved to this
-              browser and pushed back to the 360° Studio and the budget when you press Sync.
+              Drag, rotate, resize and snap venue equipment across the zones this event uses.
+              One grid square is ${METRES_PER_GRID} m, so footprints are real measurements.
+              Positions are saved to this browser; <strong>swapping an item below changes the
+              360° Studio and the quote immediately</strong>.
               <span style="color:var(--text-dim);">(2D only — there is no 3D view in this build.)</span>
             </p>
           </div>
@@ -197,12 +225,14 @@ export class FloorPlanEditor {
             <button class="btn-floor-action" id="btnZoomOut" type="button" aria-label="Zoom out">➖</button>
             <button class="btn-floor-action" id="btnZoomIn" type="button" aria-label="Zoom in">➕</button>
             <button class="btn-floor-action" id="btnRotateSelected" type="button">↪️ Rotate 45°</button>
-            <button class="btn-floor-action" id="btnSync" type="button">🔗 Sync to Studio</button>
             <button class="btn-floor-action" id="btnResetGrid" type="button">🔄 Reset Layout</button>
           </div>
         </div>
         <div id="floorPlanStatus" role="status"
              style="padding:.35rem .75rem; font-size:.8rem; color:var(--text-muted);"></div>
+        <div id="floorPlanInspector"
+             style="padding:.5rem .75rem; border-top:1px solid var(--border-subtle);
+                    border-bottom:1px solid var(--border-subtle); background:var(--bg-surface);"></div>
         <div class="canvas-grid-container" style="overflow:auto; max-height:70vh;">
           <canvas id="floorPlanCanvas" tabindex="0"
                   aria-label="Venue floor plan. Click a node to select, arrow keys to nudge."></canvas>
@@ -212,17 +242,85 @@ export class FloorPlanEditor {
 
     this.canvas = this.container.querySelector('#floorPlanCanvas');
     this.statusEl = this.container.querySelector('#floorPlanStatus');
+    this.inspectorEl = this.container.querySelector('#floorPlanInspector');
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
     this.initNodesFromZones({ preservePositions: false });
     this.resizeCanvasToContent();
     this.bindEvents();
     this.draw();
-    this.setStatus(`${this.nodes.length} equipment nodes across ${VENUE_ZONES.length} zones — all visible.`);
+    this.renderInspector();
+    const zoneCount = this.scopedZones().length;
+    this.setStatus(`${this.nodes.length} equipment nodes across ${zoneCount} zone${zoneCount === 1 ? '' : 's'} in scope for this event — all visible.`);
   }
 
   setStatus(text) {
     if (this.statusEl) this.statusEl.textContent = text;
+  }
+
+  /**
+   * The node inspector is what makes "live sync" true rather than a slogan:
+   * changing the item here writes straight through to `activeSelections`, so
+   * the 360° Studio, the cost card and the invoice all move with it.
+   */
+  renderInspector() {
+    if (!this.inspectorEl) return;
+    const node = this.selectedNode;
+
+    if (!node) {
+      this.inspectorEl.innerHTML = `
+        <p style="margin:0; font-size:.8rem; color:var(--text-muted);">
+          Click a node on the plan to reposition it or swap the item in that position.
+          Arrow keys nudge, <kbd>R</kbd> rotates, the scroll wheel resizes.
+        </p>`;
+      return;
+    }
+
+    const options = node.allowedItemIds.length ? node.allowedItemIds : [node.itemId];
+    const widthM = ((node.radius * 1.9) / GRID_SIZE * METRES_PER_GRID).toFixed(1);
+    const depthM = ((node.radius * 1.25) / GRID_SIZE * METRES_PER_GRID).toFixed(1);
+
+    this.inspectorEl.innerHTML = `
+      <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; font-size:.8rem;">
+        <strong style="color:var(--text-main);">${escapeHtml(node.zoneName)} · ${escapeHtml(node.slotLabel)}</strong>
+        <label style="color:var(--text-muted); display:flex; align-items:center; gap:.35rem;">
+          Item
+          <select id="floorPlanItemSelect" aria-label="Item in ${escapeHtml(node.slotLabel)}"
+                  style="padding:.25rem; font-size:.78rem; background:var(--bg-input); color:var(--text-main);
+                         border:1px solid var(--border-subtle); border-radius:var(--radius-xs);">
+            ${options.map(id => {
+              const it = getItemById(id);
+              if (!it) return '';
+              return `<option value="${escapeHtml(id)}" ${id === node.itemId ? 'selected' : ''}>
+                        ${escapeHtml(it.name)} — ${escapeHtml(formatMoney(it.price))}
+                      </option>`;
+            }).join('')}
+          </select>
+        </label>
+        <span style="color:var(--text-muted);">
+          Footprint ${widthM} × ${depthM} m · ${node.rotation}° ·
+          ${node.quantity} × ${escapeHtml(formatMoney(node.itemPrice))} =
+          <strong style="color:var(--text-main);">${escapeHtml(formatMoney(node.itemPrice * node.quantity))}</strong>
+        </span>
+      </div>`;
+
+    const select = this.inspectorEl.querySelector('#floorPlanItemSelect');
+    if (select) {
+      select.addEventListener('change', () => {
+        const item = getItemById(select.value);
+        if (!item) return;
+        node.itemId = select.value;
+        node.itemName = item.name;
+        node.itemPrice = Number(item.price || 0);
+        node.quantity = Number(node.quantityByItem?.[select.value] ?? node.slotQuantity) || 1;
+        node.color = item.color || node.color;
+        this.activeSelections = { ...this.activeSelections, [node.id]: node.itemId };
+        this.emitSync();
+        this.draw();
+        this.renderInspector();
+        this.setStatus(`${node.slotLabel} is now ${item.name} — pushed to the 360° Studio and the quote.`);
+      });
+    }
   }
 
   draw() {
@@ -248,6 +346,23 @@ export class FloorPlanEditor {
     for (let y = 0; y < height; y += GRID_SIZE) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
     }
+
+    // Scale bar. A floor plan without a declared scale is a doodle; with one,
+    // the client can read clearances straight off the drawing.
+    const barMetres = 5;
+    const barPx = (barMetres / METRES_PER_GRID) * GRID_SIZE;
+    ctx.strokeStyle = textMuted;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(24, 34);
+    ctx.lineTo(24 + barPx, 34);
+    ctx.moveTo(24, 28); ctx.lineTo(24, 40);
+    ctx.moveTo(24 + barPx, 28); ctx.lineTo(24 + barPx, 40);
+    ctx.stroke();
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillStyle = textMuted;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${barMetres} m  ·  1 grid square = ${METRES_PER_GRID} m`, 24 + barPx + 10, 38);
 
     // Zone bands, so the three India verticals are labelled and findable.
     this.zoneBands.forEach(band => {
@@ -345,6 +460,7 @@ export class FloorPlanEditor {
       }
       this.canvas.focus();
       this.draw();
+      this.renderInspector();
     });
 
     this.canvas.addEventListener('mousemove', (e) => {
@@ -436,19 +552,15 @@ export class FloorPlanEditor {
       this.draw();
     });
 
-    bind('#btnSync', () => {
-      this.emitSync();
-      eventState.set({ venue: eventState.get().venue }, { source: 'FloorPlanEditor' });
-      this.setStatus('Floor plan pushed to the 360° Studio and the budget.');
-    });
-
     bind('#btnResetGrid', () => {
       if (!window.confirm('Reset every node to its default position? Your arranged layout will be lost.')) return;
       this.pushUndo();
+      this.selectedNode = null;
       this.initNodesFromZones({ preservePositions: false, resetSaved: true });
       this.resizeCanvasToContent();
       this.persistLayout();
       this.draw();
+      this.renderInspector();
       this.setStatus('Layout reset to defaults.');
     });
   }

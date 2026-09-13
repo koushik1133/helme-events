@@ -1,4 +1,5 @@
 import { ITEM_CATALOG } from '../data/catalog.js';
+import { buildQuoteLines } from '../utils/quote.js';
 import { formatMoney, formatNumber, readJSON, writeJSON, escapeHtml } from '../utils/format.js';
 
 const INVENTORY_KEY = 'helme_events_inventory';
@@ -133,6 +134,7 @@ export class InventoryTracker {
             </select>
           </div>
         </div>
+        <div class="inventory-alerts" id="inventory-demand" style="margin-bottom:16px;padding:12px;border:1px solid var(--border-subtle);background:var(--bg-elevated);border-radius:10px;color:var(--text-main);"></div>
         <div class="inventory-alerts" id="inventory-alerts" style="margin-bottom:16px;padding:12px;border:1px solid rgba(248,113,113,0.45);background:rgba(254,242,242,0.08);border-radius:10px;color:var(--text-main);"></div>
         <div class="inventory-meta" id="inventory-meta" style="margin-bottom:12px;color:var(--text-muted);font-size:0.85rem;"></div>
         <div class="inventory-grid" id="inventory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;"></div>
@@ -140,6 +142,40 @@ export class InventoryTracker {
     `;
     this.bindEvents();
     this.renderGrid();
+  }
+
+  /**
+   * How many of each catalog item the CURRENT quote actually asks for, keyed
+   * by item id. This is the join that makes an inventory list belong in a
+   * sales tool: the quote already knows the order and the tracker already
+   * knows the holding, so together they say what must be sub-hired.
+   */
+  requirements() {
+    const selections = (typeof window !== 'undefined' && window.app?.activeSelections) || {};
+    const needed = {};
+    try {
+      buildQuoteLines(selections).forEach(line => {
+        needed[line.itemId] = (needed[line.itemId] || 0) + Number(line.quantity || 0);
+      });
+    } catch (err) {
+      console.warn('[InventoryTracker] could not price the current quote:', err);
+    }
+    return needed;
+  }
+
+  /** Lines where the quote asks for more than the shelf holds. */
+  shortfalls() {
+    const needed = this.requirements();
+    const byId = new Map(this.allItems().map(i => [i.id, i]));
+    return Object.entries(needed)
+      .map(([id, qty]) => {
+        const item = byId.get(id);
+        if (!item) return null;
+        const stock = this.inventory[id] || 0;
+        return { item, required: qty, stock, gap: qty - stock };
+      })
+      .filter(row => row && row.gap > 0)
+      .sort((a, b) => b.gap - a.gap);
   }
 
   /** Reorder threshold is relative to the curated holding, so 3 of 4 stages
@@ -157,7 +193,36 @@ export class InventoryTracker {
     });
   }
 
+  /** "This quote needs 300 Gold Chiavari; 180 on the shelf; sub-hire 120." */
+  renderDemand() {
+    const el = this.container.querySelector('#inventory-demand');
+    if (!el) return;
+
+    const needed = this.requirements();
+    const lineCount = Object.keys(needed).length;
+
+    if (lineCount === 0) {
+      el.innerHTML =
+        '<h3 style="margin:0 0 8px;color:var(--text-main);">Against the current quote</h3>' +
+        '<div style="color:var(--text-muted);">Nothing is on the quote yet. Pick items in the 360° view and this panel will show what has to be sub-hired.</div>';
+      return;
+    }
+
+    const short = this.shortfalls();
+    el.innerHTML =
+      '<h3 style="margin:0 0 8px;color:var(--text-main);">Against the current quote</h3>' +
+      (short.length
+        ? `<div style="color:var(--text-muted);margin-bottom:6px;">${short.length} of ${formatNumber(lineCount)} quoted line${lineCount === 1 ? '' : 's'} cannot be covered from stock:</div>` +
+          short.map(r => `
+            <div style="color:#f87171;">
+              ⚠️ ${escapeHtml(r.item.name)} — quote needs ${formatNumber(r.required)}, ${formatNumber(r.stock)} in stock,
+              <strong>sub-hire ${formatNumber(r.gap)}</strong>
+            </div>`).join('')
+        : `<div style="color:#4ade80;">All ${formatNumber(lineCount)} quoted line${lineCount === 1 ? '' : 's'} can be covered from stock.</div>`);
+  }
+
   renderGrid() {
+    this.renderDemand();
     const grid = this.container.querySelector('#inventory-grid');
     const alerts = this.container.querySelector('#inventory-alerts');
     const meta = this.container.querySelector('#inventory-meta');

@@ -2,6 +2,11 @@ import confetti from 'canvas-confetti';
 import { formatMoney, escapeHtml, readJSON, writeJSON, SELLER_STATE } from '../utils/format.js';
 import {
   buildQuote,
+  setLineQuantity,
+  removeLine,
+  restoreLine,
+  resetBasket,
+  subscribeBasket,
   renderInvoiceDocument,
   getOrCreateDocNumber,
   printHtmlDocument,
@@ -43,6 +48,15 @@ export class CartPaymentModal {
 
     const stored = readJSON(BUYER_KEY, null);
     this.buyer = { ...DEFAULT_BUYER, ...(stored && typeof stored === 'object' ? stored : {}) };
+
+    // A quantity edited in the cost card while the cart is open must reprice here too.
+    this.unsubscribeBasket = subscribeBasket(() => {
+      if (this.isOpen && !this.isPaid && !this.isProcessing) this.render();
+    });
+  }
+
+  destroy() {
+    if (this.unsubscribeBasket) this.unsubscribeBasket();
   }
 
   updateSelections(activeSelections) {
@@ -69,6 +83,33 @@ export class CartPaymentModal {
 
   persistBuyer() {
     writeJSON(BUYER_KEY, this.buyer);
+  }
+
+  /**
+   * The quote AS IT WAS when the advance was taken.
+   *
+   * The receipt and the tax invoice must never be recomputed from the live
+   * configuration — edit a quantity after checkout and the "paid" invoice
+   * would silently change amount.
+   */
+  orderQuote() {
+    const o = this.order;
+    return {
+      lines: o.lines,
+      zones: [],
+      subtotal: o.subtotal,
+      gst: o.gst,
+      gstRatePct: o.gstRatePct,
+      grandTotal: o.grandTotal,
+      buyerState: o.buyer.state,
+      schedule: o.schedule,
+      deposit: o.advancePaid,
+      balanceDue: o.grandTotal - o.advancePaid,
+      itemCount: o.lines.length,
+      removedLines: [],
+      removedCount: 0,
+      unitCount: o.lines.reduce((a, l) => a + l.quantity, 0)
+    };
   }
 
   documentBody(quote, order) {
@@ -110,7 +151,7 @@ export class CartPaymentModal {
             No card details are collected anywhere in this flow. Never enter live payment information.
           </div>
 
-          ${this.isPaid ? this.renderSuccess(quote) : this.renderCheckout(quote, taxRows)}
+          ${this.isPaid ? this.renderSuccess(this.orderQuote()) : this.renderCheckout(quote, taxRows)}
         </div>
       </div>
     `;
@@ -190,23 +231,54 @@ export class CartPaymentModal {
             <p class="upi-hint">Supplier is registered in ${escapeHtml(SELLER_STATE)} (code ${escapeHtml(SELLER.stateCode)}). Place of supply ${escapeHtml(this.buyer.state)} (code ${escapeHtml(stateCodeFor(this.buyer.state))}) ⇒ ${quote.gst.intraState ? 'CGST + SGST' : 'IGST'}.</p>
           </div>
 
-          <h4 class="column-title">📋 Itemized equipment list (${quote.itemCount} ${quote.itemCount === 1 ? 'item' : 'items'})</h4>
+          <h4 class="column-title">📋 Itemized equipment list (${quote.itemCount} ${quote.itemCount === 1 ? 'line' : 'lines'} • ${quote.unitCount} units)</h4>
           <div class="cart-items-scroll">
             ${quote.lines.length === 0 ? `
               <div class="cart-empty-state" style="padding:24px; text-align:center; opacity:.8;">
-                <strong>Your cart is empty.</strong>
-                <p>Configure equipment in a 360° zone and it will appear here, priced.</p>
+                <strong>${quote.removedCount > 0 ? 'You have removed every line.' : 'Your cart is empty.'}</strong>
+                <p>${quote.removedCount > 0
+                  ? 'Put a line back below, or configure equipment in a 360° zone.'
+                  : 'Configure equipment in a 360° zone and it will appear here, priced.'}</p>
               </div>
             ` : quote.lines.map(l => `
               <div class="cart-item-row">
                 <div class="cart-item-info">
                   <strong>${escapeHtml(l.itemName)}</strong>
-                  <small>${escapeHtml(l.zoneName)} • ${escapeHtml(l.slotLabel)} • ${l.quantity} × ${formatMoney(l.unitPrice)} • SAC ${escapeHtml(l.sac)}</small>
+                  <small>${escapeHtml(l.zoneName)} • ${escapeHtml(l.slotLabel)} • SAC ${escapeHtml(l.sac)} • ${formatMoney(l.unitPrice)} each</small>
+                  <div class="qty-stepper" role="group" aria-label="Quantity for ${escapeHtml(l.itemName)}">
+                    <button type="button" class="qty-step" data-qty-step="-1" data-slot-id="${escapeHtml(l.slotId)}"
+                            aria-label="Decrease quantity of ${escapeHtml(l.itemName)}" ${l.quantity <= 1 ? 'disabled' : ''}>−</button>
+                    <input type="number" class="qty-input" min="1" max="100000" step="1" value="${l.quantity}"
+                           data-slot-id="${escapeHtml(l.slotId)}" aria-label="Quantity of ${escapeHtml(l.itemName)}" />
+                    <button type="button" class="qty-step" data-qty-step="1" data-slot-id="${escapeHtml(l.slotId)}"
+                            aria-label="Increase quantity of ${escapeHtml(l.itemName)}">+</button>
+                    <button type="button" class="btn-remove-line" data-remove-slot="${escapeHtml(l.slotId)}"
+                            aria-label="Remove ${escapeHtml(l.itemName)} from the cart">Remove</button>
+                    ${l.isCustomQuantity ? `
+                      <button type="button" class="qty-reset" data-qty-reset="${escapeHtml(l.slotId)}"
+                              aria-label="Reset ${escapeHtml(l.itemName)} to the default quantity of ${l.defaultQuantity}">reset to ${l.defaultQuantity}</button>` : ''}
+                  </div>
                 </div>
                 <span class="cart-item-price">${formatMoney(l.lineTotal)}</span>
               </div>
             `).join('')}
           </div>
+
+          ${quote.removedCount > 0 ? `
+            <div class="removed-lines-block">
+              <h5 class="column-title">Removed from this cart (${quote.removedCount})</h5>
+              <ul class="removed-lines-list">
+                ${quote.removedLines.map(l => `
+                  <li>
+                    <span>${escapeHtml(l.itemName)} <small>${escapeHtml(l.zoneName)} • ${escapeHtml(l.slotLabel)} • ${formatMoney(l.lineTotal)}</small></span>
+                    <button type="button" class="btn-restore-line" data-restore-slot="${escapeHtml(l.slotId)}"
+                            aria-label="Add ${escapeHtml(l.itemName)} back to the cart">＋ Add back</button>
+                  </li>
+                `).join('')}
+              </ul>
+              <button type="button" class="btn-restore-all" id="btnCartResetBasket">Restore all lines &amp; default quantities</button>
+            </div>
+          ` : ''}
         </div>
 
         <div class="checkout-column">
@@ -281,11 +353,14 @@ export class CartPaymentModal {
       buyer: { ...this.buyer },
       subtotal: quote.subtotal,
       gst: quote.gst,
+      gstRatePct: quote.gstRatePct,
       grandTotal: quote.grandTotal,
       advancePaid: quote.deposit,
+      schedule: quote.schedule,
       lines: quote.lines.map(l => ({
         itemId: l.itemId, itemName: l.itemName, quantity: l.quantity,
-        unitPrice: l.unitPrice, lineTotal: l.lineTotal, sac: l.sac
+        unitPrice: l.unitPrice, lineTotal: l.lineTotal, sac: l.sac,
+        zoneName: l.zoneName, slotLabel: l.slotLabel, slotId: l.slotId
       }))
     };
     const orders = readJSON(ORDERS_KEY, []);
@@ -313,6 +388,53 @@ export class CartPaymentModal {
         this.render();
       });
     });
+
+    this.container.querySelectorAll('[data-qty-step]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slotId = btn.getAttribute('data-slot-id');
+        const input = this.container.querySelector(`.qty-input[data-slot-id="${slotId}"]`);
+        const next = Math.max(1, (Number(input && input.value) || 1) + Number(btn.getAttribute('data-qty-step')));
+        setLineQuantity(slotId, next);
+        this.render();
+      });
+    });
+
+    this.container.querySelectorAll('.qty-input').forEach(input => {
+      input.addEventListener('change', () => {
+        const n = Math.round(Number(input.value));
+        setLineQuantity(input.getAttribute('data-slot-id'), Number.isFinite(n) && n > 0 ? Math.min(n, 100000) : 1);
+        this.render();
+      });
+    });
+
+    this.container.querySelectorAll('[data-qty-reset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setLineQuantity(btn.getAttribute('data-qty-reset'), 0);
+        this.render();
+      });
+    });
+
+    this.container.querySelectorAll('[data-remove-slot]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        removeLine(btn.getAttribute('data-remove-slot'));
+        this.render();
+      });
+    });
+
+    this.container.querySelectorAll('[data-restore-slot]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        restoreLine(btn.getAttribute('data-restore-slot'));
+        this.render();
+      });
+    });
+
+    const resetBasketBtn = this.container.querySelector('#btnCartResetBasket');
+    if (resetBasketBtn) {
+      resetBasketBtn.addEventListener('click', () => {
+        resetBasket();
+        this.render();
+      });
+    }
 
     const outcome = this.container.querySelector('#demoOutcome');
     if (outcome) {
@@ -352,17 +474,15 @@ export class CartPaymentModal {
     const printBtn = this.container.querySelector('#btnPrintInvoice');
     if (printBtn && this.order) {
       printBtn.addEventListener('click', () => {
-        const quote = this.calculateTotals();
-        printHtmlDocument(`Tax Invoice ${this.order.invoiceNumber}`, this.documentBody(quote, this.order));
+        printHtmlDocument(`Tax Invoice ${this.order.invoiceNumber}`, this.documentBody(this.orderQuote(), this.order));
       });
     }
 
     const dlBtn = this.container.querySelector('#btnDownloadInvoice');
     if (dlBtn && this.order) {
       dlBtn.addEventListener('click', () => {
-        const quote = this.calculateTotals();
         const safe = this.order.invoiceNumber.replace(/[^\w.-]+/g, '-');
-        downloadHtmlDocument(`tax-invoice-${safe}.html`, `Tax Invoice ${this.order.invoiceNumber}`, this.documentBody(quote, this.order));
+        downloadHtmlDocument(`tax-invoice-${safe}.html`, `Tax Invoice ${this.order.invoiceNumber}`, this.documentBody(this.orderQuote(), this.order));
       });
     }
 

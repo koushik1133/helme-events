@@ -153,51 +153,108 @@ function orderedSlotIds(zoneMap) {
 }
 
 /**
- * Resolve the panorama URL for a zone given current selections.
+ * Resolve the full scene for a zone: which plate to load, which slot that plate
+ * actually depicts, and which changed slots the plate therefore does NOT show.
+ *
+ * THE BUG THIS REPLACES
+ * ---------------------
+ * The variant table is keyed on a SINGLE slot, so a plate can only ever depict
+ * one swapped element. The old resolver returned just a URL, and the viewer
+ * suppressed an element's prop sprite whenever `hasSceneVariant` was true for
+ * it — true for the item, regardless of whether the CURRENTLY LOADED plate
+ * showed it. Swap the podium (podium plate loads, correct) then swap the chairs
+ * (chairs plate loads — which is rendered with the DEFAULT podium) and the
+ * podium silently reverted on screen while the quote kept charging for the
+ * upgrade. No sprite was drawn either, because the podium "had a variant". The
+ * picture contradicted the price with nothing on screen admitting it.
+ *
+ * Now exactly one slot is baked, chosen deterministically by SLOT_PRIORITY, and
+ * every other changed slot is returned in `overlaySlots` so the viewer can
+ * composite it. The result depends only on the selection set, so the scene no
+ * longer flips around depending on which slot the user happened to touch last.
+ *
  * @param {string} zoneId
- * @param {object} zone — zone object with panoramaUrl + slots
- * @param {Record<string,string>} selections — activeSelections (slotId -> itemId)
- * @param {string|null} preferredSlotId — slot that was just swapped (wins)
+ * @param {object} zone
+ * @param {Record<string,string>} selections
+ * @returns {{panorama:string|null, bakedSlotId:string|null, bakedItemId:string|null,
+ *            overlaySlots:Array<{slotId:string,itemId:string,swapped:boolean}>}}
+ */
+export function resolveSceneComposite(zoneId, zone, selections = {}) {
+  const slots = zone?.slots || [];
+  const zoneMap = SCENE_VARIANTS[zoneId];
+  const sel = slotId => {
+    const slot = slots.find(s => s.id === slotId);
+    return selections[slotId] || slot?.defaultItemId || null;
+  };
+  const isSwapped = slotId => {
+    const slot = slots.find(s => s.id === slotId);
+    return Boolean(slot && sel(slotId) && sel(slotId) !== slot.defaultItemId);
+  };
+
+  let panorama = zone?.panoramaUrl || null;
+  let bakedSlotId = null;
+
+  if (zoneMap) {
+    const ordered = orderedSlotIds(zoneMap);
+    // 1. Highest-priority slot that is BOTH swapped away from its default and
+    //    has a real plate. That plate defines the room for this configuration.
+    for (const slotId of ordered) {
+      const itemId = sel(slotId);
+      const url = itemId && zoneMap[slotId]?.[itemId];
+      if (url && isSwapped(slotId)) { panorama = url; bakedSlotId = slotId; break; }
+    }
+    // 2. Nothing swapped (or nothing swapped has a plate): the highest-priority
+    //    slot of THIS zone supplies the default plate. `ordered` only ever holds
+    //    slots of this zone, so this can never return another zone's panorama.
+    if (!bakedSlotId) {
+      for (const slotId of ordered) {
+        const itemId = sel(slotId);
+        const url = itemId && zoneMap[slotId]?.[itemId];
+        if (url) { panorama = url; bakedSlotId = slotId; break; }
+      }
+    }
+  }
+
+  // Every other slot with an element is the overlay's responsibility. A slot at
+  // its default is still listed (flagged swapped:false) so the viewer can draw a
+  // sprite where the plate has no such element at all; it is the `swapped` flag,
+  // not presence in this list, that drives the "not in the photo" warning.
+  const overlaySlots = slots
+    .filter(s => s.id !== bakedSlotId)
+    .map(s => ({ slotId: s.id, itemId: sel(s.id), swapped: isSwapped(s.id) }))
+    .filter(o => Boolean(o.itemId));
+
+  return { panorama, bakedSlotId, bakedItemId: bakedSlotId ? sel(bakedSlotId) : null, overlaySlots };
+}
+
+/**
+ * Resolve the panorama URL for a zone given current selections.
+ *
+ * Kept for callers that only need the plate (before/after compare, main.js).
+ * `preferredSlotId` is now only a hint and is ignored: the composite result is a
+ * pure function of the selection set, which is what stops the scene jumping
+ * between plates as slots are touched in different orders.
+ *
  * @returns {string|null}
  */
 export function resolveScenePanorama(zoneId, zone, selections = {}, preferredSlotId = null) {
-  const zoneMap = SCENE_VARIANTS[zoneId];
-  if (!zoneMap) return zone?.panoramaUrl || null;
+  return resolveSceneComposite(zoneId, zone, selections).panorama;
+}
 
-  // A swap was just made: either this slot+item has its own plate, or the scene
-  // does not change at all. Falling through to the generic scan here used to
-  // load an UNRELATED slot's plate, so swapping a desk visibly reloaded the
-  // podium. `null` tells the caller "keep the current panorama, use the prop".
-  if (preferredSlotId) {
-    const itemId = selections[preferredSlotId];
-    return (itemId && zoneMap[preferredSlotId]?.[itemId]) || null;
-  }
+/**
+ * True when the CURRENTLY LOADED plate actually depicts this slot+item, i.e.
+ * the element is already in the photograph and must not also be composited.
+ */
+export function isBakedIntoPlate(composite, slotId) {
+  return Boolean(composite && composite.bakedSlotId === slotId);
+}
 
-  const slots = zone?.slots || [];
-  const ordered = orderedSlotIds(zoneMap);
-
-  // 1. Any slot that has actually been swapped away from its default and has a plate.
-  for (const slotId of ordered) {
-    const slot = slots.find(s => s.id === slotId);
-    const itemId = selections[slotId] || slot?.defaultItemId;
-    if (!itemId) continue;
-    const url = zoneMap[slotId]?.[itemId];
-    if (!url) continue;
-    if (slot && itemId !== slot.defaultItemId) return url;
-  }
-
-  // 2. Nothing swapped: the highest-priority slot in THIS zone supplies the
-  //    default plate. `ordered` only ever contains slots of this zone, so this
-  //    can never return another zone's panorama.
-  for (const slotId of ordered) {
-    const slot = slots.find(s => s.id === slotId);
-    const itemId = selections[slotId] || slot?.defaultItemId;
-    const url = itemId && zoneMap[slotId]?.[itemId];
-    if (url) return url;
-  }
-
-  // 3. The zone's own base plate.
-  return zone?.panoramaUrl || null;
+/**
+ * Changed slots that the loaded plate cannot show. The viewer composites these
+ * and says so; an empty array means the photo matches the quote exactly.
+ */
+export function unbakedChanges(composite) {
+  return (composite?.overlaySlots || []).filter(o => o.swapped);
 }
 
 /**

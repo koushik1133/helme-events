@@ -1,5 +1,7 @@
 import { getItemById } from '../data/catalog.js';
-import { resolveScenePanorama, getPropImage, hasSceneVariant } from '../data/sceneVariants.js';
+import { resolveSceneComposite, getPropImage, unbakedChanges } from '../data/sceneVariants.js';
+import { overlaySpec } from '../data/propOverlays.js';
+import { projectAnchor, angularHeight, pixelHeight, verticalFov } from './panoProjection.js';
 import { formatMoney, escapeHtml } from '../utils/format.js';
 
 /**
@@ -27,6 +29,7 @@ export class Viewer360 {
     this._overlayTimer       = null;
     this._timeKey            = 'day';
     this._engineFailed       = false;
+    this._composite          = null;
   }
 
   loadZone(zoneData, activeSelectionsObj = {}, overridePanoramaUrl = null) {
@@ -42,10 +45,21 @@ export class Viewer360 {
       else this.customWriting.delete(slot.id);
     });
 
-    let panoramaUrl = overridePanoramaUrl;
-    if (!panoramaUrl) {
-      panoramaUrl = resolveScenePanorama(zoneData.id, zoneData, activeSelectionsObj, null)
-        || zoneData.panoramaUrl;
+    // One composite decides EVERYTHING about this scene: which plate loads, which
+    // slot that plate genuinely depicts, and which changed slots it cannot show
+    // and must therefore be composited as billboards.
+    this._composite = resolveSceneComposite(zoneData.id, zoneData, activeSelectionsObj);
+
+    let panoramaUrl = overridePanoramaUrl || this._composite.panorama || zoneData.panoramaUrl;
+    if (overridePanoramaUrl && overridePanoramaUrl !== this._composite.panorama) {
+      // A caller forced a specific plate (theme preview, backdrop plate). We did
+      // not render it, so we must not claim any slot is baked into it.
+      this._composite = { ...this._composite, bakedSlotId: null, bakedItemId: null,
+        overlaySlots: zoneData.slots
+          .map(s => ({ slotId: s.id,
+                       itemId: activeSelectionsObj[s.id] || s.defaultItemId,
+                       swapped: (activeSelectionsObj[s.id] || s.defaultItemId) !== s.defaultItemId }))
+          .filter(o => Boolean(o.itemId)) };
     }
     this._currentPanorama = panoramaUrl;
 
@@ -85,6 +99,7 @@ export class Viewer360 {
       if (this._overlayEl?.parentNode) this._overlayEl.parentNode.removeChild(this._overlayEl);
       this._overlayEl = this._buildOverlay(zoneData);
       this.container.appendChild(this._overlayEl);
+      this._renderCompositeNotice();
       this._applyTimeOfDay();
       this._startLoop();
     };
@@ -187,31 +202,26 @@ export class Viewer360 {
     const beacon = card.querySelector('.hs-beacon');
     if (beacon) beacon.className = `hs-beacon${isSwapped ? ' hs-beacon-swapped' : ''}`;
 
-    // Live prop ghost image near the hotspot. It may not exist yet: the overlay
-    // omits a sprite for items whose look is baked into the panorama, so
-    // swapping from a baked item to an unbaked one has to create it on the fly,
-    // otherwise the swap produces no visible change at all.
+    // Composited element layer. The ONLY slot that may go without one is the slot
+    // the currently-loaded plate actually depicts; everything else must be drawn
+    // or the picture stops matching the quote.
+    const isBaked = this._composite?.bakedSlotId === slotId;
     let prop = this._overlayEl.querySelector(`.hs-prop[data-slot-id="${slotId}"]`);
-    if (!prop && item && slot && !hasSceneVariant(this.currentZone?.id, slotId, newItemId)) {
-      prop = this._createProp(slot, item, newItemId);
-      if (prop) this._overlayEl.appendChild(prop);
-    }
-    if (prop && item && hasSceneVariant(this.currentZone?.id, slotId, newItemId)) {
-      // Now baked into the plate — don't draw it twice.
-      prop.remove();
-      prop = null;
-    }
-    if (prop && item) {
-      const propSrc = getPropImage(newItemId, item.imageUrl);
-      const propImg = prop.querySelector('img');
-      if (propImg && propSrc) {
-        propImg.src = propSrc;
-        propImg.alt = item.name;
+    if (isBaked) {
+      if (prop) { prop.remove(); prop = null; }   // in the photograph already
+    } else {
+      if (!prop && item && slot) {
+        prop = this._createProp(slot, item, newItemId);
+        if (prop) this._overlayEl.appendChild(prop);
       }
-      prop.classList.toggle('hs-prop-swapped', Boolean(isSwapped));
-      prop.classList.add('hs-prop-flash');
-      setTimeout(() => prop.classList.remove('hs-prop-flash'), 700);
+      if (prop && item) {
+        this._applyPropArt(prop, slot, item, newItemId);
+        prop.classList.add('hs-prop-flash');
+        setTimeout(() => prop.classList.remove('hs-prop-flash'), 700);
+      }
     }
+
+    this._renderCompositeNotice();
 
     card.classList.add('hs-card-flash');
     setTimeout(() => card.classList.remove('hs-card-flash'), 600);
@@ -239,20 +249,18 @@ export class Viewer360 {
     overlay.className = 'hs-overlay';
     overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:50;overflow:visible;';
 
-    // Live prop sprites only for slots without a baked 360 plate (avoid double-draw)
-    // Every swappable category gets a live prop sprite. `lighting` and `audio`
-    // were missing, which is why zone-banquet and zone-lounge had slots where
-    // nothing at all changed on swap.
-    const PROP_CATEGORIES = new Set([
-      'podiums', 'stages', 'chairs', 'tables', 'backdrops', 'fountains', 'lighting', 'audio', 'sofas'
-    ]);
+    // Composited element layers. Exactly ONE slot is baked into the loaded plate
+    // (`_composite.bakedSlotId`); every other slot is this overlay's job.
+    //
+    // The old test here was `hasSceneVariant(zone, slot, item)` — "does a plate
+    // exist for this item anywhere" — which suppressed the sprite for an element
+    // that was NOT in the plate currently on screen. That is what made a swapped
+    // podium vanish the moment the chairs were swapped.
     zoneData.slots.forEach(slot => {
-      if (!PROP_CATEGORIES.has(slot.category)) return;
+      if (this._composite?.bakedSlotId === slot.id) return;
       const selId = this.activeSelections.get(slot.id);
       const item = getItemById(selId);
       if (!item) return;
-      // Baked variant already encodes this element in the panorama
-      if (hasSceneVariant(zoneData.id, slot.id, selId)) return;
       const prop = this._createProp(slot, item, selId);
       if (prop) overlay.appendChild(prop);
     });
@@ -328,63 +336,162 @@ export class Viewer360 {
     return overlay;
   }
 
-  /** Build one positioned prop sprite for a slot, or null if it has no artwork. */
+  /**
+   * Build one composited element layer for a slot, or null if there is no art.
+   *
+   * The layer is a billboard pinned at an angular anchor with an ANGULAR size.
+   * Its pixel geometry is recomputed every frame in `_updateCardPositions`, so
+   * it tracks pan and zoom exactly rather than sitting at a fixed CSS width.
+   */
   _createProp(slot, item, itemId) {
+    const spec = overlaySpec(slot, item);
     const propSrc = getPropImage(itemId, item?.imageUrl);
-    if (!propSrc || !slot?.pos3D) return null;
-    const swapped = itemId !== slot.defaultItemId;
-    const scale = slot.propScale || 1;
+    if (!propSrc || !spec) return null;
     const prop = document.createElement('div');
-    prop.className = `hs-prop${swapped ? ' hs-prop-swapped' : ''}`;
+    prop.className = 'hs-prop';
     prop.setAttribute('data-slot-id', slot.id);
-    prop.setAttribute('data-pitch', slot.pos3D.pitch - 4);
-    prop.setAttribute('data-yaw', slot.pos3D.yaw);
-    prop.setAttribute('data-scale', String(scale));
-    prop.style.cssText = 'display:none;position:absolute;transform:translate(-50%,-70%);pointer-events:none;';
-    prop.innerHTML = `<img src="${escapeHtml(propSrc)}" alt="${escapeHtml(item.name)}" loading="lazy" />`;
+    prop.setAttribute('data-pitch', String(spec.anchorPitch));
+    prop.setAttribute('data-yaw', String(spec.anchorYaw));
+    // Angular height in radians: theta = 2*atan(h / 2D). Constant per item, so
+    // the per-frame cost is one tan().
+    prop.setAttribute('data-theta', String(angularHeight(spec.heightM, spec.distanceM)));
+    prop.style.cssText = 'display:none;position:absolute;pointer-events:none;';
+    // Sized from JS every frame, so the element must fill its measured box.
+    // (The stylesheet's fixed `clamp()` width is deliberately overridden here.)
+    prop.innerHTML = `
+      <img alt="" loading="lazy"
+           style="height:100%;width:auto;max-width:none;display:block;object-fit:contain;" />
+      <span class="hs-prop-tag" hidden
+            style="position:absolute;left:50%;bottom:-4px;transform:translate(-50%,100%);
+                   white-space:nowrap;font-size:11px;font-weight:700;letter-spacing:0.02em;
+                   padding:2px 8px;border-radius:999px;
+                   background:var(--surface-2, rgba(0,0,0,0.72));color:var(--text-primary, #fff);
+                   border:1px solid var(--accent, #f59e0b);"></span>`;
+    this._applyPropArt(prop, slot, item, itemId);
     return prop;
   }
 
+  /** Point an existing layer at a new item and label it honestly. */
+  _applyPropArt(prop, slot, item, itemId) {
+    const src = getPropImage(itemId, item?.imageUrl);
+    const img = prop.querySelector('img');
+    if (img && src) { img.src = src; img.alt = `${item.name} — composited preview`; }
+    const swapped = slot && itemId !== slot.defaultItemId;
+    prop.classList.toggle('hs-prop-swapped', Boolean(swapped));
+    const tag = prop.querySelector('.hs-prop-tag');
+    if (tag) {
+      tag.textContent = item?.name || '';
+      tag.hidden = !swapped;
+    }
+    const spec = overlaySpec(slot, item);
+    if (spec) prop.setAttribute('data-theta', String(angularHeight(spec.heightM, spec.distanceM)));
+  }
+
+  /**
+   * Say, in the view itself, which selections are photographic and which are
+   * composited. Without this the client cannot tell the difference, and a
+   * composited element that reads as a render is exactly the claim this product
+   * must not make.
+   */
+  _renderCompositeNotice() {
+    if (!this._overlayEl) return;
+    let note = this._overlayEl.querySelector('.v360-composite-note');
+    const changed = unbakedChanges(this._composite);
+
+    if (!changed.length) { if (note) note.remove(); return; }
+
+    const names = changed
+      .map(c => getItemById(c.itemId)?.name)
+      .filter(Boolean);
+    const text = names.length === 1
+      ? `${names[0]} is shown as a composited layer over this photograph — the room and the other elements are the real plate.`
+      : `${names.length} changes are shown as composited layers over this photograph: ${names.join(', ')}.`;
+
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'v360-composite-note';
+      note.setAttribute('role', 'status');
+      note.style.cssText = `position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+        max-width:min(90%,560px);display:flex;gap:9px;align-items:flex-start;
+        padding:9px 14px;border-radius:12px;font-size:12.5px;line-height:1.45;
+        background:var(--surface-2, rgba(9,10,15,0.88));color:var(--text-primary, #f8fafc);
+        border:1px solid var(--accent, #f59e0b);pointer-events:auto;z-index:60;`;
+      this._overlayEl.appendChild(note);
+    }
+    note.innerHTML = `<span class="v360-note-icon" aria-hidden="true">◐</span>
+      <span class="v360-note-text">${escapeHtml(text)}</span>`;
+  }
+
+  /**
+   * Exact rectilinear placement for every overlay element.
+   *
+   * Pannellum renders a perspective projection of the sphere, so the screen
+   * offset of an angular anchor goes as tan(), not linearly, and yaw and pitch
+   * are coupled through a 3D rotation. The previous implementation used
+   * `x = W/2 + (dYaw/halfHfov) * W/2` with `halfV = hfov*H/W/2`, which is only
+   * correct at the exact centre of the screen: at a quarter of the way to the
+   * edge it is off by ~70 px on a 1280 px viewport, and the vertical field of
+   * view it assumed was 56.25 deg where the true value is 67.7 deg. Cards and
+   * element layers visibly slid off their objects during a pan. See
+   * `panoProjection.js` for the derivation.
+   */
   _updateCardPositions() {
     if (!this.viewer || !this._overlayEl) return;
 
     const W = this.container.clientWidth  || 1;
     const H = this.container.clientHeight || 1;
 
-    let camYaw, camPitch, hfov;
+    let cam;
     try {
-      camYaw   = this.viewer.getYaw()   ?? 0;
-      camPitch = this.viewer.getPitch() ?? 0;
-      hfov     = this.viewer.getHfov()  ?? 100;
+      cam = {
+        yaw:   this.viewer.getYaw()   ?? 0,
+        pitch: this.viewer.getPitch() ?? 0,
+        hfov:  this.viewer.getHfov()  ?? 100
+      };
     } catch { return; }
 
-    const halfH = hfov / 2;
-    const halfV = (hfov * H / W) / 2;
+    // Cull generously in angle space so an element only partly on screen still
+    // renders (its centre can be outside the frustum while its body is inside).
+    const halfH = cam.hfov / 2;
+    const halfV = verticalFov(cam.hfov, W, H) / 2;
 
     this._overlayEl.querySelectorAll('.hs-card, .nav-arrow-hotspot, .hs-prop').forEach(el => {
       const hp = parseFloat(el.getAttribute('data-pitch'));
       const hy = parseFloat(el.getAttribute('data-yaw'));
+      if (Number.isNaN(hp) || Number.isNaN(hy)) return;
 
-      let dYaw = hy - camYaw;
+      let dYaw = hy - cam.yaw;
       while (dYaw >  180) dYaw -= 360;
       while (dYaw < -180) dYaw += 360;
-      const dPitch = hp - camPitch;
 
-      if (Math.abs(dYaw) <= halfH + 25 && Math.abs(dPitch) <= halfV + 25) {
-        const x = W * 0.5 + (dYaw   / halfH) * (W * 0.5);
-        const y = H * 0.5 - (dPitch / halfV) * (H * 0.5);
-        el.style.display = 'block';
-        el.style.left    = `${x}px`;
-        el.style.top     = `${y}px`;
+      const proj = projectAnchor(hy, hp, cam, W, H);
+      const isProp = el.classList.contains('hs-prop');
+      const margin = isProp ? 30 : 25;
 
-        if (el.classList.contains('hs-prop')) {
-          const scale = parseFloat(el.getAttribute('data-scale') || '1');
-          const depth = 1 - Math.min(1, Math.hypot(dYaw / halfH, dPitch / halfV) * 0.35);
-          el.style.transform = `translate(-50%, -70%) scale(${(0.85 + depth * 0.25) * scale})`;
-          el.style.opacity = String(0.55 + depth * 0.35);
-        }
-      } else {
+      if (!proj.visible
+          || Math.abs(dYaw) > halfH + margin
+          || Math.abs(hp - cam.pitch) > halfV + margin) {
         el.style.display = 'none';
+        return;
+      }
+
+      el.style.display = 'block';
+      el.style.left = `${proj.x}px`;
+      el.style.top  = `${proj.y}px`;
+
+      if (isProp) {
+        // Angular size -> exact pixel size for this zoom level. Zooming in now
+        // grows the element with the room, which a fixed CSS width never did.
+        const theta = parseFloat(el.getAttribute('data-theta')) || 0.15;
+        const px = pixelHeight(theta, proj);
+        el.style.height = `${px}px`;
+        el.style.width  = 'auto';
+        // Anchored at the element's centre, matching `overlaySpec`.
+        el.style.transform = 'translate(-50%, -50%)';
+      } else {
+        el.style.transform = el.classList.contains('hs-card')
+          ? 'translate(-50%, -100%)'
+          : 'translate(-50%, -50%)';
       }
     });
   }

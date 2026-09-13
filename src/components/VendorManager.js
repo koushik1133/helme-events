@@ -4,6 +4,7 @@ import {
   VENDOR_CATEGORY_LABELS,
   VENDOR_STATUS_LABELS
 } from '../data/vendors.js';
+import { eventState } from '../data/eventState.js';
 import { formatMoney, formatNumber, readJSON, writeJSON, escapeHtml } from '../utils/format.js';
 
 const ASSIGNMENTS_KEY = 'helme_events_vendor_assignments';
@@ -68,6 +69,47 @@ export class VendorManager {
     return `${formatMoney(vendor.rate)}${unit ? ` <span class="vendor-rate-unit">${escapeHtml(unit)}</span>` : ''}`;
   }
 
+  /**
+   * What an assigned vendor costs for THIS event. Vendor assignments used to
+   * be stored and never priced, which left the panel a read-only directory
+   * with no way back into the sale.
+   *
+   * Per-plate rates multiply by the event's guest count; per-day rates by the
+   * number of event days; per-event and per-unit/day rates are quoted once,
+   * because how many units are hired is not something this panel knows.
+   * Returns null when there is no rate to work from — an unknown cost is
+   * shown as unknown, never as zero.
+   */
+  estimateFor(vendor) {
+    const rate = Number(vendor.rate);
+    if (!Number.isFinite(rate) || rate <= 0) return null;
+
+    const guests = eventState.getGuestCount();
+    const days = Math.max(1, eventState.getDayCount());
+
+    switch (vendor.rateUnit) {
+      case 'plate':
+        return { amount: Math.round(rate * guests), basis: `${formatNumber(guests)} guests` };
+      case 'day':
+        return { amount: Math.round(rate * days), basis: `${days} day${days === 1 ? '' : 's'}` };
+      case 'unit/day':
+        return { amount: Math.round(rate * days), basis: `1 unit × ${days} day${days === 1 ? '' : 's'}` };
+      default:
+        return { amount: Math.round(rate), basis: 'per event' };
+    }
+  }
+
+  /** Every vendor currently pinned to a zone, with its estimate. */
+  assignedVendors() {
+    return this.vendors
+      .filter(v => this.assignedZoneFor(v))
+      .map(v => ({
+        vendor: v,
+        zoneName: VENUE_ZONES.find(z => z.id === this.assignedZoneFor(v))?.name || '—',
+        estimate: this.estimateFor(v)
+      }));
+  }
+
   filteredVendors() {
     let list = this.vendors;
     if (this.filterCategory !== 'All') list = list.filter(v => v.category === this.filterCategory);
@@ -121,6 +163,8 @@ export class VendorManager {
             <button type="button" id="add-vendor-btn" class="btn-primary">+ Add Vendor</button>
           </div>
         </div>
+
+        <div id="vendor-assigned" style="margin-bottom:14px;padding:12px;border:1px solid var(--border-subtle);background:var(--bg-elevated);border-radius:12px;"></div>
 
         <div id="vendor-meta" style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;"></div>
 
@@ -178,7 +222,50 @@ export class VendorManager {
     this.renderTable();
   }
 
+  /** Assigned vendors priced against the live event record. */
+  renderAssigned() {
+    const el = this.container.querySelector('#vendor-assigned');
+    if (!el) return;
+
+    const rows = this.assignedVendors();
+
+    if (rows.length === 0) {
+      el.innerHTML =
+        '<h3 style="margin:0 0 6px;font-size:0.95rem;color:var(--text-main);">Assigned to this event</h3>' +
+        '<p style="margin:0;color:var(--text-muted);font-size:0.85rem;">No vendor is assigned to a zone yet. Pick a zone in the table below and the sub-contract estimate appears here.</p>';
+      return;
+    }
+
+    const known = rows.filter(r => r.estimate);
+    const total = known.reduce((sum, r) => sum + r.estimate.amount, 0);
+    const unpriced = rows.length - known.length;
+
+    el.innerHTML = `
+      <h3 style="margin:0 0 8px;font-size:0.95rem;color:var(--text-main);">Assigned to this event</h3>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
+        ${rows.map(r => `
+          <div style="display:flex;justify-content:space-between;gap:12px;font-size:0.85rem;">
+            <span>${escapeHtml(r.vendor.name)} <span style="color:var(--text-muted);">· ${escapeHtml(r.zoneName)}</span></span>
+            <span style="white-space:nowrap;">${r.estimate
+              ? `${formatMoney(r.estimate.amount)} <span style="color:var(--text-muted);font-size:0.8em;">(${escapeHtml(r.estimate.basis)})</span>`
+              : '<span style="color:var(--text-muted);">rate on request</span>'}</span>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border-subtle);padding-top:8px;font-size:0.9rem;">
+        <strong>Estimated sub-contract cost</strong>
+        <strong>${formatMoney(total)}</strong>
+      </div>
+      <p style="margin:6px 0 0;color:var(--text-muted);font-size:0.75rem;">
+        Exclusive of GST, and based on ${formatNumber(eventState.getGuestCount())} guests over
+        ${Math.max(1, eventState.getDayCount())} day${Math.max(1, eventState.getDayCount()) === 1 ? '' : 's'}.
+        ${unpriced ? `${unpriced} assigned vendor${unpriced === 1 ? ' has' : 's have'} no published rate and ${unpriced === 1 ? 'is' : 'are'} excluded from this total.` : ''}
+        This estimate is not part of the client quote.
+      </p>
+    `;
+  }
+
   renderTable() {
+    this.renderAssigned();
     const tbody = this.container.querySelector('#vendor-tbody');
     const meta = this.container.querySelector('#vendor-meta');
     if (!tbody) return;
@@ -294,6 +381,9 @@ export class VendorManager {
       } else if (e.target.classList.contains('zone-assign-select')) {
         this.assignments[e.target.dataset.vid] = e.target.value;
         this.persistAssignments();
+        // Only the summary needs redrawing — re-rendering the table here would
+        // blur the select the user just used.
+        this.renderAssigned();
       }
     });
 

@@ -74,7 +74,6 @@ export class PlaylistBuilder {
             </div>
             <div class="playlist-export-group" style="display:flex; gap:var(--space-2); flex-wrap:wrap;">
               <button type="button" id="export-runsheet-btn" class="btn-secondary">📄 Export run-sheet (CSV)</button>
-              <button type="button" id="export-playlist-btn" class="btn-secondary">💾 Export JSON</button>
             </div>
           </div>
 
@@ -324,23 +323,6 @@ export class PlaylistBuilder {
         return;
       }
 
-      if (e.target.closest('#export-playlist-btn')) {
-        const named = {};
-        for (const lane of DEFAULT_LANES) {
-          named[this.momentLabel(lane)] = this.playlists[lane]
-            .map(id => this.songLibrary.find(s => s.id === id))
-            .filter(Boolean)
-            .map(s => ({
-              title: s.title, artist: s.artist, film: s.film || null,
-              language: s.language, duration: s.duration, bpm: s.bpm
-            }));
-        }
-        this.downloadFile(
-          `helm_playlists_${Date.now()}.json`,
-          'application/json',
-          JSON.stringify(named, null, 2)
-        );
-      }
     });
   }
 }

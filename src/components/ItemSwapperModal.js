@@ -155,14 +155,18 @@ export class ItemSwapperModal {
     const zoneId   = this.activeZone?.id;
 
     const coverage = sceneVariantCoverage(zoneId, slot.id, items.map(i => i.id));
-    // Say exactly what will happen, rather than claiming every swap re-renders.
+    // Say exactly what will happen. Every option IS previewable — the honest
+    // distinction is whether it arrives as a photographic plate of this room or
+    // as a layer composited onto one. A plate can only carry one element at a
+    // time, so an option with a plate still composites when another element in
+    // this zone is already claiming the plate.
     const effectLine = coverage.total === 0
       ? 'No options available for this slot'
       : coverage.withPlate === coverage.total
-        ? `Same room, this element only · all ${coverage.total} options re-render the 360° view`
+        ? `Same room, this element only · all ${coverage.total} options have a photographic plate`
         : coverage.withPlate === 0
-          ? `Same room · ${coverage.total} options shown as a labelled prop preview, not a re-rendered 360°`
-          : `Same room, this element only · ${coverage.withPlate} of ${coverage.total} options re-render the 360° view, the rest update the prop preview`;
+          ? `Same room, this element only · ${coverage.total} options preview as a composited layer over the plate`
+          : `Same room, this element only · ${coverage.withPlate} of ${coverage.total} have a photographic plate, the rest composite over it`;
 
     const emoji = { stages:'🎭', chairs:'🪑', tables:'🍽️', fountains:'⛲', backdrops:'🖼️', lighting:'💡', sofas:'🛋️', podiums:'🎙️', audio:'🔊' };
 
@@ -248,16 +252,16 @@ export class ItemSwapperModal {
       ? `<span class="ism-diff ${diff > 0 ? 'pos' : 'neg'}">${diff > 0 ? '+' : '−'}${formatMoney(Math.abs(diff))}</span>`
       : `<span class="ism-diff same">Same price</span>`;
 
-    // Honest badge: only claim a 360 re-render when a real plate exists.
+    // Honest badge: only claim a photographic re-render when a real plate exists.
     const previewBadge = hasPlate
-      ? `<span class="ism-scene-badge" title="Loads a 360° plate of this same room with this element changed">360° preview</span>`
-      : `<span class="ism-scene-badge ism-scene-badge-prop" title="The 360° room stays as it is; a labelled product preview is placed at this hotspot">Prop preview</span>`;
+      ? `<span class="ism-scene-badge" title="A 360° photograph of this same room with this element changed. Shown when this element is the one the plate is carrying.">Photo plate</span>`
+      : `<span class="ism-scene-badge ism-scene-badge-prop" title="Composited onto the 360° photograph as a correctly scaled layer at this element's position. The room and every other element stay photographic.">Composited layer</span>`;
 
     const diffLabel = diff === 0
       ? 'no price change'
       : `${diff > 0 ? 'adds' : 'saves'} ${formatMoney(Math.abs(diff))}`;
     const a11yLabel = `${item.name}. ${formatMoney(total)} for ${qty}. ${diffLabel}. `
-      + (hasPlate ? 'Re-renders the 360 view.' : 'Updates the prop preview only.')
+      + (hasPlate ? 'Has a 360 photograph of this room with this element.' : 'Composited as a layer onto the 360 photograph.')
       + (isCurrent ? ' Currently selected.' : '');
 
     return `

@@ -384,7 +384,7 @@ export class CustomEventBriefWizard {
       exhibitionSetup: 'booths-lounge',
       soundSystem: 'line-array-towers',
       crowdFacilities: 'multi-gate-security',
-      aiPrompt: ''
+      styleKeywords: ''
     };
   }
 
@@ -626,7 +626,7 @@ export class CustomEventBriefWizard {
     // Deep-ish clone so keyword overrides never mutate the library.
     const concepts = this.orderConcepts(CONCEPT_LIBRARY[key]).map(c => ({ ...c, selections: { ...c.selections } }));
 
-    const raw = String(this.formData.aiPrompt || '').trim();
+    const raw = String(this.formData.styleKeywords || '').trim();
     if (!raw) {
       this.promptFeedback = null;
       concepts.forEach(c => { c.selections = this.sanitizeSelections(c.selections); });
@@ -787,8 +787,8 @@ export class CustomEventBriefWizard {
     const btnMatch = this.container.querySelector('#btnStyleMatch');
     if (btnMatch) {
       btnMatch.addEventListener('click', () => {
-        const promptInput = this.container.querySelector('#aiPromptInput');
-        if (promptInput) this.formData.aiPrompt = promptInput.value.trim();
+        const promptInput = this.container.querySelector('#styleKeywordsInput');
+        if (promptInput) this.formData.styleKeywords = promptInput.value.trim();
         this.render();
       });
     }
@@ -1071,10 +1071,10 @@ export class CustomEventBriefWizard {
         <div class="ai-prompt-bar-box">
           <div class="ai-prompt-input-row">
             <span class="ai-sparkle-icon" aria-hidden="true">🎨</span>
-            <label style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;" for="aiPromptInput">Style keywords</label>
-            <input type="text" id="aiPromptInput" class="ai-prompt-input"
+            <label style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;" for="styleKeywordsInput">Style keywords</label>
+            <input type="text" id="styleKeywordsInput" class="ai-prompt-input"
                    placeholder="Style keywords, e.g. 'deep violet lighting, marigold entrance, red carpet'"
-                   value="${escapeHtml(f.aiPrompt)}" />
+                   value="${escapeHtml(f.styleKeywords)}" />
             <button class="wizard-btn wizard-btn-ai" id="btnStyleMatch" type="button">
               🎨 Apply style keywords
             </button>

@@ -1,4 +1,5 @@
 import { VENUE_ZONES } from '../data/zones.js';
+import { resolveScenePanorama } from '../data/sceneVariants.js';
 import { escapeHtml } from '../utils/format.js';
 
 /**
@@ -6,6 +7,12 @@ import { escapeHtml } from '../utils/format.js';
  *
  * This is genuine capture — `canvas.captureStream()` feeding a MediaRecorder
  * produces a real .webm file. Nothing here is a simulated progress bar.
+ *
+ * Each zone is rendered from the plate the CLIENT'S CURRENT SELECTIONS resolve
+ * to — the same `resolveScenePanorama` the live 360 viewer uses — not from the
+ * bare `zone.panoramaUrl`. Exporting the venue's factory default build while
+ * the client watched their own design on screen made the one artefact they
+ * take away the wrong one.
  */
 
 const OUTPUT_WIDTH = 1280;
@@ -31,8 +38,11 @@ function pickMimeType() {
 }
 
 export class WalkthroughExporter {
-  constructor(containerElement) {
+  constructor(containerElement, activeSelections = null) {
     this.container = containerElement;
+    // main.js may not pass the selection map; fall back to the published app
+    // instance, the same pattern ZoneNotes and MoodBoardMatcher use.
+    this._selections = activeSelections;
     this.mediaRecorder = null;
     this.recordedChunks = [];
     this.rafId = null;
@@ -49,6 +59,21 @@ export class WalkthroughExporter {
   open() {
     this.container.style.display = 'block';
     this.render();
+  }
+
+  /** The live selection map, however it was supplied. */
+  selections() {
+    if (this._selections && typeof this._selections === 'object') return this._selections;
+    return (typeof window !== 'undefined' && window.app?.activeSelections) || {};
+  }
+
+  /** The plate this zone actually looks like right now. */
+  plateFor(zone) {
+    try {
+      return resolveScenePanorama(zone.id, zone, this.selections()) || zone.panoramaUrl;
+    } catch {
+      return zone.panoramaUrl;
+    }
   }
 
   close() {
@@ -103,6 +128,7 @@ export class WalkthroughExporter {
             <div style="display:flex; flex-wrap:wrap; gap:var(--space-5);">
               <div style="flex:1 1 240px; min-width:220px;">
                 <h3 style="margin-top:0;">Zones to include</h3>
+                <p class="meta" style="margin-top:0;">Each zone is filmed as it is currently dressed — the client's selections, not the venue default.</p>
                 <div id="zone-checkboxes" style="max-height:220px; overflow-y:auto; padding:var(--space-3);
                      border:1px solid var(--border-subtle); border-radius:var(--radius-xs);">
                   ${VENUE_ZONES.map(z => `
@@ -361,7 +387,7 @@ export class WalkthroughExporter {
       if (!this.isRecording) return;
       const zone = zones[i];
       this.setProgress(Math.floor((i / zones.length) * 100));
-      const img = await this.loadImage(zone.panoramaUrl);
+      const img = await this.loadImage(this.plateFor(zone));
       if (!this.isRecording) return;
       await this.animateZone(zone, img, ctx, canvas, timePerZone);
     }

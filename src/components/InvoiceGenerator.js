@@ -1,6 +1,7 @@
 import { formatMoney, escapeHtml, readJSON, writeJSON, SELLER_STATE } from '../utils/format.js';
 import {
   buildQuote,
+  subscribeBasket,
   renderInvoiceDocument,
   getOrCreateDocNumber,
   printHtmlDocument,
@@ -37,6 +38,15 @@ export class InvoiceGenerator {
     // Generated ONCE and persisted — never re-randomised on re-render.
     this.docNumber = getOrCreateDocNumber('invoice-current', 'HE/INV');
     this.issuedAt = new Date();
+
+    // A quantity edited in the cart or the cost card must reprice this invoice.
+    this.unsubscribeBasket = subscribeBasket(() => {
+      if (this.container.style.display === 'flex') this.render();
+    });
+  }
+
+  destroy() {
+    if (this.unsubscribeBasket) this.unsubscribeBasket();
   }
 
   updateSelections(activeSelections) {
@@ -157,7 +167,7 @@ export class InvoiceGenerator {
                 `).join('')}
                 ${quote.lines.length === 0 ? `
                   <tr><td colspan="5" style="padding:20px; text-align:center;">
-                    No equipment configured yet. Pick items in a 360° zone and this invoice fills itself in.
+                    No billable lines. Pick items in a 360° zone, or restore removed lines in the cart, and this invoice fills itself in.
                   </td></tr>` : ''}
               </tbody>
             </table>

@@ -1,7 +1,8 @@
 import { VENUE_ZONES } from '../data/zones.js';
 import { ITEM_CATALOG, getItemById } from '../data/catalog.js';
 import { formatMoney, escapeHtml } from '../utils/format.js';
-import { buildQuote, slotQuantity } from '../utils/quote.js';
+import { buildQuote, slotQuantity, isLineRemoved } from '../utils/quote.js';
+import { zonesInScope } from '../data/eventState.js';
 
 /**
  * How much each event type cares about each equipment category. Higher weight =
@@ -50,8 +51,13 @@ export class BudgetOptimizer {
   /** Every slot with its candidate items (allowed list first, category as fallback). */
   slotOptions() {
     const options = [];
-    VENUE_ZONES.forEach(zone => {
+    // Only the zones this event actually uses, and only the lines still in the
+    // basket — otherwise the "optimised" total is not comparable with the
+    // current quote the user is looking at.
+    const scope = new Set(zonesInScope(VENUE_ZONES.map(z => z.id)));
+    VENUE_ZONES.filter(zone => scope.has(zone.id)).forEach(zone => {
       zone.slots.forEach(slot => {
+        if (isLineRemoved(slot.id)) return;
         const allowed = Array.isArray(slot.allowedItemIds)
           ? slot.allowedItemIds.map(id => getItemById(id)).filter(Boolean)
           : [];
@@ -64,7 +70,9 @@ export class BudgetOptimizer {
           slotId: slot.id,
           slotLabel: slot.label,
           category: slot.category,
-          quantity: slotQuantity(slot),
+          // Quantity follows the same rule as the quote: per-line override,
+          // then per-item quantity, then guest-count scaling.
+          quantityFor: item => slotQuantity(slot, item.id),
           items
         });
       });
@@ -87,7 +95,7 @@ export class BudgetOptimizer {
     let total = 0;
     options.forEach(opt => {
       chosenIndex.set(opt.slotId, 0);
-      total += opt.items[0].price * opt.quantity;
+      total += opt.items[0].price * opt.quantityFor(opt.items[0]);
     });
 
     const minimumTotal = total;
@@ -105,7 +113,7 @@ export class BudgetOptimizer {
           const idx = chosenIndex.get(opt.slotId);
           const next = opt.items[idx + 1];
           if (!next) return;
-          const stepCost = (next.price - opt.items[idx].price) * opt.quantity;
+          const stepCost = (next.price * opt.quantityFor(next)) - (opt.items[idx].price * opt.quantityFor(opt.items[idx]));
           if (stepCost <= 0 || stepCost > remaining) return;
           const weight = weights[opt.category] || DEFAULT_WEIGHT;
           const score = weight / stepCost; // value per rupee
@@ -133,15 +141,16 @@ export class BudgetOptimizer {
     const optimized = {};
     const lines = options.map(opt => {
       const item = opt.items[chosenIndex.get(opt.slotId)];
+      const quantity = opt.quantityFor(item);
       optimized[opt.slotId] = item.id;
       return {
         slotId: opt.slotId,
         slotLabel: opt.slotLabel,
         zoneName: opt.zoneName,
         itemName: item.name,
-        quantity: opt.quantity,
+        quantity,
         unitPrice: item.price,
-        lineTotal: Math.round(item.price * opt.quantity)
+        lineTotal: Math.round(item.price * quantity)
       };
     });
 

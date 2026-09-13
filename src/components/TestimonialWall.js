@@ -1,16 +1,30 @@
 import { TESTIMONIALS } from '../data/testimonials.js';
-import { escapeHtml, formatNumber, readJSON, writeJSON } from '../utils/format.js';
+import { escapeHtml, formatNumber } from '../utils/format.js';
 
-const STORAGE_KEY = 'helm_events_testimonials_v2';
+/**
+ * Client references.
+ *
+ * This is a READ-ONLY reference sheet: past events Helm has delivered, with
+ * the venue, city, guest count and budget bracket a prospect actually wants to
+ * hear about. It is the pitch asset a salesperson already carries in a folder.
+ *
+ * What this deliberately is NOT: a review-collection wall. The previous
+ * version shipped an "Add Your Review" form that wrote to the salesperson's
+ * own browser and stamped the result "Unverified". Nobody types a review into
+ * the seller's laptop mid-pitch, and a review wall a seller can edit is worth
+ * nothing as social proof — so the form, and the localStorage path behind it,
+ * are gone. Each card says plainly whether the booking is confirmed on file.
+ */
 
 const TYPE_LABELS = {
   wedding: 'Wedding',
   corporate: 'Corporate',
   rally: 'Political Rally',
-  gala: 'Gala'
+  gala: 'Gala',
+  summit: 'Summit'
 };
 
-/** Normalise both seeded reviews and locally submitted ones to one shape. */
+/** Normalise the curated data to one shape. */
 function normalise(entry) {
   const type = String(entry.eventType || entry.type || 'wedding').toLowerCase();
   return {
@@ -32,23 +46,14 @@ function normalise(entry) {
 export class TestimonialWall {
   constructor(containerElement) {
     this.container = containerElement;
-    // Locally submitted reviews sit on top of the curated set; they are never
-    // marked verified.
-    const submitted = readJSON(STORAGE_KEY, []);
-    this.submitted = Array.isArray(submitted) ? submitted.map(normalise) : [];
-    this.seeded = TESTIMONIALS.map(normalise);
+    this.references = (Array.isArray(TESTIMONIALS) ? TESTIMONIALS : []).map(normalise);
     this.filter = 'All';
     this._bound = false;
   }
 
-  get all() {
-    return [...this.submitted, ...this.seeded];
-  }
-
   /** Filters are derived from the data, so no filter can render an empty tab. */
   get filters() {
-    const present = [...new Set(this.all.map(t => t.eventType))];
-    return ['All', ...present];
+    return ['All', ...new Set(this.references.map(t => t.eventType))];
   }
 
   labelFor(type) {
@@ -56,7 +61,17 @@ export class TestimonialWall {
   }
 
   render() {
-    const all = this.all;
+    const all = this.references;
+
+    if (all.length === 0) {
+      this.container.innerHTML = `
+        <div class="testimonial-wall">
+          <div class="testimonial-header"><div><h2>Client References</h2></div></div>
+          <p class="meta">No references are on file yet.</p>
+        </div>`;
+      return;
+    }
+
     const filtered = this.filter === 'All' ? all : all.filter(t => t.eventType === this.filter);
     const avg = filtered.length
       ? (filtered.reduce((a, t) => a + t.rating, 0) / filtered.length).toFixed(1)
@@ -66,17 +81,17 @@ export class TestimonialWall {
       <div class="testimonial-wall">
         <div class="testimonial-header">
           <div>
-            <h2>Client Reviews</h2>
-            <p class="meta">${filtered.length} review${filtered.length === 1 ? '' : 's'}${
+            <h2>Client References</h2>
+            <p class="meta">${filtered.length} delivered event${filtered.length === 1 ? '' : 's'}${
               this.filter === 'All' ? '' : ` in ${escapeHtml(this.labelFor(this.filter))}`
-            }</p>
+            } · ${filtered.filter(t => t.verified).length} with a confirmed booking on file</p>
           </div>
           <div class="testimonial-avg-rating" aria-label="Average rating for the current filter">
             ${avg} ⭐
           </div>
         </div>
 
-        <div class="testimonial-filters" role="group" aria-label="Filter reviews by event type">
+        <div class="testimonial-filters" role="group" aria-label="Filter references by event type">
           ${this.filters.map(f => `
             <button type="button" class="btn-filter ${this.filter === f ? 'active' : ''}"
                     data-filter="${escapeHtml(f)}" aria-pressed="${this.filter === f}">
@@ -86,44 +101,7 @@ export class TestimonialWall {
         </div>
 
         <div class="testimonial-grid masonry">
-          ${filtered.length === 0
-            ? '<p class="meta">No reviews in this category yet.</p>'
-            : filtered.map(t => this.renderCard(t)).join('')}
-        </div>
-
-        <div class="testimonial-form-wrapper">
-          <h3>Add Your Review</h3>
-          <form id="testimonial-form">
-            <label for="t-name">Your name</label>
-            <input type="text" id="t-name" name="name" placeholder="e.g. Aditi Deshmukh" required />
-
-            <label for="t-company">Company or family name (optional)</label>
-            <input type="text" id="t-company" name="company" placeholder="Optional" />
-
-            <label for="t-venue">Venue</label>
-            <input type="text" id="t-venue" name="venue" placeholder="e.g. Taj Falaknuma Palace" />
-
-            <label for="t-city">City</label>
-            <input type="text" id="t-city" name="city" placeholder="e.g. Hyderabad" />
-
-            <label for="t-type">Event type</label>
-            <select id="t-type" name="type" required>
-              ${Object.entries(TYPE_LABELS).map(([value, label]) =>
-                `<option value="${value}">${label}</option>`).join('')}
-            </select>
-
-            <label for="t-rating">Rating (1-5)</label>
-            <input type="number" id="t-rating" name="rating" min="1" max="5" value="5" required />
-
-            <label for="t-guests">Guest count</label>
-            <input type="number" id="t-guests" name="guests" min="1" placeholder="e.g. 300" required />
-
-            <label for="t-text">Your review</label>
-            <textarea id="t-text" name="review" placeholder="What did we get right, and what would you change?" required></textarea>
-
-            <button type="submit" class="btn-submit">Submit Review</button>
-            <p id="t-form-status" role="status" aria-live="polite" class="meta"></p>
-          </form>
+          ${filtered.map(t => this.renderCard(t)).join('')}
         </div>
       </div>
     `;
@@ -145,18 +123,13 @@ export class TestimonialWall {
         <div class="testimonial-badges">
           <span class="badge badge-${escapeHtml(t.eventType)}">${escapeHtml(this.labelFor(t.eventType))}</span>
           ${t.verified
-            ? '<span class="badge badge-verified" title="Confirmed booking on file">✓ Verified client</span>'
-            : '<span class="badge badge-unverified" title="Submitted in this browser, not confirmed">Unverified</span>'}
+            ? '<span class="badge badge-verified" title="Confirmed booking on file">✓ Verified booking</span>'
+            : '<span class="badge badge-unverified" title="Reference given, booking not confirmed on file">Reference only</span>'}
         </div>
         <p>${escapeHtml(t.review)}</p>
         <div class="meta">${meta.join(' · ')}</div>
       </div>
     `;
-  }
-
-  setStatus(message) {
-    const el = this.container.querySelector('#t-form-status');
-    if (el) el.textContent = message;
   }
 
   bindEvents() {
@@ -170,39 +143,6 @@ export class TestimonialWall {
       if (!btn) return;
       this.filter = btn.dataset.filter;
       this.render();
-    });
-
-    this.container.addEventListener('submit', e => {
-      const form = e.target.closest('#testimonial-form');
-      if (!form) return;
-      e.preventDefault();
-
-      const value = id => (this.container.querySelector(id)?.value || '').trim();
-      const entry = normalise({
-        id: `local-${Date.now()}`,
-        clientName: value('#t-name'),
-        company: value('#t-company'),
-        venue: value('#t-venue'),
-        city: value('#t-city'),
-        eventType: value('#t-type'),
-        rating: value('#t-rating'),
-        guestCount: value('#t-guests'),
-        review: value('#t-text'),
-        date: new Date().toISOString().split('T')[0],
-        verified: false
-      });
-
-      if (!entry.review) {
-        this.setStatus('Please write a review before submitting.');
-        return;
-      }
-
-      this.submitted.unshift(entry);
-      const saved = writeJSON(STORAGE_KEY, this.submitted);
-      this.render();
-      this.setStatus(saved
-        ? 'Thanks — your review is on the wall, marked unverified until we confirm the booking.'
-        : 'Review added for this session, but browser storage is full so it will not persist.');
     });
   }
 }

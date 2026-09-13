@@ -6,7 +6,7 @@ async function confetti(options) {
 }
 import { VENUE_ZONES } from './data/zones.js';
 import { getItemById, allItems } from './data/catalog.js';
-import { resolveScenePanorama, hasSceneVariant } from './data/sceneVariants.js';
+import { resolveScenePanorama, unbakedChanges } from './data/sceneVariants.js';
 import { Viewer360 } from './engine/Viewer360.js';
 import { AudioEngine } from './engine/AudioEngine.js';
 import { ApiService } from './services/apiService.js';
@@ -27,7 +27,6 @@ import { CostCard } from './components/CostCard.js';
 // Phase 1: Client Experience
 import { TimelinePlanner } from './components/TimelinePlanner.js';
 import { SeatingChart } from './components/SeatingChart.js';
-import { ColorThemeDesigner } from './components/ColorThemeDesigner.js';
 import { BeforeAfterCompare } from './components/BeforeAfterCompare.js';
 import { CollaborationMode, decodeDesignState } from './components/CollaborationMode.js';
 import { StyleLibrary } from './components/StyleLibrary.js';
@@ -37,10 +36,8 @@ import { VendorManager } from './components/VendorManager.js';
 import { InventoryTracker } from './components/InventoryTracker.js';
 import { CalendarBooking } from './components/CalendarBooking.js';
 import { ZoneNotes } from './components/ZoneNotes.js';
-import { RevenueAnalytics } from './components/RevenueAnalytics.js';
 
 // Phase 3: Visual & Experience
-import { WeatherSimulator } from './components/WeatherSimulator.js';
 import { WalkthroughExporter } from './components/WalkthroughExporter.js';
 import { ARQRGenerator } from './components/ARQRGenerator.js';
 import { PlaylistBuilder } from './components/PlaylistBuilder.js';
@@ -56,7 +53,6 @@ import { InvoiceGenerator } from './components/InvoiceGenerator.js';
 import { BudgetOptimizer } from './components/BudgetOptimizer.js';
 import { EventBriefGenerator } from './components/EventBriefGenerator.js';
 import { CustomEventBriefWizard } from './components/CustomEventBriefWizard.js';
-import { N8nArchitectureWorkflow } from './components/N8nArchitectureWorkflow.js';
 import { EventDetailsPanel } from './components/EventDetailsPanel.js';
 import { eventState } from './data/eventState.js';
 
@@ -156,19 +152,15 @@ class Event360App {
     this.vendorContainer = document.getElementById('vendorContainer');
     this.inventoryContainer = document.getElementById('inventoryContainer');
     this.calendarContainer = document.getElementById('calendarContainer');
-    this.revenueContainer = document.getElementById('revenueContainer');
     this.testimonialContainer = document.getElementById('testimonialContainer');
     this.playlistContainer = document.getElementById('playlistContainer');
-    this.n8nOpsContainer = document.getElementById('n8nOpsContainer');
     this.eventDetailsContainer = document.getElementById('eventDetailsContainer');
 
     // New modal containers
-    this.colorThemeContainer = document.getElementById('colorThemeContainer');
     this.compareContainer = document.getElementById('compareContainer');
     this.collabContainer = document.getElementById('collabContainer');
     this.styleLibraryContainer = document.getElementById('styleLibraryContainer');
     this.zoneNotesContainer = document.getElementById('zoneNotesContainer');
-    this.weatherSimContainer = document.getElementById('weatherSimContainer');
     this.videoExportContainer = document.getElementById('videoExportContainer');
     this.arQRContainer = document.getElementById('arQRContainer');
     this.moodBoardContainer = document.getElementById('moodBoardContainer');
@@ -183,7 +175,6 @@ class Event360App {
     // Original tabs
     this.tabMapView = document.getElementById('tabMapView');
     this.tab360View = document.getElementById('tab360View');
-    this.tabN8nOpsView = document.getElementById('tabN8nOpsView');
     this.tabIndiaView = document.getElementById('tabIndiaView');
     this.tabFloorPlanView = document.getElementById('tabFloorPlanView');
     this.tabAnalyticsView = document.getElementById('tabAnalyticsView');
@@ -291,7 +282,9 @@ class Event360App {
     this.costCard = new CostCard(
       this.costCardContainer,
       this.activeSelections,
-      (slotId, newQty) => {}
+      // A line quantity or removal changed. The selections map itself is unchanged,
+      // but every priced surface has to re-read the quote.
+      () => this.updateAllComponents(this.activeSelections)
     );
 
     // Phase 1: Client Experience
@@ -308,15 +301,6 @@ class Event360App {
       this.seatingContainer,
       this.activeSelections
     );
-
-    this.colorThemeDesigner = new ColorThemeDesigner(this.colorThemeContainer, (result) => {
-      if (result?.saved) {
-        this.showToast('Palette saved to your library!');
-      } else if (result?.primary) {
-        this.showToast(`🎨 Theme applied — Primary ${result.primary}`);
-        confetti({ particleCount: 40, spread: 60, origin: { y: 0.35 } });
-      }
-    });
 
     this.beforeAfterCompare = new BeforeAfterCompare(
       this.compareContainer,
@@ -344,14 +328,8 @@ class Event360App {
     this.inventoryTracker = new InventoryTracker(this.inventoryContainer);
     this.calendarBooking = new CalendarBooking(this.calendarContainer);
     this.zoneNotes = new ZoneNotes(this.zoneNotesContainer, () => this.currentZoneId);
-    this.revenueAnalytics = new RevenueAnalytics(this.revenueContainer, this.activeSelections);
 
     // Phase 3: Visual & Experience
-    this.weatherSimulator = new WeatherSimulator(
-      this.weatherSimContainer,
-      this.studioContainer
-    );
-
     this.walkthroughExporter = new WalkthroughExporter(this.videoExportContainer);
 
     this.arQRGenerator = new ARQRGenerator(
@@ -481,7 +459,6 @@ class Event360App {
     );
 
     // Phase 5: AI & Ops Architecture
-    this.n8nArchitecture = new N8nArchitectureWorkflow(this.n8nOpsContainer);
 
     this.eventDetailsPanel = new EventDetailsPanel(this.eventDetailsContainer, (details) => {
       this.showToast(`Saved: ${details.eventName} — ${details.guestCount} guests`);
@@ -498,7 +475,6 @@ class Event360App {
     // Original tab events
     this.tabMapView.addEventListener('click', () => this.switchView('map'));
     this.tab360View.addEventListener('click', () => this.switchView('studio360'));
-    if (this.tabN8nOpsView) this.tabN8nOpsView.addEventListener('click', () => this.switchView('n8n-ops'));
     if (this.tabIndiaView) this.tabIndiaView.addEventListener('click', () => this.switchView('india'));
     if (this.tabFloorPlanView) this.tabFloorPlanView.addEventListener('click', () => this.switchView('floorplan'));
     if (this.tabAnalyticsView) this.tabAnalyticsView.addEventListener('click', () => this.switchView('analytics'));
@@ -730,12 +706,10 @@ class Event360App {
   openFeature(feature) {
     const featureMap = {
       // Modals
-      colorTheme: () => this.colorThemeDesigner.open(),
       compare: () => this.beforeAfterCompare.open(),
       collab: () => this.collaborationMode.open(),
       styles: () => this.styleLibrary.open(),
       notes: () => this.zoneNotes.open(),
-      weather: () => this.weatherSimulator.open ? this.weatherSimulator.open() : this.weatherSimulator.render(),
       videoExport: () => this.walkthroughExporter.open(),
       arQR: () => this.arQRGenerator.open(),
       moodBoard: () => this.moodBoardMatcher.open(),
@@ -747,19 +721,16 @@ class Event360App {
       vendors: () => this.switchView('vendors'),
       inventory: () => this.switchView('inventory'),
       calendar: () => this.switchView('calendar'),
-      revenue: () => this.switchView('revenue'),
       testimonials: () => this.switchView('testimonials'),
       playlist: () => this.switchView('playlist'),
     };
 
     // Human-readable names — the toast used to leak the internal key ("Opened colorTheme").
     const featureLabels = {
-      colorTheme: 'Colour & Theme Designer',
       compare: 'Before / After Comparison',
       collab: 'Collaboration',
       styles: 'Floral & Decor Style Library',
       notes: 'Zone Notes',
-      weather: 'Weather Simulator',
       videoExport: 'Walkthrough Video Export',
       arQR: 'AR Preview Code',
       moodBoard: 'Mood Board Matcher',
@@ -770,14 +741,13 @@ class Event360App {
       vendors: 'Vendor Directory',
       inventory: 'Inventory Tracker',
       calendar: 'Booking Calendar',
-      revenue: 'Revenue Analytics',
       testimonials: 'Client Reviews',
       playlist: 'Playlist Builder'
     };
 
     const modalKeyByFeature = {
-      colorTheme: 'colorThemeDesigner', compare: 'beforeAfterCompare', collab: 'collaborationMode',
-      styles: 'styleLibrary', notes: 'zoneNotes', weather: 'weatherSimulator',
+      compare: 'beforeAfterCompare', collab: 'collaborationMode',
+      styles: 'styleLibrary', notes: 'zoneNotes',
       videoExport: 'walkthroughExporter', arQR: 'arQRGenerator', moodBoard: 'moodBoardMatcher',
       contract: 'eSignatureFlow', invoice: 'invoiceGenerator', budgetAI: 'budgetOptimizer',
       briefGen: 'eventBriefGenerator'
@@ -820,8 +790,7 @@ class Event360App {
       this.analyticsContainer, this.proposalsContainer,
       this.timelineContainer, this.seatingContainer,
       this.vendorContainer, this.inventoryContainer, this.calendarContainer,
-      this.revenueContainer, this.testimonialContainer, this.playlistContainer,
-      this.n8nOpsContainer
+      this.testimonialContainer, this.playlistContainer
     ];
     sections.forEach(s => { if (s) { s.classList.remove('active'); s.classList.add('hidden'); } });
   }
@@ -833,7 +802,7 @@ class Event360App {
 
     // All tab buttons
     const tabs = [
-      this.tabMapView, this.tab360View, this.tabN8nOpsView, this.tabIndiaView,
+      this.tabMapView, this.tab360View, this.tabIndiaView,
       this.tabFloorPlanView, this.tabAnalyticsView, this.tabProposalsView,
       this.tabTimelineView, this.tabSeatingView
     ];
@@ -844,11 +813,6 @@ class Event360App {
     switch (viewName) {
       case 'map':
         this.activateSection(this.mapContainer, this.tabMapView);
-        break;
-
-      case 'n8n-ops':
-        this.activateSection(this.n8nOpsContainer, this.tabN8nOpsView);
-        if (this.n8nArchitecture?.render) this.n8nArchitecture.render();
         break;
 
       // FIXED: explicit studio360 case — just shows the container,
@@ -901,11 +865,6 @@ class Event360App {
       case 'calendar':
         this.activateSection(this.calendarContainer);
         if (this.calendarBooking.render) this.calendarBooking.render();
-        break;
-      case 'revenue':
-        this.activateSection(this.revenueContainer);
-        if (this.revenueAnalytics.updateSelections) this.revenueAnalytics.updateSelections(this.activeSelections);
-        if (this.revenueAnalytics.render) this.revenueAnalytics.render();
         break;
       case 'testimonials':
         this.activateSection(this.testimonialContainer);
@@ -963,7 +922,7 @@ class Event360App {
 
     // Reset every tab, not just the map tab — this method is reachable from any view
     // (map hotspots, AI builder, venue menu, quick search).
-    [this.tabMapView, this.tabN8nOpsView, this.tabIndiaView, this.tabFloorPlanView,
+    [this.tabMapView, this.tabIndiaView, this.tabFloorPlanView,
      this.tabAnalyticsView, this.tabProposalsView, this.tabTimelineView, this.tabSeatingView]
       .forEach(t => { if (t) t.classList.remove('active'); });
     if (this.indiaSubBar) this.indiaSubBar.classList.add('hidden');
@@ -1049,26 +1008,17 @@ class Event360App {
     //    Falls back to zone-local backdrop plate; never jumps to another venue.
     let panoramaChanged = false;
     if (zone && this.viewer360?.updatePanorama) {
-      const nextPano = resolveScenePanorama(
-        this.currentZoneId,
-        zone,
-        this.activeSelections,
-        slotId
-      );
+      // The composite resolver is a pure function of the WHOLE selection set, so
+      // it decides which single element is baked into the plate; every other
+      // change is drawn as a composited layer by updateSlotDisplay below.
+      const nextPano = resolveScenePanorama(this.currentZoneId, zone, this.activeSelections);
       const currentPanorama = this.viewer360._currentPanorama || zone.panoramaUrl;
       if (nextPano && nextPano !== currentPanorama) {
         this.viewer360.updatePanorama(nextPano, { ...this.activeSelections });
         panoramaChanged = true;
-      } else if (
-        !hasSceneVariant(this.currentZoneId, slotId, newItemId) &&
-        slot?.category === 'backdrops' &&
-        item?.panoramaUrl &&
-        item.panoramaUrl !== currentPanorama &&
-        // Only accept backdrop plates that belong to this zone family
-        this._isZoneLocalPanorama(item.panoramaUrl, zone)
-      ) {
-        this.viewer360.updatePanorama(item.panoramaUrl, { ...this.activeSelections });
-        panoramaChanged = true;
+      } else {
+        this.viewer360.loadZone(zone, { ...this.activeSelections });
+        panoramaChanged = false;
       }
     }
 
@@ -1086,47 +1036,17 @@ class Event360App {
 
     if (item) {
       const label = customText ? `${item.name} — "${customText}"` : item.name;
+      const composited = unbakedChanges(this.viewer360?._composite).length;
       const hint = panoramaChanged
-        ? ' · 360° scene updated (element only)'
-        : hasSceneVariant(this.currentZoneId, slotId, newItemId)
-          ? ' · already showing this look'
-          : ' · selection saved';
+        ? ' · 360° plate re-rendered for this element'
+        : composited
+          ? ` · shown as a composited layer (${composited} change${composited > 1 ? 's' : ''} layered over the plate)`
+          : ' · already showing this look';
       this.showToast(`✅ Swapped to ${label}${hint}`);
       confetti({ particleCount: 55, spread: 75, origin: { y: 0.75 }, colors: ['#f59e0b', '#a855f7', '#06b6d4'] });
     }
   }
 
-  /** Keep backdrop swaps inside the current venue instead of teleporting zones. */
-  _isZoneLocalPanorama(url, zone) {
-    if (!url || !zone) return false;
-    if (url === zone.panoramaUrl) return true;
-    const zoneFamily = {
-      // Only plates that actually show the outdoor stage lawn. The wall/foyer plates
-      // are a different venue — loading one is a teleport, not a swap.
-      'zone-stage': ['zone_stage', 'variants/zone-stage'],
-      'zone-banquet': ['zone_banquet'],
-      'zone-fountain': ['zone_fountain', 'zone_stone', 'zone_dancing', 'variants/zone-fountain'],
-      'zone-lounge': ['zone_lounge'],
-      // zone_marigold_wall is a palace hall and variants/zone-fountain is the outdoor
-      // plaza — neither is the entrance foyer.
-      'zone-entrance': ['zone_entrance', 'zone_hedge', 'zone_shimmer'],
-      'zone-india-election': ['india_election', 'variants/zone-india-election', 'political_presidential'],
-      'zone-india-function': ['india_function', 'variants/zone-india-function'],
-      'zone-india-meeting': ['india_meeting', 'variants/zone-india-meeting']
-    };
-    const keys = zoneFamily[zone.id] || [];
-    return keys.some(k => url.includes(k));
-  }
-
-
-  /**
-   * Single fan-out point for a design change.
-   *
-   * `activeSelections` is mutated IN PLACE and never reassigned: ~19 components are
-   * constructed with a reference to this object, and replacing it silently froze
-   * every component that wasn't in the hand-maintained list below (load a proposal,
-   * then open the Cart and it still quoted the previous design).
-   */
   updateAllComponents(newSelections) {
     if (newSelections && newSelections !== this.activeSelections) {
       const normalized = this.normalizeSelections(newSelections);
@@ -1259,12 +1179,10 @@ class Event360App {
   modalRegistry() {
     return [
       ['notificationCenter', this.notificationCenter, this.notificationContainer],
-      ['colorThemeDesigner', this.colorThemeDesigner, this.colorThemeContainer],
       ['beforeAfterCompare', this.beforeAfterCompare, this.compareContainer],
       ['collaborationMode', this.collaborationMode, this.collabContainer],
       ['styleLibrary', this.styleLibrary, this.styleLibraryContainer],
       ['zoneNotes', this.zoneNotes, this.zoneNotesContainer],
-      ['weatherSimulator', this.weatherSimulator, this.weatherSimContainer],
       ['walkthroughExporter', this.walkthroughExporter, this.videoExportContainer],
       ['arQRGenerator', this.arQRGenerator, this.arQRContainer],
       ['moodBoardMatcher', this.moodBoardMatcher, this.moodBoardContainer],
@@ -1370,7 +1288,6 @@ class Event360App {
       this.mapComponent, this.costCard, this.venueMenuModal, this.analyticsDashboard,
       this.proposalsManager, this.timelinePlanner, this.seatingChart, this.floorPlanEditor,
       this.cartPaymentModal, this.invoiceGenerator, this.eSignatureFlow, this.budgetOptimizer,
-      this.inventoryTracker, this.revenueAnalytics, this.moodBoardMatcher, this.briefGenerator,
       this.eventBriefGenerator, this.threeDEditor, this.compareTool, this.zoneNotes
     ].filter(Boolean);
   }
@@ -1602,11 +1519,11 @@ class Event360App {
     });
 
     const views = [
-      ['Aerial venue map', 'map'], ['360° Studio', 'studio360'], ['n8n AI Ops architecture', 'n8n-ops'],
+      ['Aerial venue map', 'map'], ['360° Studio', 'studio360'],
       ['India events', 'india'], ['Floor plan', 'floorplan'], ['Analytics', 'analytics'],
       ['Proposals', 'proposals'], ['Timeline', 'timeline'], ['Seating chart', 'seating'],
       ['Vendors', 'vendors'], ['Inventory', 'inventory'], ['Booking calendar', 'calendar'],
-      ['Revenue analytics', 'revenue'], ['Client reviews', 'testimonials'], ['Playlist', 'playlist']
+      ['Client reviews', 'testimonials'], ['Playlist', 'playlist']
     ];
     views.forEach(([label, view]) => entries.push({
       kind: 'Go to', label, detail: 'View', keywords: label, run: () => this.switchView(view)

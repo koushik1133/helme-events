@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { formatMoney, escapeHtml } from '../utils/format.js';
+import { formatMoney, escapeHtml, readJSON, writeJSON } from '../utils/format.js';
 
 /**
  * Arena = the physical floor. Ground plane, grid helper and the drag clamp all
@@ -10,6 +10,9 @@ import { formatMoney, escapeHtml } from '../utils/format.js';
 const ARENA = { x: 20, z: 15 };
 const GRID_SNAP = 0.5;
 const DRAG_THRESHOLD_PX = 4;
+
+/** A client's arrangement must survive a reload. */
+const LAYOUT_KEY = 'helm_3d_layout_v1';
 
 /** Reusable colour scratch objects (no per-frame / per-click allocation). */
 const COLOR_HIGHLIGHT = new THREE.Color(0x6366f1);
@@ -148,6 +151,7 @@ export class ThreeDLiveSpaceEditor {
     this.onPointerMove = this.onPointerMove.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
     this.handleResize = this.handleResize.bind(this);
+    this.onCanvasKeyDown = this.onCanvasKeyDown.bind(this);
   }
 
   // ---------------------------------------------------------------- textures
@@ -200,7 +204,7 @@ export class ThreeDLiveSpaceEditor {
     this.scene.background = new THREE.Color(0x0b0d14);
 
     this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 500);
-    this.camera.position.set(0, 14, 18);
+    this.camera.position.set(0, 15, 23);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -249,12 +253,19 @@ export class ThreeDLiveSpaceEditor {
     this.dirLight.shadow.needsUpdate = true;
     this.scene.add(this.dirLight);
 
-    this.pointLight = new THREE.PointLight(0xd97706, 60, 40, 2);
-    this.pointLight.position.set(0, 8, 0);
+    // Static warm key-fill. This used to orbit the room every frame, which read
+    // as a disco light rather than a venue and made screenshots inconsistent.
+    this.pointLight = new THREE.PointLight(0xffd9a0, 45, 46, 2);
+    this.pointLight.position.set(0, 9, 2);
     this.scene.add(this.pointLight);
 
+    // Cool rim from behind the stage so dark assets separate from the floor.
+    const rim = new THREE.DirectionalLight(0x9fb4ff, 0.55);
+    rim.position.set(-14, 9, -18);
+    this.scene.add(rim);
+
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, 1, 0);
+    this.controls.target.set(0, 1, -2);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.07;
     this.controls.minDistance = 6;
@@ -288,12 +299,31 @@ export class ThreeDLiveSpaceEditor {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Soft radial falloff used as the floor's albedo — a flat colour reads as cardboard. */
+  createFloorTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(256, 256, 20, 256, 256, 300);
+    g.addColorStop(0, '#2a2e3d');
+    g.addColorStop(0.55, '#1b1e29');
+    g.addColorStop(1, '#0e1017');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 512, 512);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
   buildFloorGrid() {
+    this.floorTexture = this.createFloorTexture();
     const groundGeo = new THREE.PlaneGeometry(ARENA.x * 2, ARENA.z * 2);
-    const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x14161f,
-      roughness: 0.45,
-      metalness: 0.25
+    const groundMat = new THREE.MeshPhysicalMaterial({
+      map: this.floorTexture,
+      roughness: 0.34,
+      metalness: 0.0,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.22
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -302,10 +332,10 @@ export class ThreeDLiveSpaceEditor {
 
     // GridHelper is square, so draw it at the smaller axis and scale X to match
     // the ground exactly — no more 5 units of grid floating past the floor.
-    const grid = new THREE.GridHelper(ARENA.z * 2, ARENA.z * 2, 0x6366f1, 0x27272a);
+    const grid = new THREE.GridHelper(ARENA.z * 2, ARENA.z * 2, 0x6366f1, 0x2f3140);
     grid.scale.x = ARENA.x / ARENA.z;
     grid.position.y = 0.012;
-    grid.material.opacity = 0.45;
+    grid.material.opacity = 0.28;
     grid.material.transparent = true;
     // Keep the grid out of raycasts entirely.
     grid.raycast = () => {};
@@ -315,7 +345,117 @@ export class ThreeDLiveSpaceEditor {
     this.floorObjects = [ground, grid];
   }
 
+  /**
+   * Fake contact shadow: a soft dark disc laid just above the floor under every
+   * asset. The single directional shadow map cannot resolve small contact
+   * darkening at this arena size, and without it everything looks like it floats.
+   */
+  contactShadowTexture() {
+    if (this._contactTex) return this._contactTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
+    g.addColorStop(0, 'rgba(0,0,0,0.55)');
+    g.addColorStop(0.6, 'rgba(0,0,0,0.22)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    this._contactTex = new THREE.CanvasTexture(c);
+    SHARED_RESOURCES.add(this._contactTex);
+    return this._contactTex;
+  }
+
+  addContactShadow(group, halfX, halfZ) {
+    const geo = new THREE.PlaneGeometry(halfX * 2.5, halfZ * 2.5);
+    const mat = new THREE.MeshBasicMaterial({
+      map: this.contactShadowTexture(),
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.85
+    });
+    const disc = new THREE.Mesh(geo, mat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.02;
+    disc.renderOrder = -1;
+    disc.raycast = () => {};
+    group.add(disc);
+  }
+
+  /** Factory table shared by spawn, duplicate and restore. */
+  factoryFor(type) {
+    return {
+      table: (x, z, name) => this.addTableMesh(x, z, name || 'Banquet Table'),
+      stage: (x, z, name) => this.addStageMesh(x, z, name || 'LED Stage'),
+      podium: (x, z, name) => this.addPodiumMesh(x, z, name || 'Glass Podium'),
+      sound: (x, z, name) => this.addSoundTowerMesh(x, z, name || 'Sound Tower')
+    }[type] || null;
+  }
+
+  /** Persist the arrangement so a client's layout survives a reload. */
+  saveLayout() {
+    if (this._restoring) return;
+    const layout = this.getLayout();
+    writeJSON(LAYOUT_KEY, { v: 1, items: layout.items });
+  }
+
+  /**
+   * Rebuild a persisted arrangement. Returns false when there is nothing valid
+   * stored, so the caller can fall back to the demo layout.
+   */
+  restoreLayout() {
+    const raw = readJSON(LAYOUT_KEY, null);
+    const items = raw && Array.isArray(raw.items) ? raw.items : null;
+    if (!items || !items.length) return false;
+
+    this._restoring = true;
+    let placed = 0;
+    try {
+      items.forEach(item => {
+        const factory = this.factoryFor(item && item.type);
+        if (!factory) return;
+        const x = Number(item.x);
+        const z = Number(item.z);
+        const group = factory(
+          Number.isFinite(x) ? x : 0,
+          Number.isFinite(z) ? z : 0,
+          typeof item.name === 'string' ? item.name : undefined
+        );
+        if (Number.isFinite(item.colorHex)) {
+          group.userData.swatchHex = item.colorHex;
+          const main = group.userData.mainMesh;
+          if (main && main.material && main.material.color) main.material.color.setHex(item.colorHex);
+        }
+        placed++;
+      });
+    } finally {
+      this._restoring = false;
+    }
+    return placed > 0;
+  }
+
+  /** Discard the saved arrangement and rebuild the reference floor. */
+  resetLayout() {
+    writeJSON(LAYOUT_KEY, { v: 1, items: [] });
+    this.buildReferenceLayout();
+    this.selectedMesh = null;
+    this.highlightSelectedObject();
+    this.updateInspectorUI();
+    this.markShadowsDirty();
+    this.emitLayoutChange();
+  }
+
   populateInitial3DAssets() {
+    this.clearPlacedObjects();
+    if (this.restoreLayout()) {
+      this.updateStats();
+      return;
+    }
+    this.buildReferenceLayout();
+    this.updateStats();
+  }
+
+  buildReferenceLayout() {
     this.clearPlacedObjects();
 
     this.addStageMesh(0, -9, 'Concert LED Stage');
@@ -327,8 +467,6 @@ export class ThreeDLiveSpaceEditor {
       { x: -6, z: 2 }, { x: 0, z: 2 }, { x: 6, z: 2 },
       { x: -6, z: 8 }, { x: 0, z: 8 }, { x: 6, z: 8 }
     ].forEach((pos, idx) => this.addTableMesh(pos.x, pos.z, `Banquet Table #${idx + 1}`));
-
-    this.updateStats();
   }
 
   clearPlacedObjects() {
@@ -353,6 +491,7 @@ export class ThreeDLiveSpaceEditor {
     group.userData.halfX = halfX;
     group.userData.halfZ = halfZ;
     Object.assign(group.userData, spec);
+    this.addContactShadow(group, halfX, halfZ);
 
     const clamped = this.clampToArena(x, z, halfX, halfZ);
     group.position.set(clamped.x, 0, clamped.z);
@@ -410,16 +549,14 @@ export class ThreeDLiveSpaceEditor {
   /** Spawn from the asset library: free spot + auto-select. */
   spawnAsset(type) {
     if (!this.scene) return null;
-    const factories = {
-      table: () => this.addTableMesh(0, 0, 'New Banquet Table'),
-      stage: () => this.addStageMesh(0, 0, 'New LED Stage'),
-      podium: () => this.addPodiumMesh(0, 0, 'New Glass Podium'),
-      sound: () => this.addSoundTowerMesh(0, 0, 'New Sound Tower')
-    };
-    const factory = factories[type];
+    const factory = this.factoryFor(type);
     if (!factory) return null;
 
-    const group = factory();
+    const labels = {
+      table: 'New Banquet Table', stage: 'New LED Stage',
+      podium: 'New Glass Podium', sound: 'New Sound Tower'
+    };
+    const group = factory(0, 0, labels[type]);
     const spot = this.findFreeSpot(group, 0, type === 'table' ? 6 : 0);
     group.position.set(spot.x, 0, spot.z);
 
@@ -674,6 +811,74 @@ export class ThreeDLiveSpaceEditor {
     // Bound on window so a release anywhere ends the drag — no sticky drags.
     window.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('pointercancel', this.onPointerUp);
+    if (this.canvasHolder) this.canvasHolder.addEventListener('keydown', this.onCanvasKeyDown);
+  }
+
+  /**
+   * Keyboard parity for the mouse-only operations. Without this the floor is a
+   * dead zone for anyone not using a pointer.
+   */
+  onCanvasKeyDown(e) {
+    const key = e.key;
+
+    if (key === 'Delete' || key === 'Backspace') {
+      if (!this.selectedMesh) return;
+      e.preventDefault();
+      this.deleteSelectedMesh();
+      return;
+    }
+    if (key === 'Escape') {
+      // Only swallow Escape when it has something to do here; otherwise let the
+      // host close the editor.
+      if (!this.selectedMesh) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.selectedMesh = null;
+      this.highlightSelectedObject();
+      this.updateInspectorUI();
+      return;
+    }
+    if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+      e.preventDefault();
+      this.cycleSelection(e.shiftKey ? -1 : 1);
+      return;
+    }
+
+    const nudges = {
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]
+    };
+    const nudge = nudges[key];
+    if (!nudge || !this.selectedMesh) return;
+    e.preventDefault();
+    const step = e.shiftKey ? GRID_SNAP * 4 : GRID_SNAP;
+    const data = this.selectedMesh.userData;
+    const clamped = this.clampToArena(
+      this.selectedMesh.position.x + nudge[0] * step,
+      this.selectedMesh.position.z + nudge[1] * step,
+      data.halfX, data.halfZ
+    );
+    this.selectedMesh.position.x = clamped.x;
+    this.selectedMesh.position.z = clamped.z;
+    this.updateInspectorPosition();
+    this.markShadowsDirty();
+    this.emitLayoutChange();
+  }
+
+  /** Step the selection through the placed assets (keyboard route to selecting). */
+  cycleSelection(dir = 1) {
+    if (!this.placedObjects.length) {
+      this.selectedMesh = null;
+      this.highlightSelectedObject();
+      this.updateInspectorUI();
+      return;
+    }
+    const idx = this.placedObjects.indexOf(this.selectedMesh);
+    const next = idx === -1
+      ? (dir > 0 ? 0 : this.placedObjects.length - 1)
+      : (idx + dir + this.placedObjects.length) % this.placedObjects.length;
+    this.selectedMesh = this.placedObjects[next];
+    this.highlightSelectedObject();
+    this.updateInspectorUI();
   }
 
   unbindThreeEvents() {
@@ -681,6 +886,7 @@ export class ThreeDLiveSpaceEditor {
       this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
       this.renderer.domElement.removeEventListener('pointermove', this.onPointerMove);
     }
+    if (this.canvasHolder) this.canvasHolder.removeEventListener('keydown', this.onCanvasKeyDown);
     window.removeEventListener('pointerup', this.onPointerUp);
     window.removeEventListener('pointercancel', this.onPointerUp);
   }
@@ -830,16 +1036,10 @@ export class ThreeDLiveSpaceEditor {
     const src = this.selectedMesh;
     const type = src.userData.type;
 
-    const factories = {
-      table: () => this.addTableMesh(0, 0, `${src.userData.name} (copy)`),
-      stage: () => this.addStageMesh(0, 0, `${src.userData.name} (copy)`),
-      podium: () => this.addPodiumMesh(0, 0, `${src.userData.name} (copy)`),
-      sound: () => this.addSoundTowerMesh(0, 0, `${src.userData.name} (copy)`)
-    };
-    const factory = factories[type];
+    const factory = this.factoryFor(type);
     if (!factory) return;
 
-    const clone = factory();
+    const clone = factory(0, 0, `${src.userData.name} (copy)`);
     // Carry the source's colour across so a duplicate actually looks like a duplicate.
     if (src.userData.swatchHex !== undefined) {
       clone.userData.swatchHex = src.userData.swatchHex;
@@ -872,7 +1072,9 @@ export class ThreeDLiveSpaceEditor {
         seen.add(mat);
         ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'alphaMap'].forEach(key => {
           const tex = mat[key];
-          if (tex && !seen.has(tex)) { seen.add(tex); tex.dispose(); }
+          // Shared textures (e.g. the contact-shadow disc) are reused by every
+          // asset — disposing one on delete would blank them all.
+          if (tex && !SHARED_RESOURCES.has(tex) && !seen.has(tex)) { seen.add(tex); tex.dispose(); }
         });
         mat.dispose();
       });
@@ -908,6 +1110,7 @@ export class ThreeDLiveSpaceEditor {
    */
   emitLayoutChange() {
     this.updateStats();
+    this.saveLayout();
     if (typeof this.onLayoutChange === 'function') {
       try { this.onLayoutChange(this.getLayout()); } catch { /* host handler failed; keep the editor alive */ }
     }
@@ -937,7 +1140,9 @@ export class ThreeDLiveSpaceEditor {
     if (!this.selectedMesh) {
       inspectorBox.innerHTML = `
         <div class="inspector-placeholder">
-          <span>👆 Select any 3D asset in the room to recolour, duplicate, delete or drag it across the 0.5-unit floor grid.</span>
+          <span>${this.placedObjects.length
+            ? '👆 Select an asset — click it on the floor, or press Enter with the floor focused — to recolour, duplicate, delete or move it.'
+            : '🪑 The floor is empty. Place an asset from the library on the left, or use “Reset floor” to bring back the reference layout.'}</span>
         </div>
       `;
       return;
@@ -989,11 +1194,6 @@ export class ThreeDLiveSpaceEditor {
     if (!this.animating) return;
     this.rafHandle = requestAnimationFrame(this.animate);
 
-    if (this.pointLight) {
-      const t = Date.now() * 0.0005;
-      this.pointLight.position.x = Math.sin(t) * 8;
-      this.pointLight.position.z = Math.cos(t) * 8;
-    }
     if (this.controls) this.controls.update();
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
@@ -1043,6 +1243,11 @@ export class ThreeDLiveSpaceEditor {
       this.scene.clear();
     }
 
+    if (this._contactTex) {
+      SHARED_RESOURCES.delete(this._contactTex);
+      this._contactTex.dispose();
+      this._contactTex = null;
+    }
     if (this.envTexture) { this.envTexture.dispose(); this.envTexture = null; }
     if (this.pmrem) { this.pmrem.dispose(); this.pmrem = null; }
 
@@ -1090,13 +1295,22 @@ export class ThreeDLiveSpaceEditor {
     };
 
     const btnCamTop = this.container.querySelector('#btnCamTop');
-    if (btnCamTop) btnCamTop.addEventListener('click', () => setCamera([0, 30, 0.1], [0, 0, 0]));
+    if (btnCamTop) btnCamTop.addEventListener('click', () => setCamera([0, 34, 0.1], [0, 0, -1]));
 
     const btnCam3D = this.container.querySelector('#btnCam3D');
-    if (btnCam3D) btnCam3D.addEventListener('click', () => setCamera([0, 14, 18], [0, 1, 0]));
+    if (btnCam3D) btnCam3D.addEventListener('click', () => setCamera([0, 15, 23], [0, 1, -2]));
 
     const btnCamGuest = this.container.querySelector('#btnCamGuest');
     if (btnCamGuest) btnCamGuest.addEventListener('click', () => setCamera([0, 3.2, 13], [0, 1.6, -8]));
+
+    const btnCycle = this.container.querySelector('#btnCycleSel');
+    if (btnCycle) btnCycle.addEventListener('click', () => {
+      this.cycleSelection(1);
+      if (this.canvasHolder) this.canvasHolder.focus();
+    });
+
+    const btnReset = this.container.querySelector('#btnResetLayout');
+    if (btnReset) btnReset.addEventListener('click', () => this.resetLayout());
 
     const btnClose = this.container.querySelector('#btnClose3DEditor');
     if (btnClose) btnClose.addEventListener('click', () => this.close());
@@ -1108,11 +1322,12 @@ export class ThreeDLiveSpaceEditor {
         <div class="three-editor-card" role="dialog" aria-modal="true" aria-label="3D event space editor">
           <div class="three-editor-header">
             <div class="header-left">
-              <h2>🎮 Interactive 3D Event Space Editor</h2>
-              <span class="editor-sub">Orbit &amp; zoom • drag to reposition • 0.5-unit snap grid • live slogan textures</span>
+              <h2>📐 3D Floor Plan</h2>
+              <span class="editor-sub">Massing model for layout and seat count — not a photoreal preview. Use the 360° studio for finishes.</span>
+              <span class="editor-sub">The rental figure shown is <strong>indicative only and is not added to the venue quote</strong> — the zone catalogue already prices tables, chairs and staging.</span>
             </div>
             <div class="header-right">
-              <div class="stats-pill" title="Indicative rental for the assets currently on the floor">
+              <div class="stats-pill" title="Indicative rental value of the assets on the floor. Not added to the venue quote.">
                 <span id="assetCountVal">0 Assets</span> |
                 <span id="assetSeatVal">0 seats</span> |
                 <span id="assetCostVal" class="text-gold">${formatMoney(0)}</span>
@@ -1146,6 +1361,14 @@ export class ThreeDLiveSpaceEditor {
               </div>
 
               <div class="camera-views-box mt-3">
+                <h4>⌨️ Selection</h4>
+                <div class="cam-btns-row">
+                  <button type="button" class="cam-btn" id="btnCycleSel">Select next asset</button>
+                  <button type="button" class="cam-btn" id="btnResetLayout">Reset floor</button>
+                </div>
+              </div>
+
+              <div class="camera-views-box mt-3">
                 <h4>🎥 Camera Angles</h4>
                 <div class="cam-btns-row">
                   <button type="button" class="cam-btn" id="btnCam3D">Perspective</button>
@@ -1156,9 +1379,12 @@ export class ThreeDLiveSpaceEditor {
             </div>
 
             <div class="three-canvas-container">
-              <div id="threeCanvasHolder" class="three-canvas-holder"></div>
+              <div id="threeCanvasHolder" class="three-canvas-holder" tabindex="0" role="application"
+                   aria-label="3D floor plan. Enter or Space selects the next asset, arrow keys move it on the 0.5-unit grid, Delete removes it."></div>
               <div class="canvas-help-hint">
-                💡 Drag empty space to orbit, scroll to zoom. Tap or click an asset to select it, then drag to move it on the 0.5-unit grid.
+                💡 Drag empty space to orbit, scroll to zoom, drag an asset to move it.
+                Keyboard: focus the floor, then <kbd>Enter</kbd> cycles selection, <kbd>↑ ↓ ← →</kbd> nudge
+                (<kbd>Shift</kbd> for a bigger step) and <kbd>Delete</kbd> removes. Your layout is saved automatically.
               </div>
             </div>
 

@@ -1,6 +1,8 @@
 import { formatMoney, escapeHtml, readJSON, writeJSON } from '../utils/format.js';
 import {
   buildQuote,
+  getBasket,
+  subscribeBasket,
   renderLineTable,
   renderTotalsTable,
   renderScheduleTable,
@@ -11,6 +13,7 @@ import {
   formatDocDate,
   SELLER
 } from '../utils/quote.js';
+import { eventState } from '../data/eventState.js';
 
 const CONTRACT_KEY = 'helm_events_contracts';
 const BUYER_KEY = 'helm_events_invoice_buyer';
@@ -97,6 +100,14 @@ export class ESignatureFlow {
     this.isSigned = Boolean(this.signedRecord);
 
     this.docNumber = getOrCreateDocNumber('services-agreement', 'HE/AGR');
+
+    this.unsubscribeBasket = subscribeBasket(() => {
+      if (this.container.style.display === 'flex') this.render();
+    });
+  }
+
+  destroy() {
+    if (this.unsubscribeBasket) this.unsubscribeBasket();
   }
 
   updateSelections(activeSelections) {
@@ -114,13 +125,32 @@ export class ESignatureFlow {
     this.container.style.display = 'none';
   }
 
+  /** The live quote — what an UNSIGNED draft shows. */
   quote() {
     return buildQuote(this.activeSelections, { buyerState: this.buyer.state });
   }
 
+  /**
+   * The quote the agreement was EXECUTED against.
+   *
+   * A signed contract is a fixed document. Re-printing it after someone edits a
+   * quantity must reproduce the lines and the value that were actually signed,
+   * not today's configuration.
+   */
+  signedQuote() {
+    const r = this.signedRecord;
+    if (!r || !r.selections) return this.quote();
+    return buildQuote(r.selections, {
+      buyerState: r.buyerState || this.buyer.state,
+      basket: r.basket,
+      guestCount: r.guestCount,
+      zoneIds: Array.isArray(r.zoneIds) && r.zoneIds.length ? r.zoneIds : undefined
+    });
+  }
+
   /** The complete agreement, used on screen, for print and for download. */
   documentBody(signatureDataUrl, signedAt) {
-    const quote = this.quote();
+    const quote = signedAt ? this.signedQuote() : this.quote();
     const clauses = contractClauses(quote, this.buyer, null);
     const signedDate = signedAt ? formatDocDate(new Date(signedAt)) : null;
     return `
@@ -204,7 +234,13 @@ export class ESignatureFlow {
             ${this.isSigned ? `
               <div class="contract-signed-box" role="status" style="margin:12px 0; padding:12px 14px; border:1px solid #16a34a; border-radius:8px; background:rgba(22,163,74,.12);">
                 <strong>Signed on ${escapeHtml(formatDocDate(new Date(this.signedRecord.signedAt)))}</strong>
-                by ${escapeHtml(this.signedRecord.signatoryName || this.buyer.name)} for ${escapeHtml(this.signedRecord.company || this.buyer.company)}.
+                by ${escapeHtml(this.signedRecord.signatoryName || this.buyer.name)} for ${escapeHtml(this.signedRecord.company || this.buyer.company)}
+                at a contract value of <strong>${formatMoney(this.signedQuote().grandTotal)}</strong>.
+                ${this.signedQuote().grandTotal !== quote.grandTotal ? `
+                  <div style="margin-top:6px;">
+                    The live configuration is now ${formatMoney(quote.grandTotal)}. The executed agreement is unchanged —
+                    issue a written variation under clause 4 to move the contract value.
+                  </div>` : ''}
                 <div style="margin-top:8px;">
                   ${this.signedRecord.signature ? `<img src="${this.signedRecord.signature}" alt="Recorded signature" style="max-width:240px; background:#fff; border:1px solid #ccc; border-radius:4px;" />` : ''}
                 </div>
@@ -393,6 +429,12 @@ export class ESignatureFlow {
         company: this.buyer.company,
         docNumber: this.docNumber,
         contractValue: quote.grandTotal,
+        // Everything needed to reproduce Schedule A exactly as signed.
+        selections: { ...this.activeSelections },
+        basket: getBasket(),
+        guestCount: eventState.getGuestCount(),
+        zoneIds: quote.zones.map(z => z.zoneId),
+        buyerState: this.buyer.state,
         signature
       };
       this.isSigned = true;

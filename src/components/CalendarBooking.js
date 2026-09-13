@@ -357,12 +357,21 @@ export class CalendarBooking {
 
     this.save();
 
-    // Keep the shared event record in step with what was just booked.
-    const dates = this.bookings.map(b => b.date).sort();
-    const upcoming = dates.filter(d => d >= todayISO());
-    if (upcoming.length) {
+    // Keep the shared event record in step with the event that was JUST booked.
+    //
+    // This used to span every upcoming booking in the book, so holding a rally
+    // in December and a wedding in February made "the event" four months long,
+    // and Timeline, Seating and the invoice all inherited that nonsense. Only
+    // the dates of this booking define this event.
+    const booked = [...this.selectedDates].sort();
+    if (booked.length) {
       eventState.set(
-        { eventName: name, startDate: upcoming[0], endDate: upcoming[upcoming.length - 1], venue: venue || eventState.get().venue },
+        {
+          eventName: name,
+          startDate: booked[0],
+          endDate: booked[booked.length - 1],
+          venue: venue || eventState.get().venue
+        },
         { source: 'CalendarBooking' }
       );
     }

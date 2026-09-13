@@ -1,5 +1,6 @@
 import { escapeHtml } from '../utils/format.js';
 import { drawQRToCanvas } from '../utils/qr.js';
+import { VENUE_ZONES } from '../data/zones.js';
 
 /**
  * Renders a REAL, scannable QR code (src/utils/qr.js — a full ISO/IEC 18004
@@ -36,14 +37,37 @@ export class ARQRGenerator {
     this.container.innerHTML = '';
   }
 
+  /** Every slot's factory default, keyed by slot id. */
+  static slotDefaults() {
+    if (!ARQRGenerator._defaults) {
+      const defaults = {};
+      VENUE_ZONES.forEach(z => z.slots.forEach(s => { defaults[s.id] = s.defaultItemId; }));
+      ARQRGenerator._defaults = defaults;
+    }
+    return ARQRGenerator._defaults;
+  }
+
   /**
    * Build the link the QR encodes. Selections travel as a compact
    * `slot~item!slot~item` string so the URL stays short enough to scan.
+   *
+   * Only slots that DIFFER from the venue default travel in the link. The
+   * receiving app (`restoreSharedDesign` in main.js) merges the link over the
+   * defaults, so a diff restores the identical setup — and it is the
+   * difference between a link that fits and one that does not. A typical
+   * lightly-customised venue is 27 selections (~1,010 characters of pairs) but
+   * only two or three actual changes (~100 characters). Sending everything put
+   * every real design over the scannable ceiling, so the code silently fell
+   * back to a bare link and carried no setup at all.
    */
   buildUrl() {
     const base = `${location.origin}${location.pathname}`;
+    const defaults = ARQRGenerator.slotDefaults();
     const pairs = Object.entries(this.activeSelections || {})
-      .filter(([key, value]) => typeof value === 'string' && value && !key.startsWith('custom_text_'))
+      .filter(([key, value]) =>
+        typeof value === 'string' && value &&
+        !key.startsWith('custom_text_') &&
+        defaults[key] !== value)
       .map(([key, value]) => `${key.replace(/^slot-/, '')}~${value}`);
 
     const withState = `${base}?view=360&state=${encodeURIComponent(pairs.join('!'))}`;
@@ -96,10 +120,10 @@ export class ARQRGenerator {
               <h3 style="margin:0 0 var(--space-2) 0; font-size:var(--fs-md);">Or copy the link</h3>
               <p style="margin:0 0 var(--space-2) 0; font-size:var(--fs-xs); color:var(--text-muted);">
                 ${includesState
-                  ? `Opens this exact setup — all ${itemCount} selected item${itemCount === 1 ? '' : 's'} are restored on the phone.`
+                  ? `Opens this exact setup — the ${itemCount} piece${itemCount === 1 ? '' : 's'} swapped away from the venue default ${itemCount === 1 ? 'is' : 'are'} restored on the phone.`
                   : itemCount
-                    ? 'Opens the planner. This selection is too long to fit in a code that still scans reliably, so the setup is not attached.'
-                    : 'Opens the planner. Nothing is selected yet, so no setup is attached.'}
+                    ? 'Opens the planner. This setup has too many changes to fit in a code that still scans reliably, so it is not attached — use the review link in the Collaborate panel instead.'
+                    : 'Opens the planner on the venue default build. Swap a piece and the code will carry your changes.'}
               </p>
               <input id="qr-url-field" type="text" readonly aria-label="Shareable link" value="${escapeHtml(url)}"
                      style="width:100%; box-sizing:border-box; padding:var(--space-2); font-family:var(--font-mono);

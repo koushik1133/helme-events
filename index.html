@@ -67,7 +67,6 @@
     <nav class="view-toggle-group" aria-label="Main views">
       <button class="nav-tab active" id="tabMapView"><span>📍 Map</span></button>
       <button class="nav-tab" id="tab360View"><span>🌀 360° Studio</span></button>
-      <button class="nav-tab nav-tab-ai-ops" id="tabN8nOpsView"><span>⚡ n8n AI Ops</span></button>
       <button class="nav-tab nav-tab-india" id="tabIndiaView"><span>🇮🇳 India</span></button>
       <button class="nav-tab" id="tabFloorPlanView"><span>📐 Floor Plan</span></button>
       <button class="nav-tab" id="tabAnalyticsView"><span>📊 Analytics</span></button>
@@ -155,7 +154,6 @@
   <!-- Secondary Feature Toolbar (toggled by Features button) -->
   <div id="featureToolbar" class="feature-toolbar hidden">
     <div class="feature-toolbar-scroll">
-      <button class="feature-btn" data-feature="colorTheme"><span>🎨 Colors</span></button>
       <button class="feature-btn" data-feature="compare"><span>📸 Compare</span></button>
       <button class="feature-btn" data-feature="collab"><span>🤝 Collaborate</span></button>
       <button class="feature-btn" data-feature="styles"><span>💐 Styles</span></button>
@@ -163,8 +161,6 @@
       <button class="feature-btn" data-feature="inventory"><span>📦 Inventory</span></button>
       <button class="feature-btn" data-feature="calendar"><span>📆 Calendar</span></button>
       <button class="feature-btn" data-feature="notes"><span>💬 Notes</span></button>
-      <button class="feature-btn" data-feature="revenue"><span>📈 Revenue</span></button>
-      <button class="feature-btn" data-feature="weather"><span>🌦️ Weather</span></button>
       <button class="feature-btn" data-feature="videoExport"><span>🎬 Export Video</span></button>
       <button class="feature-btn" data-feature="arQR"><span>✨ AR QR</span></button>
       <button class="feature-btn" data-feature="playlist"><span>🎵 Playlist</span></button>
@@ -243,17 +239,12 @@
     <!-- View 10: 📆 Calendar & Date Booking -->
     <section id="calendarContainer" class="view-section hidden"></section>
 
-    <!-- View 11: 📈 Revenue Analytics -->
-    <section id="revenueContainer" class="view-section hidden"></section>
-
     <!-- View 12: ⭐ Testimonial Wall -->
     <section id="testimonialContainer" class="view-section hidden"></section>
 
     <!-- View 13: 🎵 Playlist Builder -->
     <section id="playlistContainer" class="view-section hidden"></section>
 
-    <!-- View 14: ⚡ n8n AI Multi-Agent Operations Architecture -->
-    <section id="n8nOpsContainer" class="view-section hidden"></section>
   </main>
 
   <!-- Persistent Floating Cost Card -->
@@ -268,9 +259,6 @@
   <!-- Cart & Payment Checkout Modal Container -->
   <div id="cartModalContainer"></div>
 
-  <!-- Color Theme Designer Modal Container -->
-  <div id="colorThemeContainer"></div>
-
   <!-- Before/After Compare Modal Container -->
   <div id="compareContainer"></div>
 
@@ -282,9 +270,6 @@
 
   <!-- Zone Notes Modal Container -->
   <div id="zoneNotesContainer"></div>
-
-  <!-- Weather Simulator Panel Container -->
-  <div id="weatherSimContainer"></div>
 
   <!-- Walkthrough Video Export Modal Container -->
   <div id="videoExportContainer"></div>
