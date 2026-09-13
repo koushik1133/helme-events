@@ -40,7 +40,7 @@ export class VenueMenuModal {
           <div class="swapper-modal-header">
             <div>
               <span class="swapper-modal-badge">📖 Visual Options Menu</span>
-              <h3>Browse 4K Venue Zones & Experiences</h3>
+              <h3>Browse Venue Zones &amp; Experiences</h3>
               <p class="swapper-modal-subtitle">Select any venue zone to enter its 360° visualizer & customize items in place.</p>
             </div>
             <button class="btn-close-modal" id="btnCloseVenueMenu">&times;</button>

@@ -211,133 +211,133 @@ const S = (main, backdrop, seating, table, fountain) => ({
 
 const CONCEPT_LIBRARY = {
   reception: [
-    C('concept-1', '👑 Crystal Chandelier Gala', '4K luxury ballroom', '/images/reception_crystal_gala_360.jpg',
+    C('concept-1', '👑 Crystal Chandelier Gala', 'Luxury ballroom', '/images/reception_crystal_gala_360.jpg',
       'Grand ballroom under crystal chandeliers: gold Chiavari seating, tall orchid centrepieces and a plated five-course service line.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-chiavari-gold', 'table-round-standard', 'fountain-dancing-jets')),
-    C('concept-2', '🌌 Midnight Velvet Starlight', '4K night-sky ambient', '/images/reception_midnight_velvet_360.jpg',
+    C('concept-2', '🌌 Midnight Velvet Starlight', 'Night-sky ambient', '/images/reception_midnight_velvet_360.jpg',
       'Deep navy velvet draping with an LED starlight ceiling, clear acrylic seating, cocktail high-tops and an illuminated glass bar.',
       'premium', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-ghost', 'table-cocktail', 'fountain-tiered-stone')),
-    C('concept-3', '🌿 Enchanted Garden Lawn', '4K scenic outdoor', '/images/zone_lounge_360.jpg',
+    C('concept-3', '🌿 Enchanted Garden Lawn', 'Scenic outdoor', '/images/zone_lounge_360.jpg',
       'Open lawn under a floral canopy: warm fairy lights, rustic timber dining, acoustic lounge set and a stone water feature.',
       'essential', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-folding', 'table-rustic-wood', 'fountain-dancing-jets'))
   ],
 
   wedding: [
-    C('concept-1', '👑 Royal Gold Carved Mandap', '4K royal traditional', '/images/zone_stage_360.jpg',
+    C('concept-1', '👑 Royal Gold Carved Mandap', 'Royal traditional', '/images/zone_stage_360.jpg',
       'Carved gold mandap pillars, marigold garlands, sacred fire kund and a VIP front row in gold Chiavari.',
       'signature', S('stage-royal-pavilion', 'backdrop-marigold-garland', 'chair-chiavari-gold', 'table-round-standard', 'fountain-dancing-jets')),
-    C('concept-2', '🌸 Mughal Palace Setup', '4K heritage palace', '/images/india_function_360.jpg',
+    C('concept-2', '🌸 Mughal Palace Setup', 'Heritage palace', '/images/india_function_360.jpg',
       'Palace-arch backdrop with regal drapes, a shehnai performance riser and heritage-styled guest seating along the walk.',
       'premium', S('stage-royal-pavilion', 'backdrop-shimmer-sequin', 'chair-chiavari-gold', 'table-rustic-wood', 'fountain-tiered-stone')),
-    C('concept-3', '🤍 Platinum Floral Altar', '4K contemporary white', '/images/zone_banquet_360.jpg',
+    C('concept-3', '🤍 Platinum Floral Altar', 'Contemporary white', '/images/zone_banquet_360.jpg',
       'Crisp white floral ceremony arch, ghost acrylic aisle chairs, low ambient wash and a grand piano at the aisle head.',
       'essential', S('stage-wooden-riser', 'backdrop-floral-wall', 'chair-ghost', 'table-round-standard', 'fountain-dancing-jets'))
   ],
 
   anniversary: [
-    C('concept-1', '💛 Golden Jubilee Ballroom', '4K milestone formal', '/images/zone_banquet_360.jpg',
+    C('concept-1', '💛 Golden Jubilee Ballroom', 'Milestone formal', '/images/zone_banquet_360.jpg',
       'Gold-and-ivory ballroom built around a family timeline wall, a toast riser for speeches and round tables seating extended family together.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-chiavari-gold', 'table-round-standard', 'fountain-royal-marble')),
-    C('concept-2', '🕯️ Candlelit Courtyard Dinner', '4K intimate evening', '/images/zone_lounge_360.jpg',
+    C('concept-2', '🕯️ Candlelit Courtyard Dinner', 'Intimate evening', '/images/zone_lounge_360.jpg',
       'Courtyard dinner under a fairy-light canopy with lantern pathways, long rustic tables and an acoustic duo at low volume for conversation.',
       'premium', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-velvet-armchair', 'table-rustic-wood', 'fountain-tiered-stone')),
-    C('concept-3', '🌺 Heritage Family Mandapam', '4K traditional home-style', '/images/india_function_360.jpg',
+    C('concept-3', '🌺 Heritage Family Mandapam', 'Traditional home-style', '/images/india_function_360.jpg',
       'Traditional pavilion with marigold work and a blessing seat for the couple, floor-level baithak seating and a live sweets counter.',
       'essential', S('stage-royal-pavilion', 'backdrop-marigold-garland', 'chair-folding', 'table-rustic-wood', 'fountain-brass-lotus'))
   ],
 
   birthday: [
-    C('concept-1', '🎆 Neon Night Party Floor', '4K high-energy', '/images/zone_stage_360.jpg',
+    C('concept-1', '🎆 Neon Night Party Floor', 'High-energy', '/images/zone_stage_360.jpg',
       'LED arch DJ stage with laser and moving-head package, cocktail high-tops around a central dance floor and a neon photo wall.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-ghost', 'table-cocktail', 'fountain-steel-sphere')),
-    C('concept-2', '🍭 Pastel Garden Celebration', '4K daytime family', '/images/zone_lounge_360.jpg',
+    C('concept-2', '🍭 Pastel Garden Celebration', 'Daytime family', '/images/zone_lounge_360.jpg',
       'Daytime lawn party in a pastel palette: balloon-and-foliage arch, a dessert and cake pavilion and shaded family seating.',
       'premium', S('stage-wooden-riser', 'backdrop-floral-wall', 'chair-folding', 'table-rustic-wood', 'fountain-dancing-jets')),
-    C('concept-3', '🖤 Black-Tie Milestone Lounge', '4K adult formal', '/images/zone_banquet_360.jpg',
+    C('concept-3', '🖤 Black-Tie Milestone Lounge', 'Adult formal', '/images/zone_banquet_360.jpg',
       'Blackout lounge with a mirrored bar back, velvet armchair clusters, a single hard-edge spotlight for the toast and a jazz trio.',
       'essential', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-velvet-armchair', 'table-led-glass', 'fountain-black-granite'))
   ],
 
   conference: [
-    C('concept-1', '🎤 Plenary Main Hall', '4K keynote plenary', '/images/india_meeting_360.jpg',
+    C('concept-1', '🎤 Plenary Main Hall', 'Keynote plenary', '/images/india_meeting_360.jpg',
       'Wide plenary set with a seamless LED backdrop, a panellist front row and theatre seating behind, plus a confidence monitor rig.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-vvip-executive', 'table-round-standard', 'fountain-steel-sphere')),
-    C('concept-2', '🤝 Breakout & Networking Commons', '4K multi-track', '/images/zone_lounge_360.jpg',
+    C('concept-2', '🤝 Breakout & Networking Commons', 'Multi-track', '/images/zone_lounge_360.jpg',
       'Four breakout pods around a shared networking commons: standing high-tops, a barista counter and a sponsor greenery wall for press photos.',
       'premium', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-ghost', 'table-cocktail', 'fountain-glass-waterfall')),
-    C('concept-3', '🏛️ Executive Summit Roundtable', '4K closed-door', '/images/zone_banquet_360.jpg',
+    C('concept-3', '🏛️ Executive Summit Roundtable', 'Closed-door', '/images/zone_banquet_360.jpg',
       'Single closed-door roundtable layout for delegation heads with name blocks, interpreter booths at the perimeter and a controlled press window.',
       'essential', S('stage-wooden-riser', 'backdrop-floral-wall', 'chair-vvip-executive', 'table-round-standard', 'fountain-tiered-stone'))
   ],
 
   product_launch: [
-    C('concept-1', '🚀 Reveal Stage & Runway', '4K flagship reveal', '/images/zone_stage_360.jpg',
+    C('concept-1', '🚀 Reveal Stage & Runway', 'Flagship reveal', '/images/zone_stage_360.jpg',
       'Central reveal plinth on a runway thrust with a seamless LED wall behind, a camera-locked hero angle and a blackout-to-full-wash cue.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-vvip-executive', 'table-cocktail', 'fountain-steel-sphere')),
-    C('concept-2', '🧊 Minimal Gallery Launch', '4K product gallery', '/images/zone_banquet_360.jpg',
+    C('concept-2', '🧊 Minimal Gallery Launch', 'Product gallery', '/images/zone_banquet_360.jpg',
       'Gallery-style plinth walk with individually lit product stations, an acrylic seating cluster for the press briefing and a quiet demo bar.',
       'premium', S('stage-wooden-riser', 'backdrop-floral-wall', 'chair-ghost', 'table-led-glass', 'fountain-glass-waterfall')),
-    C('concept-3', '🌆 Rooftop Press & Partner Evening', '4K evening reception', '/images/zone_lounge_360.jpg',
+    C('concept-3', '🌆 Rooftop Press & Partner Evening', 'Evening reception', '/images/zone_lounge_360.jpg',
       'Open-air rooftop evening for press and channel partners: greenery backdrop for interviews, high-tops and a compact demo riser.',
       'essential', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-velvet-armchair', 'table-cocktail', 'fountain-dancing-jets'))
   ],
 
   trade_show: [
-    C('concept-1', '🏢 Hall Centre Stage & Booth Grid', '4K exhibition floor', '/images/india_meeting_360.jpg',
+    C('concept-1', '🏢 Hall Centre Stage & Booth Grid', 'Exhibition floor', '/images/india_meeting_360.jpg',
       'Shell-scheme booth grid around a central demo stage with an LED header visible down every aisle, plus a lead-capture desk at each gate.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-folding', 'table-round-standard', 'fountain-steel-sphere')),
-    C('concept-2', '🍸 Buyer Lounge & Meeting Pods', '4K B2B hosted', '/images/zone_lounge_360.jpg',
+    C('concept-2', '🍸 Buyer Lounge & Meeting Pods', 'B2B hosted', '/images/zone_lounge_360.jpg',
       'Hosted-buyer lounge with bookable meeting pods, a greenery divider line for acoustic separation and a bar counter for scheduled slots.',
       'premium', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-velvet-armchair', 'table-cocktail', 'fountain-glass-waterfall')),
-    C('concept-3', '📦 Compact Pavilion Format', '4K regional pavilion', '/images/zone_entrance_360.jpg',
+    C('concept-3', '📦 Compact Pavilion Format', 'Regional pavilion', '/images/zone_entrance_360.jpg',
       'Lean regional pavilion: a single branded header, modular tables for co-exhibitors and folding seating for the theatre corner.',
       'essential', S('stage-wooden-riser', 'backdrop-floral-wall', 'chair-folding', 'table-round-standard', 'fountain-tiered-stone'))
   ],
 
   political: [
-    C('concept-1', '📢 Presidential Rally Grounds', '4K mass gathering', '/images/political_presidential_rally_360.jpg',
+    C('concept-1', '📢 Presidential Rally Grounds', 'Mass gathering', '/images/political_presidential_rally_360.jpg',
       'Large-format LED backdrop, armoured glass podium with dual teleprompters, flag array and camera risers on the centre line.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-folding', 'table-round-standard', 'fountain-tiered-stone')),
-    C('concept-2', '🏛️ Civic Square Assembly', '4K high-security assembly', '/images/india_election_360.jpg',
+    C('concept-2', '🏛️ Civic Square Assembly', 'High-security assembly', '/images/india_election_360.jpg',
       'Barricaded civic square with metal-detector gates, an audio mult box on the press riser and a broadcast bay behind the camera line.',
       'premium', S('stage-led-arch', 'backdrop-marigold-garland', 'chair-folding', 'table-cocktail', 'fountain-dancing-jets')),
-    C('concept-3', '🎥 Press Conference & Media Meet', '4K broadcast set', '/images/india_meeting_360.jpg',
+    C('concept-3', '🎥 Press Conference & Media Meet', 'Broadcast set', '/images/india_meeting_360.jpg',
       'Conference dais with a repeat-logo media backdrop, lapel mic array, satellite truck bay and a fixed two-camera locked-off frame.',
       'essential', S('stage-wooden-riser', 'backdrop-floral-wall', 'chair-vvip-executive', 'table-round-standard', 'fountain-tiered-stone'))
   ],
 
   festival: [
-    C('concept-1', '🎵 Main Stage Festival Field', '4K headline scale', '/images/zone_stage_360.jpg',
+    C('concept-1', '🎵 Main Stage Festival Field', 'Headline scale', '/images/zone_stage_360.jpg',
       'Headline stage with an LED arch, line-array towers and delay stacks for the far field, a front-of-house island and a barricaded pit.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-folding', 'table-cocktail', 'fountain-steel-sphere')),
-    C('concept-2', '🌳 Second Stage & Food Village', '4K day programme', '/images/zone_lounge_360.jpg',
+    C('concept-2', '🌳 Second Stage & Food Village', 'Day programme', '/images/zone_lounge_360.jpg',
       'Timber second stage beside a food village: hedge-wall wind break, rustic communal tables and shaded rest bays between sets.',
       'premium', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-folding', 'table-rustic-wood', 'fountain-dancing-jets')),
-    C('concept-3', '🔥 Night Arena & Light Show', '4K night spectacle', '/images/zone_banquet_360.jpg',
+    C('concept-3', '🔥 Night Arena & Light Show', 'Night spectacle', '/images/zone_banquet_360.jpg',
       'Night arena built around a laser and moving-head package, a mirrored bar ring and an illuminated central water feature as the meeting point.',
       'essential', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-ghost', 'table-led-glass', 'fountain-dancing-jets'))
   ],
 
   charity_run: [
-    C('concept-1', '🏁 Start / Finish Arch Village', '4K race day', '/images/zone_entrance_360.jpg',
+    C('concept-1', '🏁 Start / Finish Arch Village', 'Race day', '/images/zone_entrance_360.jpg',
       'Inflatable-scale start/finish arch with timing mats, a commentary riser, bib collection lanes and a sponsor step-and-repeat.',
       'signature', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-folding', 'table-round-standard', 'fountain-dancing-jets')),
-    C('concept-2', '💧 Route Hydration & Medical Village', '4K on-course', '/images/zone_fountain_360.jpg',
+    C('concept-2', '💧 Route Hydration & Medical Village', 'On-course', '/images/zone_fountain_360.jpg',
       'On-course hydration and medical village: shaded stations at each kilometre marker, a physio bay and a marshal briefing point.',
       'premium', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-folding', 'table-rustic-wood', 'fountain-glass-waterfall')),
-    C('concept-3', '🎉 Finisher Festival & Awards Lawn', '4K post-race', '/images/zone_lounge_360.jpg',
+    C('concept-3', '🎉 Finisher Festival & Awards Lawn', 'Post-race', '/images/zone_lounge_360.jpg',
       'Post-race lawn with a podium riser for the awards, a greenery photo wall for finisher shots and long shaded recovery seating.',
       'essential', S('stage-wooden-riser', 'backdrop-floral-wall', 'chair-folding', 'table-rustic-wood', 'fountain-tiered-stone'))
   ],
 
   cultural_fair: [
-    C('concept-1', '🎨 Heritage Craft Bazaar', '4K artisan market', '/images/india_function_360.jpg',
+    C('concept-1', '🎨 Heritage Craft Bazaar', 'Artisan market', '/images/india_function_360.jpg',
       'Artisan bazaar along a marigold-dressed spine with a carved pavilion performance stage and a brass lotus water feature at the crossing.',
       'signature', S('stage-royal-pavilion', 'backdrop-marigold-garland', 'chair-folding', 'table-rustic-wood', 'fountain-brass-lotus')),
-    C('concept-2', '🪔 Lantern Courtyard Evenings', '4K evening cultural', '/images/zone_lounge_360.jpg',
+    C('concept-2', '🪔 Lantern Courtyard Evenings', 'Evening cultural', '/images/zone_lounge_360.jpg',
       'Evening courtyard lit by lanterns and diyas, floor seating around a timber performance riser and a regional food row along one edge.',
       'premium', S('stage-wooden-riser', 'backdrop-hedge-wall', 'chair-folding', 'table-rustic-wood', 'fountain-tiered-stone')),
-    C('concept-3', '🎭 Amphitheatre Performance Ground', '4K programmed stage', '/images/zone_stage_360.jpg',
+    C('concept-3', '🎭 Amphitheatre Performance Ground', 'Programmed stage', '/images/zone_stage_360.jpg',
       'Tiered amphitheatre seating facing an LED-backed stage for a rolling dance and music programme, with a wings area for troupe changeovers.',
       'essential', S('stage-led-arch', 'backdrop-shimmer-sequin', 'chair-folding', 'table-round-standard', 'fountain-dancing-jets'))
   ]
