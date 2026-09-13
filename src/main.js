@@ -1,10 +1,11 @@
 import confetti from 'canvas-confetti';
 import { VENUE_ZONES } from './data/zones.js';
-import { getItemById } from './data/catalog.js';
+import { getItemById, allItems } from './data/catalog.js';
 import { resolveScenePanorama, hasSceneVariant } from './data/sceneVariants.js';
 import { Viewer360 } from './engine/Viewer360.js';
 import { AudioEngine } from './engine/AudioEngine.js';
 import { ApiService } from './services/apiService.js';
+import { formatMoney, escapeHtml } from './utils/format.js';
 
 // Original Components
 import { InteractiveMap } from './components/InteractiveMap.js';
@@ -234,8 +235,7 @@ class Event360App {
       this.proposalsContainer,
       this.activeSelections,
       (selections) => {
-        this.activeSelections = { ...selections };
-        this.updateAllComponents(this.activeSelections);
+        this.updateAllComponents(selections);
         this.showToast('Loaded Proposal Blueprint design!');
         if (this.notificationCenter) {
           this.notificationCenter.addNotification('Proposal Loaded', 'A saved proposal has been applied to the venue.', '📁');
@@ -255,8 +255,7 @@ class Event360App {
       this.timelineContainer,
       this.activeSelections,
       (selections) => {
-        this.activeSelections = { ...selections };
-        this.updateAllComponents(this.activeSelections);
+        this.updateAllComponents(selections);
         this.showToast('Loaded day configuration from timeline!');
       }
     );
@@ -433,7 +432,31 @@ class Event360App {
     if (this.tabTimelineView) this.tabTimelineView.addEventListener('click', () => this.switchView('timeline'));
     if (this.tabSeatingView) this.tabSeatingView.addEventListener('click', () => this.switchView('seating'));
     if (this.globalNavSearch) {
+      this.globalNavSearch.setAttribute('role', 'combobox');
+      this.globalNavSearch.setAttribute('aria-autocomplete', 'list');
+      this.globalNavSearch.setAttribute('aria-expanded', 'false');
+      this.globalNavSearch.setAttribute('aria-controls', 'navSearchResults');
       this.globalNavSearch.addEventListener('input', (e) => this.handleGlobalSearch(e.target.value));
+      this.globalNavSearch.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); this.moveSearchSelection(1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); this.moveSearchSelection(-1); }
+        else if (e.key === 'Enter') { e.preventDefault(); this.runSearchResult(this._searchActiveIndex); }
+        else if (e.key === 'Escape') { e.stopPropagation(); this.closeSearchPanel(); }
+      });
+      // Clicking elsewhere dismisses the results.
+      document.addEventListener('click', (e) => {
+        if (!this._searchPanel || this._searchPanel.hidden) return;
+        if (e.target === this.globalNavSearch || this._searchPanel.contains(e.target)) return;
+        this._searchPanel.hidden = true;
+      });
+      // ⌘K / Ctrl-K focuses search.
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          this.globalNavSearch.focus();
+          this.globalNavSearch.select();
+        }
+      });
     }
 
     // Original button events
@@ -579,29 +602,11 @@ class Event360App {
       }, true);
     }
 
-    // Global Escape key modal close handler
+    // Escape closes the TOP-MOST modal only. It used to fire close() on all 17
+    // modals at once, so Escape inside a text field tore down the whole session.
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (this.notificationCenter) this.notificationCenter.close();
-        if (this.colorThemeDesigner) this.colorThemeDesigner.close();
-        if (this.beforeAfterCompare) this.beforeAfterCompare.close();
-        if (this.collaborationMode) this.collaborationMode.close();
-        if (this.styleLibrary) this.styleLibrary.close();
-        if (this.zoneNotes) this.zoneNotes.close();
-        if (this.weatherSimulator) this.weatherSimulator.close();
-        if (this.walkthroughExporter) this.walkthroughExporter.close();
-        if (this.arQRGenerator) this.arQRGenerator.close();
-        if (this.moodBoardMatcher) this.moodBoardMatcher.close();
-        if (this.eSignatureFlow) this.eSignatureFlow.close();
-        if (this.invoiceGenerator) this.invoiceGenerator.close();
-        if (this.budgetOptimizer) this.budgetOptimizer.close();
-        if (this.eventBriefGenerator) this.eventBriefGenerator.close();
-        if (this.customEventBriefWizard) this.customEventBriefWizard.close();
-        if (this.threeDLiveSpaceEditor) this.threeDLiveSpaceEditor.close();
-        if (this.swapperModal && this.swapperModal.close) this.swapperModal.close();
-        if (this.venueMenuModal && this.venueMenuModal.close) this.venueMenuModal.close();
-        if (this.cartPaymentModal && this.cartPaymentModal.close) this.cartPaymentModal.close();
-      }
+      if (e.key !== 'Escape') return;
+      if (this.closeTopModal()) e.preventDefault();
     });
 
     // Feature toolbar toggle
@@ -662,23 +667,69 @@ class Event360App {
       playlist: () => this.switchView('playlist'),
     };
 
+    // Human-readable names — the toast used to leak the internal key ("Opened colorTheme").
+    const featureLabels = {
+      colorTheme: 'Colour & Theme Designer',
+      compare: 'Before / After Comparison',
+      collab: 'Collaboration',
+      styles: 'Floral & Decor Style Library',
+      notes: 'Zone Notes',
+      weather: 'Weather Simulator',
+      videoExport: 'Walkthrough Video Export',
+      arQR: 'AR Preview Code',
+      moodBoard: 'Mood Board Matcher',
+      contract: 'Service Agreement',
+      invoice: 'Tax Invoice',
+      budgetAI: 'Budget Optimiser',
+      briefGen: 'Event Brief',
+      vendors: 'Vendor Directory',
+      inventory: 'Inventory Tracker',
+      calendar: 'Booking Calendar',
+      revenue: 'Revenue Analytics',
+      testimonials: 'Client Reviews',
+      playlist: 'Playlist Builder'
+    };
+
+    const modalKeyByFeature = {
+      colorTheme: 'colorThemeDesigner', compare: 'beforeAfterCompare', collab: 'collaborationMode',
+      styles: 'styleLibrary', notes: 'zoneNotes', weather: 'weatherSimulator',
+      videoExport: 'walkthroughExporter', arQR: 'arQRGenerator', moodBoard: 'moodBoardMatcher',
+      contract: 'eSignatureFlow', invoice: 'invoiceGenerator', budgetAI: 'budgetOptimizer',
+      briefGen: 'eventBriefGenerator'
+    };
+
     const action = featureMap[feature];
-    if (action) {
-      action();
-      // Auto-collapse toolbar after pick
-      this.featureToolbarOpen = false;
-      if (this.featureToolbar) this.featureToolbar.classList.add('hidden');
-      if (this.btnToggleFeatures) this.btnToggleFeatures.classList.remove('active');
-      this.showToast(`Opened ${feature}`);
-    } else {
-      this.showToast(`Feature "${feature}" is not available`);
+    if (!action) {
+      this.showToast(`"${feature}" isn't available yet.`);
+      return;
     }
+
+    this._lastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    try {
+      action();
+    } catch (err) {
+      console.error('[Helm] failed to open feature', feature, err);
+      this.showToast(`Couldn't open ${featureLabels[feature] || feature}.`);
+      return;
+    }
+    if (modalKeyByFeature[feature]) this.noteModalOpened(modalKeyByFeature[feature]);
+
+    // Auto-collapse toolbar after pick
+    this.featureToolbarOpen = false;
+    if (this.featureToolbar) this.featureToolbar.classList.add('hidden');
+    if (this.btnToggleFeatures) {
+      this.btnToggleFeatures.classList.remove('active');
+      this.btnToggleFeatures.setAttribute('aria-expanded', 'false');
+    }
+    this.showToast(`Opened ${featureLabels[feature] || feature}`);
   }
 
-  switchView(viewName) {
-    this.activeView = viewName;
-
-    // All view section containers
+  /**
+   * Hide every view section. Anything that reveals a view must call this first,
+   * otherwise the previously active section keeps `.active` and the later DOM
+   * sibling simply paints on top of it.
+   */
+  hideAllSections() {
     const sections = [
       this.mapContainer, this.studioContainer, this.floorPlanContainer,
       this.analyticsContainer, this.proposalsContainer,
@@ -688,6 +739,12 @@ class Event360App {
       this.n8nOpsContainer
     ];
     sections.forEach(s => { if (s) { s.classList.remove('active'); s.classList.add('hidden'); } });
+  }
+
+  switchView(viewName) {
+    this.activeView = viewName;
+
+    this.hideAllSections();
 
     // All tab buttons
     const tabs = [
@@ -787,15 +844,20 @@ class Event360App {
   }
 
   switchIndiaMode(modeKey) {
-    this.indiaMode = modeKey;
     const targetZoneId = `zone-india-${modeKey}`;
+    const zone = VENUE_ZONES.find(z => z.id === targetZoneId);
+    // Bail BEFORE touching the DOM — bailing afterwards left every section hidden
+    // and the viewport blank.
+    if (!zone) {
+      this.showToast(`No 360° set is configured for "${modeKey}" yet.`);
+      return;
+    }
+
+    this.indiaMode = modeKey;
     this.currentZoneId = targetZoneId;
 
-    const zone = VENUE_ZONES.find(z => z.id === targetZoneId);
-    if (!zone) return;
-
-    this.mapContainer.classList.remove('active'); this.mapContainer.classList.add('hidden');
-    this.studioContainer.classList.remove('hidden'); this.studioContainer.classList.add('active');
+    this.hideAllSections();
+    this.activateSection(this.studioContainer, null);
 
     if (this.hudZoneTitle) this.hudZoneTitle.textContent = zone.name;
     this.renderInventoryDrawer(zone);
@@ -810,11 +872,16 @@ class Event360App {
     if (!zone) return;
 
     this.activeView = 'studio360';
-    this.mapContainer.classList.remove('active'); this.mapContainer.classList.add('hidden');
-    this.studioContainer.classList.remove('hidden'); this.studioContainer.classList.add('active');
+    this.hideAllSections();
+    this.activateSection(this.studioContainer, null);
 
-    this.tabMapView.classList.remove('active');
-    this.tab360View.classList.add('active');
+    // Reset every tab, not just the map tab — this method is reachable from any view
+    // (map hotspots, AI builder, venue menu, quick search).
+    [this.tabMapView, this.tabN8nOpsView, this.tabIndiaView, this.tabFloorPlanView,
+     this.tabAnalyticsView, this.tabProposalsView, this.tabTimelineView, this.tabSeatingView]
+      .forEach(t => { if (t) t.classList.remove('active'); });
+    if (this.indiaSubBar) this.indiaSubBar.classList.add('hidden');
+    if (this.tab360View) this.tab360View.classList.add('active');
 
     if (this.hudZoneTitle) this.hudZoneTitle.textContent = zone.name;
     this.renderInventoryDrawer(zone);
@@ -831,18 +898,21 @@ class Event360App {
       const customText = this.activeSelections[`custom_text_${slot.id}`];
       const qty = slot.quantityByItem?.[selectedItemId] ?? slot.quantity;
 
+      const itemName = item ? item.name : 'None selected';
+      const lineTotal = item ? Math.round(item.price * qty) : 0;
       return `
-        <div class="slot-item-card" data-slot-id="${slot.id}">
+        <button type="button" class="slot-item-card" data-slot-id="${slot.id}"
+                aria-label="Change ${escapeHtml(slot.label)} — currently ${escapeHtml(itemName)}, ${qty} at ${formatMoney(lineTotal)}">
           <div class="slot-item-head">
-            <span>${slot.label}</span>
+            <span>${escapeHtml(slot.label)}</span>
             <small>${qty}x</small>
           </div>
           <div class="slot-item-body">
-            <strong>${item ? item.name : 'None'}</strong>
-            <span class="slot-item-price">$${item ? item.price * qty : 0}</span>
+            <strong>${escapeHtml(itemName)}</strong>
+            <span class="slot-item-price">${formatMoney(lineTotal)}</span>
           </div>
-          ${customText ? `<div class="slot-writing-tag">✍️ "${customText}"</div>` : ''}
-        </div>
+          ${customText ? `<div class="slot-writing-tag">✍️ "${escapeHtml(customText)}"</div>` : ''}
+        </button>
       `;
     }).join('');
 
@@ -959,35 +1029,147 @@ class Event360App {
   }
 
 
+  /**
+   * Single fan-out point for a design change.
+   *
+   * `activeSelections` is mutated IN PLACE and never reassigned: ~19 components are
+   * constructed with a reference to this object, and replacing it silently froze
+   * every component that wasn't in the hand-maintained list below (load a proposal,
+   * then open the Cart and it still quoted the previous design).
+   */
   updateAllComponents(newSelections) {
-    this.activeSelections = newSelections;
+    if (newSelections && newSelections !== this.activeSelections) {
+      const normalized = this.normalizeSelections(newSelections);
+      for (const key of Object.keys(this.activeSelections)) delete this.activeSelections[key];
+      Object.assign(this.activeSelections, normalized);
+    }
+
     ApiService.syncState(this.activeSelections, this.currentZoneId);
 
     const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
     if (zone) this.renderInventoryDrawer(zone);
 
-    // Original component updates
-    this.mapComponent.updateSelections(this.activeSelections);
-    this.costCard.updateSelections(this.activeSelections);
-    this.venueMenuModal.updateSelections(this.activeSelections);
-    this.analyticsDashboard.updateSelections(this.activeSelections);
-    this.proposalsManager.updateSelections(this.activeSelections);
+    // Push to every component that can take a selection update. Iterating the
+    // instances means a new component is wired up just by exposing the method.
+    for (const component of this.statefulComponents()) {
+      if (typeof component?.updateSelections !== 'function') continue;
+      try {
+        component.updateSelections(this.activeSelections);
+      } catch (err) {
+        console.error('[Helm] updateSelections failed for', component?.constructor?.name, err);
+      }
+    }
+  }
 
-    // New component updates (only if they have updateSelections)
-    if (this.timelinePlanner && this.timelinePlanner.updateSelections) {
-      this.timelinePlanner.updateSelections(this.activeSelections);
+  /**
+   * Coerce an incoming selection map to the canonical shape: slotId -> itemId string.
+   *
+   * Some producers used to emit `{ itemId, quantity }` objects. `getItemById(<object>)`
+   * returns null, which silently zeroed the entire quote and emptied the 360 view with
+   * no error. Normalising at the one funnel makes that class of bug unreachable.
+   */
+  normalizeSelections(selections) {
+    const out = {};
+    for (const [slotId, value] of Object.entries(selections || {})) {
+      if (typeof value === 'string') {
+        out[slotId] = value;
+      } else if (value && typeof value === 'object' && typeof value.itemId === 'string') {
+        out[slotId] = value.itemId;
+        const zone = VENUE_ZONES.find(z => z.slots.some(sl => sl.id === slotId));
+        const slot = zone?.slots.find(sl => sl.id === slotId);
+        if (slot && Number.isFinite(Number(value.quantity)) && Number(value.quantity) > 0) {
+          slot.quantity = Number(value.quantity);
+        }
+      } else if (value != null) {
+        console.warn('[Helm] ignoring malformed selection for', slotId, value);
+      }
     }
-    if (this.seatingChart && this.seatingChart.updateSelections) {
-      this.seatingChart.updateSelections(this.activeSelections);
+    return out;
+  }
+
+  /**
+   * Modal registry. Each entry pairs a component with the container it renders into;
+   * a container with children means that modal is on screen. `openedAt` gives us a
+   * stack order so Escape closes only the top-most one.
+   */
+  modalRegistry() {
+    return [
+      ['notificationCenter', this.notificationCenter, this.notificationContainer],
+      ['colorThemeDesigner', this.colorThemeDesigner, this.colorThemeContainer],
+      ['beforeAfterCompare', this.beforeAfterCompare, this.compareContainer],
+      ['collaborationMode', this.collaborationMode, this.collabContainer],
+      ['styleLibrary', this.styleLibrary, this.styleLibraryContainer],
+      ['zoneNotes', this.zoneNotes, this.zoneNotesContainer],
+      ['weatherSimulator', this.weatherSimulator, this.weatherSimContainer],
+      ['walkthroughExporter', this.walkthroughExporter, this.videoExportContainer],
+      ['arQRGenerator', this.arQRGenerator, this.arQRContainer],
+      ['moodBoardMatcher', this.moodBoardMatcher, this.moodBoardContainer],
+      ['eSignatureFlow', this.eSignatureFlow, this.eSignatureContainer],
+      ['invoiceGenerator', this.invoiceGenerator, this.invoiceContainer],
+      ['budgetOptimizer', this.budgetOptimizer, this.budgetOptContainer],
+      ['eventBriefGenerator', this.eventBriefGenerator, this.briefGenContainer],
+      ['customEventBriefWizard', this.customEventBriefWizard, this.customBriefWizardContainer],
+      ['threeDLiveSpaceEditor', this.threeDLiveSpaceEditor, this.threeDEditorContainer],
+      ['swapperModal', this.swapperModal, this.swapperContainer],
+      ['venueMenuModal', this.venueMenuModal, this.venueMenuContainer],
+      ['cartPaymentModal', this.cartPaymentModal, this.cartModalContainer]
+    ].filter(([, component]) => component);
+  }
+
+  /** Record that a modal was opened, so Escape knows which one is on top. */
+  noteModalOpened(key) {
+    this._modalOrder = this._modalOrder || {};
+    this._modalOrder[key] = Date.now();
+  }
+
+  /** Close the top-most open modal. Returns true if one was closed. */
+  closeTopModal() {
+    const order = this._modalOrder || {};
+    const open = this.modalRegistry()
+      .filter(([, , container]) => container && container.childElementCount > 0)
+      .sort((a, b) => (order[b[0]] || 0) - (order[a[0]] || 0));
+
+    if (!open.length) return false;
+    const [key, component] = open[0];
+    if (typeof component.close === 'function') {
+      try {
+        component.close();
+      } catch (err) {
+        console.error('[Helm] close failed for', key, err);
+      }
     }
+    delete (this._modalOrder || {})[key];
+    // Return focus to whatever opened the modal.
+    if (this._lastTrigger && document.contains(this._lastTrigger)) {
+      this._lastTrigger.focus();
+      this._lastTrigger = null;
+    }
+    return true;
+  }
+
+  /** Every component that may hold a copy of the current design. */
+  statefulComponents() {
+    return [
+      this.mapComponent, this.costCard, this.venueMenuModal, this.analyticsDashboard,
+      this.proposalsManager, this.timelinePlanner, this.seatingChart, this.floorPlanEditor,
+      this.cartPaymentModal, this.invoiceGenerator, this.eSignatureFlow, this.budgetOptimizer,
+      this.inventoryTracker, this.revenueAnalytics, this.moodBoardMatcher, this.briefGenerator,
+      this.eventBriefGenerator, this.threeDEditor, this.compareTool, this.zoneNotes
+    ].filter(Boolean);
   }
 
   updateNotifBadge() {
     const badge = document.getElementById('notifBadge');
-    if (badge && this.notificationCenter) {
-      const count = this.notificationCenter.getUnreadCount();
-      badge.textContent = count;
-      badge.style.display = count > 0 ? 'flex' : 'none';
+    if (!badge || !this.notificationCenter) return;
+    const count = this.notificationCenter.getUnreadCount();
+    badge.textContent = count > 0 ? String(count) : '';
+    // `hidden` rather than inline display, so the stylesheet keeps control of layout
+    // and screen readers don't announce an empty badge.
+    badge.hidden = count === 0;
+    const bell = document.getElementById('btnNotifications');
+    if (bell) {
+      bell.setAttribute('aria-label',
+        count > 0 ? `Notifications, ${count} unread` : 'Notifications');
     }
   }
 
@@ -1102,34 +1284,177 @@ class Event360App {
     }, 3000);
   }
 
-  handleGlobalSearch(query) {
-    if (!query || query.trim().length < 2) return;
-    const q = query.toLowerCase().trim();
-
-    // Search rooms
-    const matchedZone = VENUE_ZONES.find(z => z.name.toLowerCase().includes(q) || z.subtitle.toLowerCase().includes(q));
-    if (matchedZone) {
-      this.openStudio360(matchedZone.id);
-      this.showToast(`🔍 Quick Search: Loaded ${matchedZone.name}`);
-      return;
-    }
-
-    // Search AI Operations / n8n
-    if (q.includes('n8n') || q.includes('siri') || q.includes('voice') || q.includes('ops') || q.includes('whatsapp') || q.includes('dispatch') || q.includes('architecture')) {
-      this.switchView('n8n-ops');
-      this.showToast(`⚡ Quick Search: Opened n8n AI Operations Architecture!`);
-      return;
-    }
-
-    // Navigation shortcuts
-    if (q.includes('map')) { this.switchView('map'); return; }
-    if (q.includes('floor')) { this.switchView('floorplan'); return; }
-    if (q.includes('vendor')) { this.switchView('vendors'); return; }
-    if (q.includes('inventory')) { this.switchView('inventory'); return; }
-    if (q.includes('proposal')) { this.switchView('proposals'); return; }
-    if (q.includes('timeline')) { this.switchView('timeline'); return; }
-    if (q.includes('seating')) { this.switchView('seating'); return; }
+  /**
+   * Quick search.
+   *
+   * The previous version navigated on every keystroke with a 2-character minimum,
+   * so typing "vendor" matched a zone subtitle at "ve" and did a full panorama
+   * reload before you finished the word. Now it shows ranked results and only
+   * navigates when you pick one (click, Enter, or arrow keys).
+   */
+  handleGlobalSearch(rawQuery) {
+    clearTimeout(this._searchDebounce);
+    this._searchDebounce = setTimeout(() => this.renderSearchResults(rawQuery), 160);
   }
+
+  searchIndex() {
+    if (this._searchIndexCache) return this._searchIndexCache;
+
+    const entries = [];
+
+    VENUE_ZONES.forEach(zone => {
+      entries.push({
+        kind: 'Zone',
+        label: zone.name,
+        detail: zone.subtitle || '360° studio',
+        keywords: `${zone.name} ${zone.subtitle || ''}`,
+        run: () => this.openStudio360(zone.id)
+      });
+      zone.slots.forEach(slot => {
+        entries.push({
+          kind: 'Item slot',
+          label: slot.label,
+          detail: `in ${zone.name}`,
+          keywords: `${slot.label} ${slot.category || ''} ${zone.name}`,
+          run: () => {
+            this.openStudio360(zone.id);
+            setTimeout(() => this.openSwapperForSlot(slot.id), 200);
+          }
+        });
+      });
+    });
+
+    allItems().forEach(item => {
+      entries.push({
+        kind: 'Catalog',
+        label: item.name,
+        detail: formatMoney(item.price),
+        keywords: `${item.name} ${item.category || ''} ${item.description || ''}`,
+        run: () => {
+          const hit = VENUE_ZONES.flatMap(z => z.slots.map(sl => ({ z, sl })))
+            .find(({ sl }) => (sl.allowedItemIds || []).includes(item.id) || sl.defaultItemId === item.id);
+          if (!hit) { this.showToast(`${item.name} isn't placed in this venue yet.`); return; }
+          this.openStudio360(hit.z.id);
+          setTimeout(() => this.openSwapperForSlot(hit.sl.id), 200);
+        }
+      });
+    });
+
+    const views = [
+      ['Aerial venue map', 'map'], ['360° Studio', 'studio360'], ['n8n AI Ops architecture', 'n8n-ops'],
+      ['India events', 'india'], ['Floor plan', 'floorplan'], ['Analytics', 'analytics'],
+      ['Proposals', 'proposals'], ['Timeline', 'timeline'], ['Seating chart', 'seating'],
+      ['Vendors', 'vendors'], ['Inventory', 'inventory'], ['Booking calendar', 'calendar'],
+      ['Revenue analytics', 'revenue'], ['Client reviews', 'testimonials'], ['Playlist', 'playlist']
+    ];
+    views.forEach(([label, view]) => entries.push({
+      kind: 'Go to', label, detail: 'View', keywords: label, run: () => this.switchView(view)
+    }));
+
+    this._searchIndexCache = entries;
+    return entries;
+  }
+
+  /** Simple scorer: prefix match beats word-start beats substring. */
+  scoreEntry(entry, q) {
+    const hay = entry.keywords.toLowerCase();
+    const label = entry.label.toLowerCase();
+    if (label.startsWith(q)) return 100;
+    if (new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(label)) return 70;
+    if (label.includes(q)) return 50;
+    if (hay.includes(q)) return 20;
+    return 0;
+  }
+
+  renderSearchResults(rawQuery) {
+    const q = String(rawQuery || '').toLowerCase().trim();
+    const panel = this.ensureSearchPanel();
+
+    if (q.length < 2) {
+      panel.hidden = true;
+      this._searchResults = [];
+      if (this.globalNavSearch) this.globalNavSearch.setAttribute('aria-expanded', 'false');
+      return;
+    }
+
+    const results = this.searchIndex()
+      .map(entry => ({ entry, score: this.scoreEntry(entry, q) }))
+      .filter(r => r.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map(r => r.entry);
+
+    this._searchResults = results;
+    this._searchActiveIndex = results.length ? 0 : -1;
+
+    if (!results.length) {
+      panel.innerHTML = `<div class="nav-search-empty">No matches for "${escapeHtml(rawQuery)}"</div>`;
+    } else {
+      panel.innerHTML = results.map((entry, i) => `
+        <button type="button" class="nav-search-result${i === 0 ? ' is-active' : ''}"
+                role="option" aria-selected="${i === 0}" data-index="${i}">
+          <span class="nsr-kind">${escapeHtml(entry.kind)}</span>
+          <span class="nsr-label">${escapeHtml(entry.label)}</span>
+          <span class="nsr-detail">${escapeHtml(entry.detail)}</span>
+        </button>`).join('');
+      panel.querySelectorAll('.nav-search-result').forEach(btn => {
+        btn.addEventListener('click', () => this.runSearchResult(Number(btn.dataset.index)));
+      });
+    }
+
+    panel.hidden = false;
+    if (this.globalNavSearch) this.globalNavSearch.setAttribute('aria-expanded', 'true');
+  }
+
+  ensureSearchPanel() {
+    if (this._searchPanel && document.contains(this._searchPanel)) return this._searchPanel;
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-results';
+    panel.id = 'navSearchResults';
+    panel.setAttribute('role', 'listbox');
+    panel.hidden = true;
+    (this.globalNavSearch?.parentElement || document.body).appendChild(panel);
+    this._searchPanel = panel;
+    return panel;
+  }
+
+  moveSearchSelection(delta) {
+    const results = this._searchResults || [];
+    if (!results.length) return;
+    const count = results.length;
+    this._searchActiveIndex = ((this._searchActiveIndex + delta) % count + count) % count;
+    this._searchPanel?.querySelectorAll('.nav-search-result').forEach((btn, i) => {
+      const active = i === this._searchActiveIndex;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-selected', String(active));
+      if (active) btn.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  runSearchResult(index) {
+    const entry = (this._searchResults || [])[index];
+    if (!entry) return;
+    this.closeSearchPanel();
+    try {
+      entry.run();
+      this.showToast(`${entry.kind}: ${entry.label}`);
+    } catch (err) {
+      console.error('[Helm] search navigation failed', err);
+      this.showToast(`Couldn't open ${entry.label}.`);
+    }
+  }
+
+  closeSearchPanel() {
+    if (this._searchPanel) this._searchPanel.hidden = true;
+    this._searchResults = [];
+    this._searchActiveIndex = -1;
+    if (this.globalNavSearch) {
+      this.globalNavSearch.value = '';
+      this.globalNavSearch.setAttribute('aria-expanded', 'false');
+      this.globalNavSearch.blur();
+    }
+  }
+
 }
 
 // Toast Styling
@@ -1165,6 +1490,45 @@ toastStyle.textContent = `
 document.head.appendChild(toastStyle);
 
 // Bootstrap
+//
+// A single corrupt localStorage value used to throw out of a component constructor
+// and leave a blank white page with one console error and no way to recover. Boot
+// defensively and always give the user a way out.
 window.addEventListener('DOMContentLoaded', () => {
-  window.app = new Event360App();
+  try {
+    window.app = new Event360App();
+  } catch (err) {
+    console.error('[Helm] startup failed', err);
+    renderStartupFailure(err);
+  }
 });
+
+function renderStartupFailure(err) {
+  const panel = document.createElement('div');
+  panel.setAttribute('role', 'alert');
+  panel.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:99999', 'display:flex',
+    'align-items:center', 'justify-content:center', 'padding:24px',
+    'background:#0b0b0f', 'color:#f5f5f7',
+    'font:400 15px/1.6 Inter,-apple-system,BlinkMacSystemFont,sans-serif'
+  ].join(';');
+  panel.innerHTML = `
+    <div style="max-width:520px;text-align:center">
+      <h1 style="font-size:1.4rem;margin:0 0 12px">Helm Events couldn't start</h1>
+      <p style="opacity:.75;margin:0 0 8px">
+        Something in your saved session data is unreadable. Resetting it will clear saved
+        proposals, bookings and notes on this device, then reload the studio.
+      </p>
+      <pre style="text-align:left;overflow:auto;max-height:140px;background:#16161c;padding:12px;
+                  border-radius:10px;font-size:12px;opacity:.7">${String(err && err.message || err)}</pre>
+      <button id="helmResetBtn" style="margin-top:16px;padding:10px 20px;border:0;border-radius:999px;
+              background:#e5a93b;color:#1d1d1f;font-weight:600;cursor:pointer">
+        Reset saved data and reload
+      </button>
+    </div>`;
+  document.body.appendChild(panel);
+  panel.querySelector('#helmResetBtn')?.addEventListener('click', () => {
+    try { localStorage.clear(); } catch { /* storage unavailable */ }
+    location.reload();
+  });
+}

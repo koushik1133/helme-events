@@ -19,8 +19,7 @@ export const VENUE_ZONES = [
         allowedItemIds: [
           'stage-led-arch',
           'stage-wooden-riser',
-          'stage-royal-pavilion',
-          'stage-royal-mandap'
+          'stage-royal-pavilion'
         ],
         quantity: 1,
         defaultItemId: 'stage-led-arch',
@@ -82,6 +81,13 @@ export const VENUE_ZONES = [
         id: 'slot-banquet-table',
         label: 'Guest Dining Tables',
         category: 'tables',
+        // Curated: dining-capable tables only.
+        allowedItemIds: [
+          'table-round-standard',
+          'table-rustic-wood',
+          'table-cocktail',
+          'table-led-glass'
+        ],
         quantity: 12,
         defaultItemId: 'table-round-standard',
         pos3D: { pitch: -18, yaw: 45 }
@@ -90,6 +96,13 @@ export const VENUE_ZONES = [
         id: 'slot-banquet-chairs',
         label: 'Guest Chairs',
         category: 'chairs',
+        // Curated: banquet dining chairs — no thrones or floor seating.
+        allowedItemIds: [
+          'chair-chiavari-gold',
+          'chair-ghost',
+          'chair-folding',
+          'chair-velvet-armchair'
+        ],
         quantity: 120,
         defaultItemId: 'chair-chiavari-gold',
         pos3D: { pitch: -22, yaw: -45 }
@@ -98,6 +111,13 @@ export const VENUE_ZONES = [
         id: 'slot-banquet-lighting',
         label: 'Overhead Lighting',
         category: 'lighting',
+        // Curated: indoor overhead lighting — no stadium floodlights.
+        allowedItemIds: [
+          'lighting-chandeliers',
+          'lighting-fairy-canopy',
+          'lighting-temple-lanterns',
+          'lighting-rgb-uplighting'
+        ],
         quantity: 1,
         defaultItemId: 'lighting-chandeliers',
         pos3D: { pitch: 35, yaw: 0 }
@@ -139,6 +159,13 @@ export const VENUE_ZONES = [
         id: 'slot-fountain-lighting',
         label: 'Plaza Atmosphere Lighting',
         category: 'lighting',
+        // Curated: soft outdoor garden lighting.
+        allowedItemIds: [
+          'lighting-fairy-canopy',
+          'lighting-rgb-uplighting',
+          'fountain-brass-diyas',
+          'lighting-temple-lanterns'
+        ],
         quantity: 1,
         defaultItemId: 'lighting-fairy-canopy',
         pos3D: { pitch: 25, yaw: 90 }
@@ -162,6 +189,13 @@ export const VENUE_ZONES = [
         id: 'slot-lounge-table',
         label: 'High-Top Cocktail Tables',
         category: 'tables',
+        // Curated: cocktail-height and low lounge tables.
+        allowedItemIds: [
+          'table-cocktail',
+          'table-led-glass',
+          'table-rustic-wood',
+          'table-round-standard'
+        ],
         quantity: 8,
         defaultItemId: 'table-cocktail',
         pos3D: { pitch: -15, yaw: -30 }
@@ -170,6 +204,15 @@ export const VENUE_ZONES = [
         id: 'slot-lounge-seating',
         label: 'Lounge Armchairs',
         category: 'chairs',
+        // Curated: lounge seating — armchairs and sofas, not banquet stacking chairs.
+        swapCategories: ['chairs', 'sofas'],
+        allowedItemIds: [
+          'chair-velvet-armchair',
+          'sofa-velvet-lounge',
+          'sofa-modern-chesterfield',
+          'chair-ghost',
+          'chair-chiavari-gold'
+        ],
         quantity: 16,
         defaultItemId: 'chair-velvet-armchair',
         pos3D: { pitch: -20, yaw: 30 }
@@ -178,6 +221,13 @@ export const VENUE_ZONES = [
         id: 'slot-lounge-lighting',
         label: 'Ambient Uplighting',
         category: 'lighting',
+        // Curated: ambient terrace lighting.
+        allowedItemIds: [
+          'lighting-rgb-uplighting',
+          'lighting-fairy-canopy',
+          'lighting-temple-lanterns',
+          'lighting-chandeliers'
+        ],
         quantity: 1,
         defaultItemId: 'lighting-rgb-uplighting',
         pos3D: { pitch: 15, yaw: -120 }
@@ -232,6 +282,13 @@ export const VENUE_ZONES = [
         id: 'slot-entrance-seating',
         label: 'Reception Ghost Chairs',
         category: 'chairs',
+        // Curated: reception waiting chairs.
+        allowedItemIds: [
+          'chair-ghost',
+          'chair-chiavari-gold',
+          'chair-velvet-armchair',
+          'chair-folding'
+        ],
         quantity: 8,
         defaultItemId: 'chair-ghost',
         pos3D: { pitch: -25, yaw: -140 }
@@ -379,6 +436,12 @@ export const VENUE_ZONES = [
         id: 'slot-function-jhula',
         label: 'Carved Royal Wooden Swing Setup',
         category: 'tables',
+        // Curated: mandap-side feature furniture — a cocktail high-top makes no sense here.
+        allowedItemIds: [
+          'table-antique-jhula',
+          'table-rustic-wood',
+          'table-round-standard'
+        ],
         quantity: 1,
         defaultItemId: 'table-antique-jhula',
         pos3D: { pitch: -12, yaw: 65 }

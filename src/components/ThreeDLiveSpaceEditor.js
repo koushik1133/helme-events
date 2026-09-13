@@ -1,4 +1,91 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { formatMoney, escapeHtml } from '../utils/format.js';
+
+/**
+ * Arena = the physical floor. Ground plane, grid helper and the drag clamp all
+ * derive from this single constant so they can never disagree again.
+ */
+const ARENA = { x: 20, z: 15 };
+const GRID_SNAP = 0.5;
+const DRAG_THRESHOLD_PX = 4;
+
+/** Reusable colour scratch objects (no per-frame / per-click allocation). */
+const COLOR_HIGHLIGHT = new THREE.Color(0x6366f1);
+const COLOR_BLACK = new THREE.Color(0x000000);
+
+/**
+ * Geometries and non-tinted materials shared across every instance of an asset.
+ * Created once per page, never disposed per-object (see SHARED_RESOURCES guard).
+ * Cuts a 6-table scene from ~160 unique geometries to ~10.
+ */
+let SHARED = null;
+const SHARED_RESOURCES = new Set();
+
+function sharedAssets() {
+  if (SHARED) return SHARED;
+
+  SHARED = {
+    // Table
+    pedestalBaseGeo: new THREE.CylinderGeometry(0.5, 0.6, 0.08, 32),
+    pedestalStemGeo: new THREE.CylinderGeometry(0.12, 0.12, 1.2, 24),
+    tableTopGeo: new THREE.CylinderGeometry(1.5, 1.5, 0.08, 32),
+    // Chair
+    cushionGeo: new THREE.BoxGeometry(0.48, 0.08, 0.48),
+    chairBackGeo: new THREE.BoxGeometry(0.48, 0.45, 0.06),
+    chairLegGeo: new THREE.CylinderGeometry(0.025, 0.025, 0.45, 12),
+    // Stage
+    stagePlatformGeo: new THREE.BoxGeometry(12, 0.8, 4.5),
+    stageStripGeo: new THREE.BoxGeometry(12.2, 0.12, 4.7),
+    stageBannerGeo: new THREE.PlaneGeometry(8, 0.7),
+    // Podium
+    podiumBaseGeo: new THREE.CylinderGeometry(0.45, 0.5, 0.1, 32),
+    podiumStemGeo: new THREE.CylinderGeometry(0.08, 0.08, 1.2, 24),
+    podiumGlassGeo: new THREE.BoxGeometry(0.75, 0.04, 0.55),
+    micStemGeo: new THREE.CylinderGeometry(0.015, 0.015, 0.45, 12),
+    micHeadGeo: new THREE.SphereGeometry(0.035, 16, 16),
+    plaqueGeo: new THREE.PlaneGeometry(0.5, 0.25),
+    // Sound tower
+    towerBaseGeo: new THREE.BoxGeometry(1.2, 0.2, 1.2),
+    towerSpineGeo: new THREE.BoxGeometry(0.3, 4.8, 0.3),
+    speakerGeo: new THREE.BoxGeometry(0.9, 0.55, 0.6),
+
+    // Materials that are never tinted or highlighted per-instance.
+    chromeMat: new THREE.MeshPhysicalMaterial({
+      color: 0xe2e8f0,
+      metalness: 0.95,
+      roughness: 0.12,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05
+    }),
+    brassMat: new THREE.MeshPhysicalMaterial({
+      color: 0xd97706,
+      metalness: 0.9,
+      roughness: 0.22,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.12
+    }),
+    upholsteryMat: new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.65, metalness: 0.05 }),
+    darkMetalMat: new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.3 }),
+    speakerMat: new THREE.MeshStandardMaterial({ color: 0x0b0c11, roughness: 0.8, metalness: 0.1 }),
+    micMat: new THREE.MeshStandardMaterial({ color: 0x090a0f, metalness: 0.9, roughness: 0.35 })
+  };
+
+  Object.values(SHARED).forEach(res => SHARED_RESOURCES.add(res));
+  return SHARED;
+}
+
+/** Asset catalogue. Costs are INTEGER RUPEES (per the money contract). */
+const ASSET_SPEC = {
+  table: { label: 'Banquet Table', cost: 3500 },
+  stage: { label: 'LED Stage', cost: 145000 },
+  podium: { label: 'Glass Podium', cost: 12000 },
+  sound: { label: 'Line Array Tower', cost: 38000 }
+};
+
+let UID = 0;
+const nextId = () => `a3d_${Date.now().toString(36)}_${(UID++).toString(36)}`;
 
 export class ThreeDLiveSpaceEditor {
   constructor(containerElement, initialSelections = {}, onUpdateSelections = null) {
@@ -6,24 +93,45 @@ export class ThreeDLiveSpaceEditor {
     this.selections = { ...initialSelections };
     this.onUpdateSelections = onUpdateSelections;
 
-    this.mode = 'editor3d';
+    /**
+     * Layout change hook. NOT wired to the quote yet — see
+     * scratchpad/requests/f4-3d-editor.md for the exact signature the
+     * orchestrator should bind in main.js.
+     * @type {null | ((layout: {items: Array, totalCost: number, seats: number}) => void)}
+     */
+    this.onLayoutChange = null;
+
     this.selectedMesh = null;
     this.isDragging = false;
+    this.pendingDrag = null;
     this.animating = false;
-    this.customText = initialSelections.customText || 'HELM EVENTS 2026';
+    this.rafHandle = null;
 
-    // Three.js Core
+    this.customText =
+      initialSelections['custom_text_slot-election-podium'] ||
+      initialSelections.customText ||
+      'HELM EVENTS 2026';
+
+    // Three.js core
     this.scene = null;
     this.camera = null;
     this.renderer = null;
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
-    this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this.controls = null;
+    this.pmrem = null;
+    this.envTexture = null;
+    this.dirLight = null;
+    this.pointLight = null;
+    this.resizeObserver = null;
+    this.canvasHolder = null;
 
-    // Asset tracking
+    this.raycaster = new THREE.Raycaster();
+    this.pointerNdc = new THREE.Vector2();
+    this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this._hitPoint = new THREE.Vector3();
+    this._box = new THREE.Box3();
+
     this.placedObjects = [];
 
-    // Swatches
     this.swatches = [
       { name: 'Royal Gold', hex: 0xd97706, text: '#d97706' },
       { name: 'Midnight Navy', hex: 0x1e3a8a, text: '#1e3a8a' },
@@ -32,661 +140,957 @@ export class ThreeDLiveSpaceEditor {
       { name: 'Emerald Green', hex: 0x047857, text: '#047857' },
       { name: 'Obsidian Dark', hex: 0x18181b, text: '#18181b' }
     ];
-
     this.activeSwatch = this.swatches[0];
+
+    // Bound once so listeners can be removed and no closure is allocated per frame.
+    this.animate = this.animate.bind(this);
+    this.onPointerDown = this.onPointerDown.bind(this);
+    this.onPointerMove = this.onPointerMove.bind(this);
+    this.onPointerUp = this.onPointerUp.bind(this);
+    this.handleResize = this.handleResize.bind(this);
   }
 
-  // 🎨 Offscreen Canvas Slogan Texture Generator
+  // ---------------------------------------------------------------- textures
+
   createSloganCanvasTexture(textToPaint) {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 64;
+    canvas.width = 512;
+    canvas.height = 128;
     const ctx = canvas.getContext('2d');
 
-    // Background Gradient
-    const grad = ctx.createLinearGradient(0, 0, 256, 64);
+    const grad = ctx.createLinearGradient(0, 0, 512, 128);
     grad.addColorStop(0, '#0f172a');
     grad.addColorStop(0.5, '#1e1b4b');
     grad.addColorStop(1, '#0f172a');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 256, 64);
+    ctx.fillRect(0, 0, 512, 128);
 
-    // Metallic Gold Border Frame
     ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(4, 4, 248, 56);
+    ctx.lineWidth = 8;
+    ctx.strokeRect(8, 8, 496, 112);
 
-    // Text Styling
-    ctx.font = '700 18px "SF Pro Display", -apple-system, sans-serif';
+    ctx.font = '700 36px "SF Pro Display", -apple-system, sans-serif';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(217, 119, 6, 0.8)';
-    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(217, 119, 6, 0.85)';
+    ctx.shadowBlur = 16;
 
-    const displayStr = (textToPaint || 'HELM EVENTS 2026').toUpperCase();
-    ctx.fillText(displayStr.length > 22 ? displayStr.substring(0, 22) + '...' : displayStr, 128, 32);
+    const displayStr = String(textToPaint || 'HELM EVENTS 2026').toUpperCase();
+    ctx.fillText(displayStr.length > 22 ? `${displayStr.substring(0, 22)}...` : displayStr, 256, 64);
 
     const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
     texture.needsUpdate = true;
     return texture;
   }
 
+  // ------------------------------------------------------------------- scene
+
   initThreeScene() {
     const canvasHolder = this.container.querySelector('#threeCanvasHolder');
     if (!canvasHolder) return;
+    this.canvasHolder = canvasHolder;
 
     const width = canvasHolder.clientWidth || 800;
     const height = canvasHolder.clientHeight || 550;
 
-    // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x090a0f);
+    this.scene.background = new THREE.Color(0x0b0d14);
 
-    // Camera
-    this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 500);
     this.camera.position.set(0, 14, 18);
-    this.camera.lookAt(0, 0, 0);
 
-    // Renderer & PCFSoftShadowMap
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setSize(width, height, false);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.domElement.style.touchAction = 'none';
+    this.renderer.domElement.style.display = 'block';
+    this.renderer.domElement.style.width = '100%';
+    this.renderer.domElement.style.height = '100%';
 
     canvasHolder.innerHTML = '';
     canvasHolder.appendChild(this.renderer.domElement);
 
-    // Lighting Pipeline
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-    this.scene.add(ambientLight);
+    // Image-based lighting — without this every metal surface renders black.
+    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.pmrem.compileEquirectangularShader();
+    const roomScene = new RoomEnvironment();
+    this.envTexture = this.pmrem.fromScene(roomScene, 0.04).texture;
+    this.scene.environment = this.envTexture;
+    this.scene.environmentIntensity = 0.85;
+    roomScene.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
 
-    const dirLight = new THREE.DirectionalLight(0xfffaed, 1.5);
-    dirLight.position.set(12, 22, 16);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 60;
-    dirLight.shadow.camera.left = -20;
-    dirLight.shadow.camera.right = 20;
-    dirLight.shadow.camera.top = 20;
-    dirLight.shadow.camera.bottom = -20;
-    this.scene.add(dirLight);
+    // Direct lighting sits on top of the IBL, so it is much softer than before.
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.18));
 
-    const pointLight = new THREE.PointLight(0xd97706, 1.2, 35);
-    pointLight.position.set(0, 8, 0);
-    this.scene.add(pointLight);
+    this.dirLight = new THREE.DirectionalLight(0xfff3dd, 1.6);
+    this.dirLight.position.set(12, 22, 16);
+    this.dirLight.castShadow = true;
+    this.dirLight.shadow.mapSize.set(2048, 2048);
+    this.dirLight.shadow.camera.near = 0.5;
+    this.dirLight.shadow.camera.far = 70;
+    this.dirLight.shadow.camera.left = -ARENA.x - 2;
+    this.dirLight.shadow.camera.right = ARENA.x + 2;
+    this.dirLight.shadow.camera.top = ARENA.z + 8;
+    this.dirLight.shadow.camera.bottom = -ARENA.z - 8;
+    this.dirLight.shadow.bias = -0.0006;
+    // Static light: only re-render the shadow map when the layout actually changes.
+    this.dirLight.shadow.autoUpdate = false;
+    this.dirLight.shadow.needsUpdate = true;
+    this.scene.add(this.dirLight);
 
-    // Floor Grid & Ground
+    this.pointLight = new THREE.PointLight(0xd97706, 60, 40, 2);
+    this.pointLight.position.set(0, 8, 0);
+    this.scene.add(this.pointLight);
+
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.target.set(0, 1, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.07;
+    this.controls.minDistance = 6;
+    this.controls.maxDistance = 70;
+    // Never let the camera drop under the floor.
+    this.controls.minPolarAngle = 0.05;
+    this.controls.maxPolarAngle = Math.PI / 2 - 0.04;
+    this.controls.update();
+
     this.buildFloorGrid();
-
-    // Spawn Multi-Mesh Composites
     this.populateInitial3DAssets();
+    this.bindThreeEvents();
 
-    // Event Listeners
-    this.bindThreeEvents(canvasHolder);
+    this.resizeObserver = new ResizeObserver(this.handleResize);
+    this.resizeObserver.observe(canvasHolder);
+    this.handleResize();
 
-    // Start Rendering Loop
     this.animating = true;
     this.animate();
   }
 
+  handleResize() {
+    if (!this.renderer || !this.camera || !this.canvasHolder) return;
+    const width = this.canvasHolder.clientWidth;
+    const height = this.canvasHolder.clientHeight;
+    if (width < 1 || height < 1) return;
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+  }
+
   buildFloorGrid() {
-    const groundGeo = new THREE.PlaneGeometry(40, 30);
+    const groundGeo = new THREE.PlaneGeometry(ARENA.x * 2, ARENA.z * 2);
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x12131a,
-      roughness: 0.3,
-      metalness: 0.4
+      color: 0x14161f,
+      roughness: 0.45,
+      metalness: 0.25
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    const grid = new THREE.GridHelper(40, 40, 0x6366f1, 0x27272a);
-    grid.position.y = 0.01;
+    // GridHelper is square, so draw it at the smaller axis and scale X to match
+    // the ground exactly — no more 5 units of grid floating past the floor.
+    const grid = new THREE.GridHelper(ARENA.z * 2, ARENA.z * 2, 0x6366f1, 0x27272a);
+    grid.scale.x = ARENA.x / ARENA.z;
+    grid.position.y = 0.012;
+    grid.material.opacity = 0.45;
+    grid.material.transparent = true;
+    // Keep the grid out of raycasts entirely.
+    grid.raycast = () => {};
+    ground.raycast = () => {};
     this.scene.add(grid);
+
+    this.floorObjects = [ground, grid];
   }
 
   populateInitial3DAssets() {
-    // Clear and dispose old assets
-    this.placedObjects.forEach(obj => {
-      this.disposeObject(obj);
-      this.scene.remove(obj);
-    });
-    this.placedObjects = [];
+    this.clearPlacedObjects();
 
-    // 1. LED Stage Platform
-    this.addStageMesh(0, -6, 'Concert LED Stage');
+    this.addStageMesh(0, -9, 'Concert LED Stage');
+    this.addPodiumMesh(0, -5.5, 'Executive Glass Podium');
+    this.addSoundTowerMesh(-8, -9, 'Left Sound Tower');
+    this.addSoundTowerMesh(8, -9, 'Right Sound Tower');
 
-    // 2. Glass Podium with Microphones & Slogan Plaque
-    this.addPodiumMesh(0, -4.5, 'Executive Glass Podium');
-
-    // 3. Line Array Sound Towers
-    this.addSoundTowerMesh(-8, -6, 'Left Sound Tower');
-    this.addSoundTowerMesh(8, -6, 'Right Sound Tower');
-
-    // 4. Banquet Tables with Pedestals & Peripheral Chairs
-    const tablePositions = [
+    [
       { x: -6, z: 2 }, { x: 0, z: 2 }, { x: 6, z: 2 },
       { x: -6, z: 8 }, { x: 0, z: 8 }, { x: 6, z: 8 }
-    ];
-
-    tablePositions.forEach((pos, idx) => {
-      this.addTableMesh(pos.x, pos.z, `Banquet Table #${idx + 1}`);
-    });
+    ].forEach((pos, idx) => this.addTableMesh(pos.x, pos.z, `Banquet Table #${idx + 1}`));
 
     this.updateStats();
   }
 
-  // 🍽️ Composite Multi-Mesh Banquet Table & Chairs
+  clearPlacedObjects() {
+    this.placedObjects.forEach(obj => {
+      if (this.scene) this.scene.remove(obj);
+      this.disposeObject(obj);
+    });
+    this.placedObjects = [];
+    this.selectedMesh = null;
+  }
+
+  /**
+   * Finalise a freshly built group: measure its footprint, clamp it inside the
+   * arena, register it, and mark the shadow map dirty.
+   */
+  finalizeGroup(group, x, z, spec) {
+    group.position.set(0, 0, 0);
+    group.updateMatrixWorld(true);
+    this._box.setFromObject(group);
+    const halfX = Math.max(0.25, (this._box.max.x - this._box.min.x) / 2);
+    const halfZ = Math.max(0.25, (this._box.max.z - this._box.min.z) / 2);
+    group.userData.halfX = halfX;
+    group.userData.halfZ = halfZ;
+    Object.assign(group.userData, spec);
+
+    const clamped = this.clampToArena(x, z, halfX, halfZ);
+    group.position.set(clamped.x, 0, clamped.z);
+
+    this.scene.add(group);
+    this.placedObjects.push(group);
+    this.markShadowsDirty();
+    return group;
+  }
+
+  clampToArena(x, z, halfX, halfZ) {
+    const limX = Math.max(0, ARENA.x - halfX);
+    const limZ = Math.max(0, ARENA.z - halfZ);
+    return {
+      x: Math.max(-limX, Math.min(limX, x)),
+      z: Math.max(-limZ, Math.min(limZ, z))
+    };
+  }
+
+  /**
+   * Spiral outward from a preferred spot until the asset's bounding box stops
+   * overlapping anything already on the floor. Stops spawning pile-ups at (0,0).
+   */
+  findFreeSpot(group, preferX = 0, preferZ = 0) {
+    const halfX = group.userData.halfX;
+    const halfZ = group.userData.halfZ;
+    const overlaps = (x, z) => this.placedObjects.some(other => {
+      if (other === group) return false;
+      const gapX = Math.abs(x - other.position.x) - (halfX + other.userData.halfX);
+      const gapZ = Math.abs(z - other.position.z) - (halfZ + other.userData.halfZ);
+      return gapX < 0.35 && gapZ < 0.35;
+    });
+
+    const step = 1.5;
+    for (let ring = 0; ring < 18; ring++) {
+      const candidates = ring === 0 ? [[0, 0]] : [];
+      if (ring > 0) {
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2 + ring * 0.4;
+          candidates.push([Math.cos(angle) * ring * step, Math.sin(angle) * ring * step]);
+        }
+      }
+      for (const [dx, dz] of candidates) {
+        const c = this.clampToArena(
+          Math.round((preferX + dx) / GRID_SNAP) * GRID_SNAP,
+          Math.round((preferZ + dz) / GRID_SNAP) * GRID_SNAP,
+          halfX, halfZ
+        );
+        if (!overlaps(c.x, c.z)) return c;
+      }
+    }
+    return this.clampToArena(preferX, preferZ, halfX, halfZ);
+  }
+
+  /** Spawn from the asset library: free spot + auto-select. */
+  spawnAsset(type) {
+    if (!this.scene) return null;
+    const factories = {
+      table: () => this.addTableMesh(0, 0, 'New Banquet Table'),
+      stage: () => this.addStageMesh(0, 0, 'New LED Stage'),
+      podium: () => this.addPodiumMesh(0, 0, 'New Glass Podium'),
+      sound: () => this.addSoundTowerMesh(0, 0, 'New Sound Tower')
+    };
+    const factory = factories[type];
+    if (!factory) return null;
+
+    const group = factory();
+    const spot = this.findFreeSpot(group, 0, type === 'table' ? 6 : 0);
+    group.position.set(spot.x, 0, spot.z);
+
+    this.selectedMesh = group;
+    this.highlightSelectedObject();
+    this.updateInspectorUI();
+    this.markShadowsDirty();
+    this.emitLayoutChange();
+    return group;
+  }
+
+  // ------------------------------------------------------------------ assets
+
   addTableMesh(x, z, name = 'Banquet Table') {
+    const S = sharedAssets();
     const group = new THREE.Group();
 
-    // 1. Metal Chrome Pedestal Base
-    const baseGeo = new THREE.CylinderGeometry(0.5, 0.6, 0.08, 32);
-    const chromeMat = new THREE.MeshStandardMaterial({
-      color: 0xe2e8f0,
-      metalness: 0.9,
-      roughness: 0.1,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.05
-    });
-    const base = new THREE.Mesh(baseGeo, chromeMat);
+    const base = new THREE.Mesh(S.pedestalBaseGeo, S.chromeMat);
     base.position.y = 0.04;
     base.castShadow = true;
     group.add(base);
 
-    // 2. Pedestal Column Stem
-    const stemGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.2, 24);
-    const stem = new THREE.Mesh(stemGeo, chromeMat);
+    const stem = new THREE.Mesh(S.pedestalStemGeo, S.chromeMat);
     stem.position.y = 0.65;
     stem.castShadow = true;
     group.add(stem);
 
-    // 3. Marble / Cloth Tabletop Disc
-    const topGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.08, 32);
-    const topMat = new THREE.MeshStandardMaterial({
+    // Per-instance so swatches and the selection highlight do not bleed across tables.
+    const topMat = new THREE.MeshPhysicalMaterial({
       color: this.activeSwatch.hex,
-      metalness: 0.25,
-      roughness: 0.2,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.1
+      metalness: 0.1,
+      roughness: 0.45,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.25
     });
-    const top = new THREE.Mesh(topGeo, topMat);
+    const top = new THREE.Mesh(S.tableTopGeo, topMat);
     top.position.y = 1.29;
     top.castShadow = true;
     top.receiveShadow = true;
     group.add(top);
 
-    // 4. Surround Peripheral Chairs
     for (let i = 0; i < 4; i++) {
       const angle = (i * Math.PI) / 2;
       const chairGroup = new THREE.Group();
 
-      // Seat Cushion
-      const cushionGeo = new THREE.BoxGeometry(0.48, 0.08, 0.48);
-      const cushionMat = new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.4 });
-      const cushion = new THREE.Mesh(cushionGeo, cushionMat);
+      const cushion = new THREE.Mesh(S.cushionGeo, S.upholsteryMat);
       cushion.position.y = 0.45;
       cushion.castShadow = true;
       chairGroup.add(cushion);
 
-      // Backrest
-      const backGeo = new THREE.BoxGeometry(0.48, 0.45, 0.06);
-      const back = new THREE.Mesh(backGeo, cushionMat);
+      const back = new THREE.Mesh(S.chairBackGeo, S.upholsteryMat);
       back.position.set(0, 0.7, -0.22);
       back.castShadow = true;
       chairGroup.add(back);
 
-      // Chrome Legs
-      const legGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.45, 12);
-      const leg1 = new THREE.Mesh(legGeo, chromeMat);
-      leg1.position.set(-0.2, 0.225, -0.2);
-      chairGroup.add(leg1);
-
-      const leg2 = leg1.clone(); leg2.position.set(0.2, 0.225, -0.2); chairGroup.add(leg2);
-      const leg3 = leg1.clone(); leg3.position.set(-0.2, 0.225, 0.2); chairGroup.add(leg3);
-      const leg4 = leg1.clone(); leg4.position.set(0.2, 0.225, 0.2); chairGroup.add(leg4);
+      [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]].forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(S.chairLegGeo, S.chromeMat);
+        leg.position.set(lx, 0.225, lz);
+        chairGroup.add(leg);
+      });
 
       chairGroup.position.set(Math.cos(angle) * 2.1, 0, Math.sin(angle) * 2.1);
       chairGroup.rotation.y = -angle + Math.PI / 2;
       group.add(chairGroup);
     }
 
-    group.position.set(x, 0, z);
-    group.userData = { id: Date.now() + Math.random(), name, type: 'table', cost: 450, mainMesh: top };
-    this.scene.add(group);
-    this.placedObjects.push(group);
-    return group;
+    return this.finalizeGroup(group, x, z, {
+      id: nextId(),
+      name,
+      type: 'table',
+      cost: ASSET_SPEC.table.cost,
+      seats: 4,
+      mainMesh: top
+    });
   }
 
-  // 🎭 Composite LED Stage Platform & Slogan Banner
   addStageMesh(x, z, name = 'LED Stage Platform') {
+    const S = sharedAssets();
     const group = new THREE.Group();
 
-    // Matte Black Platform Base
-    const platformGeo = new THREE.BoxGeometry(12, 0.8, 4.5);
-    const platformMat = new THREE.MeshStandardMaterial({
-      color: 0x111318,
-      roughness: 0.35,
-      metalness: 0.6
+    const platformMat = new THREE.MeshPhysicalMaterial({
+      color: 0x14161c,
+      roughness: 0.4,
+      metalness: 0.35,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.3
     });
-    const platform = new THREE.Mesh(platformGeo, platformMat);
+    const platform = new THREE.Mesh(S.stagePlatformGeo, platformMat);
     platform.position.y = 0.4;
     platform.castShadow = true;
     platform.receiveShadow = true;
     group.add(platform);
 
-    // Emissive Glowing Border Strip
-    const stripGeo = new THREE.BoxGeometry(12.2, 0.12, 4.7);
     const stripMat = new THREE.MeshStandardMaterial({
       color: 0x6366f1,
       emissive: 0x6366f1,
-      emissiveIntensity: 0.8
+      emissiveIntensity: 1.4,
+      roughness: 0.4
     });
-    const strip = new THREE.Mesh(stripGeo, stripMat);
+    const strip = new THREE.Mesh(S.stageStripGeo, stripMat);
     strip.position.y = 0.06;
     group.add(strip);
 
-    // Live Front Slogan Banner Mesh with CanvasTexture
-    const bannerGeo = new THREE.PlaneGeometry(8, 0.7);
-    const sloganTex = this.createSloganCanvasTexture(this.customText);
     const bannerMat = new THREE.MeshStandardMaterial({
-      map: sloganTex,
-      roughness: 0.2,
-      metalness: 0.1,
+      map: this.createSloganCanvasTexture(this.customText),
+      roughness: 0.5,
+      metalness: 0.0,
+      emissiveIntensity: 0.0,
       side: THREE.DoubleSide
     });
-    const banner = new THREE.Mesh(bannerGeo, bannerMat);
+    const banner = new THREE.Mesh(S.stageBannerGeo, bannerMat);
     banner.position.set(0, 0.45, 2.26);
     group.add(banner);
 
-    group.position.set(x, 0, z);
-    group.userData = { id: Date.now(), name, type: 'stage', cost: 1800, mainMesh: platform, bannerMesh: banner };
-    this.scene.add(group);
-    this.placedObjects.push(group);
-    return group;
+    return this.finalizeGroup(group, x, z, {
+      id: nextId(),
+      name,
+      type: 'stage',
+      cost: ASSET_SPEC.stage.cost,
+      seats: 0,
+      mainMesh: platform,
+      bannerMesh: banner
+    });
   }
 
-  // 🎤 Composite Brushed Brass Glass Podium & Microphones
   addPodiumMesh(x, z, name = 'Glass Podium') {
+    const S = sharedAssets();
     const group = new THREE.Group();
 
-    // Brushed Brass Base Cylinder
-    const baseGeo = new THREE.CylinderGeometry(0.45, 0.5, 0.1, 32);
-    const brassMat = new THREE.MeshStandardMaterial({
-      color: 0xd97706,
-      metalness: 0.85,
-      roughness: 0.15,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.1
-    });
-    const base = new THREE.Mesh(baseGeo, brassMat);
+    // Per-instance clone: this is the highlight / swatch target, so it must not
+    // be the shared brass material (that would tint every podium at once).
+    const base = new THREE.Mesh(S.podiumBaseGeo, S.brassMat.clone());
     base.position.y = 0.05;
     base.castShadow = true;
     group.add(base);
 
-    // Slender Translucent Stem
-    const stemGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 24);
-    const stemMat = new THREE.MeshStandardMaterial({
-      color: 0xe2e8f0,
-      metalness: 0.9,
-      roughness: 0.1
-    });
-    const stem = new THREE.Mesh(stemGeo, stemMat);
+    const stem = new THREE.Mesh(S.podiumStemGeo, S.chromeMat);
     stem.position.y = 0.65;
     stem.castShadow = true;
     group.add(stem);
 
-    // Angled Glass Top Panel
-    const glassGeo = new THREE.BoxGeometry(0.75, 0.04, 0.55);
-    const glassMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0x9fd8f5,
       transparent: true,
-      opacity: 0.75,
-      metalness: 0.1,
+      opacity: 0.55,
+      metalness: 0.0,
       roughness: 0.05,
-      clearcoat: 1.0
+      transmission: 0.6,
+      ior: 1.5,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.03
     });
-    const glass = new THREE.Mesh(glassGeo, glassMat);
+    const glass = new THREE.Mesh(S.podiumGlassGeo, glassMat);
     glass.position.set(0, 1.28, -0.05);
     glass.rotation.x = 0.25;
-    glass.castShadow = true;
     group.add(glass);
 
-    // Micro Cylindrical Microphone
-    const micStemGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.45, 12);
-    const micMat = new THREE.MeshStandardMaterial({ color: 0x090a0f, metalness: 0.9 });
-    const micStem = new THREE.Mesh(micStemGeo, micMat);
+    const micStem = new THREE.Mesh(S.micStemGeo, S.micMat);
     micStem.position.set(-0.15, 1.48, -0.15);
     group.add(micStem);
 
-    const micHeadGeo = new THREE.SphereGeometry(0.035, 16, 16);
-    const micHead = new THREE.Mesh(micHeadGeo, micMat);
+    const micHead = new THREE.Mesh(S.micHeadGeo, S.micMat);
     micHead.position.set(-0.15, 1.7, -0.15);
     group.add(micHead);
 
-    // Front Plaque Mesh with CanvasTexture
-    const plaqueGeo = new THREE.PlaneGeometry(0.5, 0.25);
-    const sloganTex = this.createSloganCanvasTexture(this.customText);
-    const plaqueMat = new THREE.MeshStandardMaterial({ map: sloganTex, side: THREE.DoubleSide });
-    const plaque = new THREE.Mesh(plaqueGeo, plaqueMat);
+    const plaqueMat = new THREE.MeshStandardMaterial({
+      map: this.createSloganCanvasTexture(this.customText),
+      roughness: 0.55,
+      side: THREE.DoubleSide
+    });
+    const plaque = new THREE.Mesh(S.plaqueGeo, plaqueMat);
     plaque.position.set(0, 0.8, 0.1);
     group.add(plaque);
 
-    group.position.set(x, 0, z);
-    group.userData = { id: Date.now(), name, type: 'podium', cost: 450, mainMesh: glass, bannerMesh: plaque };
-    this.scene.add(group);
-    this.placedObjects.push(group);
-    return group;
+    return this.finalizeGroup(group, x, z, {
+      id: nextId(),
+      name,
+      type: 'podium',
+      cost: ASSET_SPEC.podium.cost,
+      seats: 0,
+      // Highlight/swatch target is the brass base, not the near-invisible glass.
+      mainMesh: base,
+      bannerMesh: plaque
+    });
   }
 
-  // 🔊 Composite Line Array Sound Tower
   addSoundTowerMesh(x, z, name = 'Sound Tower') {
+    const S = sharedAssets();
     const group = new THREE.Group();
 
-    // Heavy Metal Base
-    const baseGeo = new THREE.BoxGeometry(1.2, 0.2, 1.2);
-    const metalMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.2 });
-    const base = new THREE.Mesh(baseGeo, metalMat);
+    const base = new THREE.Mesh(S.towerBaseGeo, S.darkMetalMat);
     base.position.y = 0.1;
     base.castShadow = true;
     group.add(base);
 
-    // Vertical Truss Spine
-    const spineGeo = new THREE.BoxGeometry(0.3, 4.8, 0.3);
-    const spine = new THREE.Mesh(spineGeo, metalMat);
+    // Per-instance material: this is the highlight / swatch target.
+    const spineMat = new THREE.MeshStandardMaterial({ color: 0x2a2a31, metalness: 0.75, roughness: 0.35 });
+    const spine = new THREE.Mesh(S.towerSpineGeo, spineMat);
     spine.position.y = 2.5;
     spine.castShadow = true;
     group.add(spine);
 
-    // 3 Curved Speaker Modules
     for (let i = 0; i < 3; i++) {
-      const spkGeo = new THREE.BoxGeometry(0.9, 0.55, 0.6);
-      const spkMat = new THREE.MeshStandardMaterial({ color: 0x090a0f, roughness: 0.7 });
-      const spk = new THREE.Mesh(spkGeo, spkMat);
-      spk.rotation.x = 0.15 + (i * 0.08);
-      spk.position.set(0, 1.8 + (i * 0.9), 0.35);
+      const spk = new THREE.Mesh(S.speakerGeo, S.speakerMat);
+      spk.rotation.x = 0.15 + i * 0.08;
+      spk.position.set(0, 1.8 + i * 0.9, 0.35);
       spk.castShadow = true;
       group.add(spk);
     }
 
-    group.position.set(x, 0, z);
-    group.userData = { id: Date.now(), name, type: 'sound', cost: 650, mainMesh: spine };
-    this.scene.add(group);
-    this.placedObjects.push(group);
-    return group;
-  }
-
-  // 🎯 Dynamic Slogan Refresh Across All Scene Meshes
-  updateSloganText(newText) {
-    this.customText = newText;
-    const newTex = this.createSloganCanvasTexture(newText);
-
-    this.placedObjects.forEach(group => {
-      if (group.userData && group.userData.bannerMesh) {
-        group.userData.bannerMesh.material.map = newTex;
-        group.userData.bannerMesh.material.needsUpdate = true;
-      }
+    return this.finalizeGroup(group, x, z, {
+      id: nextId(),
+      name,
+      type: 'sound',
+      cost: ASSET_SPEC.sound.cost,
+      seats: 0,
+      mainMesh: spine
     });
   }
 
-  bindThreeEvents(canvasHolder) {
-    canvasHolder.addEventListener('mousedown', (e) => this.onMouseDown(e, canvasHolder));
-    canvasHolder.addEventListener('mousemove', (e) => this.onMouseMove(e, canvasHolder));
-    canvasHolder.addEventListener('mouseup', () => this.onMouseUp());
+  // ------------------------------------------------------------------ slogan
+
+  updateSloganText(newText) {
+    const next = String(newText ?? '');
+    if (next === this.customText) return;
+    this.customText = next;
+    if (!this.scene) return;
+
+    const newTex = this.createSloganCanvasTexture(next);
+    let used = false;
+    this.placedObjects.forEach(group => {
+      const banner = group.userData && group.userData.bannerMesh;
+      if (!banner || !banner.material) return;
+      // Each banner owns its own material; give each its own texture clone-free
+      // by disposing the old map first, then sharing one new texture instance.
+      if (banner.material.map && banner.material.map !== newTex) {
+        banner.material.map.dispose();
+      }
+      banner.material.map = newTex;
+      banner.material.needsUpdate = true;
+      used = true;
+    });
+    if (!used) newTex.dispose();
   }
 
-  onMouseDown(e, canvasHolder) {
-    const rect = canvasHolder.getBoundingClientRect();
-    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  // ------------------------------------------------------- pointer / picking
 
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+  bindThreeEvents() {
+    const el = this.renderer.domElement;
+    el.addEventListener('pointerdown', this.onPointerDown);
+    el.addEventListener('pointermove', this.onPointerMove);
+    // Bound on window so a release anywhere ends the drag — no sticky drags.
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
+  }
 
-    if (intersects.length > 0) {
-      let topGroup = intersects[0].object;
-      while (topGroup.parent && topGroup.parent !== this.scene) {
-        topGroup = topGroup.parent;
-      }
+  unbindThreeEvents() {
+    if (this.renderer && this.renderer.domElement) {
+      this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
+      this.renderer.domElement.removeEventListener('pointermove', this.onPointerMove);
+    }
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
+  }
 
-      if (topGroup && topGroup.userData && topGroup.userData.type) {
-        this.selectedMesh = topGroup;
-        this.isDragging = true;
-        this.highlightSelectedObject();
-        this.updateInspectorUI();
-      } else {
-        this.selectedMesh = null;
-        this.updateInspectorUI();
-      }
-    } else {
+  updatePointerNdc(e) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    this.pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    return true;
+  }
+
+  /** Ray/ground intersection. Returns null when the ray misses the floor plane. */
+  rayToGround() {
+    return this.raycaster.ray.intersectPlane(this.groundPlane, this._hitPoint);
+  }
+
+  onPointerDown(e) {
+    if (!this.camera || !this.renderer) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    if (!this.updatePointerNdc(e)) return;
+
+    this.raycaster.setFromCamera(this.pointerNdc, this.camera);
+    // Only placed assets are pickable — the grid and ground opt out via raycast().
+    const intersects = this.raycaster.intersectObjects(this.placedObjects, true);
+
+    let hitGroup = null;
+    for (const hit of intersects) {
+      let node = hit.object;
+      while (node && node.parent && node.parent !== this.scene) node = node.parent;
+      if (node && node.userData && node.userData.type) { hitGroup = node; break; }
+    }
+
+    if (!hitGroup) {
       this.selectedMesh = null;
+      this.highlightSelectedObject();
       this.updateInspectorUI();
+      return;
     }
+
+    this.selectedMesh = hitGroup;
+    this.highlightSelectedObject();
+    this.updateInspectorUI();
+
+    // Record the grab offset so the asset never teleports under the cursor.
+    const ground = this.rayToGround();
+    this.pendingDrag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: ground ? hitGroup.position.x - ground.x : 0,
+      offsetZ: ground ? hitGroup.position.z - ground.z : 0
+    };
+
+    // Orbiting must not fight object dragging.
+    if (this.controls) this.controls.enabled = false;
+    try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch { /* no capture available */ }
   }
 
-  // 🎯 0.5-Unit Grid Snapping & Arena Boundary Clamping
-  onMouseMove(e, canvasHolder) {
-    if (!this.isDragging || !this.selectedMesh) return;
+  onPointerMove(e) {
+    if (!this.pendingDrag || !this.selectedMesh || !this.camera) return;
+    if (e.pointerId !== this.pendingDrag.pointerId) return;
 
-    const rect = canvasHolder.getBoundingClientRect();
-    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersectionPoint = new THREE.Vector3();
-    this.raycaster.ray.intersectPlane(this.plane, intersectionPoint);
-
-    if (intersectionPoint) {
-      // 1. Clamp to Floor Grid Arena [-18, 18] X & [-12, 12] Z
-      const clampedX = Math.max(-18, Math.min(18, intersectionPoint.x));
-      const clampedZ = Math.max(-12, Math.min(12, intersectionPoint.z));
-
-      // 2. Snap to 0.5-unit incremental grid
-      this.selectedMesh.position.x = Math.round(clampedX / 0.5) * 0.5;
-      this.selectedMesh.position.z = Math.round(clampedZ / 0.5) * 0.5;
+    if (!this.isDragging) {
+      const dx = e.clientX - this.pendingDrag.startX;
+      const dy = e.clientY - this.pendingDrag.startY;
+      // Below the threshold this is still a click, not a drag.
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      this.isDragging = true;
     }
+
+    if (!this.updatePointerNdc(e)) return;
+    this.raycaster.setFromCamera(this.pointerNdc, this.camera);
+    const ground = this.rayToGround();
+    if (!ground) return; // ray parallel to / above the floor — do not teleport to origin
+
+    const data = this.selectedMesh.userData;
+    const snappedX = Math.round((ground.x + this.pendingDrag.offsetX) / GRID_SNAP) * GRID_SNAP;
+    const snappedZ = Math.round((ground.z + this.pendingDrag.offsetZ) / GRID_SNAP) * GRID_SNAP;
+    // Clamp the bounding box, not the origin, so nothing hangs off the floor.
+    const clamped = this.clampToArena(snappedX, snappedZ, data.halfX, data.halfZ);
+
+    this.selectedMesh.position.x = clamped.x;
+    this.selectedMesh.position.z = clamped.z;
+    this.updateInspectorPosition();
   }
 
-  onMouseUp() {
+  onPointerUp(e) {
+    if (this.pendingDrag && this.renderer && this.renderer.domElement) {
+      try { this.renderer.domElement.releasePointerCapture(this.pendingDrag.pointerId); } catch { /* already released */ }
+    }
+    const wasDragging = this.isDragging;
+    this.pendingDrag = null;
     this.isDragging = false;
+    if (this.controls) this.controls.enabled = true;
+    if (wasDragging) {
+      this.markShadowsDirty();
+      this.emitLayoutChange();
+    }
   }
+
+  markShadowsDirty() {
+    if (this.dirLight) this.dirLight.shadow.needsUpdate = true;
+  }
+
+  // -------------------------------------------------------------- selection
 
   highlightSelectedObject() {
     this.placedObjects.forEach(obj => {
       const main = obj.userData.mainMesh;
-      if (main && main.material) {
-        if (obj === this.selectedMesh) {
-          main.material.emissive = new THREE.Color(0x6366f1);
-          main.material.emissiveIntensity = 0.5;
-        } else {
-          main.material.emissive = new THREE.Color(0x000000);
-          main.material.emissiveIntensity = 0;
-        }
-      }
+      if (!main || !main.material || !main.material.emissive) return;
+      const on = obj === this.selectedMesh;
+      main.material.emissive.copy(on ? COLOR_HIGHLIGHT : COLOR_BLACK);
+      main.material.emissiveIntensity = on ? 0.55 : 0;
     });
   }
 
   applySwatchToSelected(swatch) {
-    this.activeSwatch = swatch;
-    if (this.selectedMesh && this.selectedMesh.userData.mainMesh) {
-      const main = this.selectedMesh.userData.mainMesh;
-      if (main.material) {
-        main.material.color.setHex(swatch.hex);
-      }
+    if (!this.selectedMesh) return;
+    // Swatch is per-selection now; it no longer hijacks every future spawn.
+    this.selectedMesh.userData.swatchHex = swatch.hex;
+    const main = this.selectedMesh.userData.mainMesh;
+    if (main && main.material && main.material.color) {
+      main.material.color.setHex(swatch.hex);
     }
-    this.renderSwatches();
+    this.updateInspectorUI();
+    this.emitLayoutChange();
   }
 
   deleteSelectedMesh() {
     if (!this.selectedMesh) return;
-    this.disposeObject(this.selectedMesh);
-    this.scene.remove(this.selectedMesh);
-    this.placedObjects = this.placedObjects.filter(o => o !== this.selectedMesh);
+    const target = this.selectedMesh;
+    this.scene.remove(target);
+    this.disposeObject(target);
+    this.placedObjects = this.placedObjects.filter(o => o !== target);
     this.selectedMesh = null;
+    this.pendingDrag = null;
+    this.isDragging = false;
+    this.highlightSelectedObject();
     this.updateInspectorUI();
-    this.updateStats();
+    this.markShadowsDirty();
+    this.emitLayoutChange();
   }
 
   duplicateSelectedMesh() {
     if (!this.selectedMesh) return;
-    const type = this.selectedMesh.userData.type;
-    const x = Math.min(18, this.selectedMesh.position.x + 2);
-    const z = Math.min(12, this.selectedMesh.position.z + 2);
+    const src = this.selectedMesh;
+    const type = src.userData.type;
 
-    if (type === 'table') this.addTableMesh(x, z, 'Cloned Table');
-    if (type === 'stage') this.addStageMesh(x, z, 'Cloned Stage');
-    if (type === 'podium') this.addPodiumMesh(x, z, 'Cloned Podium');
-    if (type === 'sound') this.addSoundTowerMesh(x, z, 'Cloned Sound Tower');
+    const factories = {
+      table: () => this.addTableMesh(0, 0, `${src.userData.name} (copy)`),
+      stage: () => this.addStageMesh(0, 0, `${src.userData.name} (copy)`),
+      podium: () => this.addPodiumMesh(0, 0, `${src.userData.name} (copy)`),
+      sound: () => this.addSoundTowerMesh(0, 0, `${src.userData.name} (copy)`)
+    };
+    const factory = factories[type];
+    if (!factory) return;
 
-    this.updateStats();
+    const clone = factory();
+    // Carry the source's colour across so a duplicate actually looks like a duplicate.
+    if (src.userData.swatchHex !== undefined) {
+      clone.userData.swatchHex = src.userData.swatchHex;
+      const main = clone.userData.mainMesh;
+      if (main && main.material && main.material.color) main.material.color.setHex(src.userData.swatchHex);
+    }
+
+    const spot = this.findFreeSpot(clone, src.position.x + 2, src.position.z + 2);
+    clone.position.set(spot.x, 0, spot.z);
+
+    this.selectedMesh = clone;
+    this.highlightSelectedObject();
+    this.updateInspectorUI();
+    this.markShadowsDirty();
+    this.emitLayoutChange();
   }
 
-  // 🧹 Strict Memory Garbage Collection Disposal Helper
-  disposeObject(obj) {
+  // ------------------------------------------------------------- disposal
+
+  disposeObject(obj, seen = new Set()) {
     if (!obj) return;
-    obj.traverse((child) => {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) {
-        if (Array.isArray(child.material)) {
-          child.material.forEach((mat) => {
-            if (mat.map) mat.map.dispose();
-            mat.dispose();
-          });
-        } else {
-          if (child.material.map) child.material.map.dispose();
-          child.material.dispose();
-        }
+    obj.traverse(child => {
+      if (child.geometry && !SHARED_RESOURCES.has(child.geometry) && !seen.has(child.geometry)) {
+        seen.add(child.geometry);
+        child.geometry.dispose();
       }
+      const mats = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
+      mats.forEach(mat => {
+        if (SHARED_RESOURCES.has(mat) || seen.has(mat)) return;
+        seen.add(mat);
+        ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'alphaMap'].forEach(key => {
+          const tex = mat[key];
+          if (tex && !seen.has(tex)) { seen.add(tex); tex.dispose(); }
+        });
+        mat.dispose();
+      });
     });
   }
 
+  // ------------------------------------------------------------------- data
+
+  /** Serialisable snapshot of everything on the floor. */
+  getLayout() {
+    const items = this.placedObjects.map(obj => ({
+      id: obj.userData.id,
+      type: obj.userData.type,
+      name: obj.userData.name,
+      unitPrice: obj.userData.cost,
+      quantity: 1,
+      seats: obj.userData.seats || 0,
+      x: Number(obj.position.x.toFixed(2)),
+      z: Number(obj.position.z.toFixed(2)),
+      colorHex: obj.userData.swatchHex ?? null
+    }));
+    return {
+      items,
+      totalCost: items.reduce((sum, i) => sum + Math.round(i.unitPrice * i.quantity), 0),
+      seats: items.reduce((sum, i) => sum + i.seats, 0)
+    };
+  }
+
+  /**
+   * Notify the host app that the floor changed. Deliberately NOT wired into
+   * activeSelections here — activeSelections is a flat slotId -> itemId string
+   * map owned by main.js and must not be polluted from this component.
+   */
+  emitLayoutChange() {
+    this.updateStats();
+    if (typeof this.onLayoutChange === 'function') {
+      try { this.onLayoutChange(this.getLayout()); } catch { /* host handler failed; keep the editor alive */ }
+    }
+  }
+
   updateStats() {
-    const totalCost = this.placedObjects.reduce((acc, obj) => acc + (obj.userData.cost || 0), 0);
+    const layout = this.getLayout();
     const countEl = this.container.querySelector('#assetCountVal');
     const costEl = this.container.querySelector('#assetCostVal');
-    if (countEl) countEl.textContent = `${this.placedObjects.length} Assets`;
-    if (costEl) costEl.textContent = `$${totalCost.toLocaleString()}`;
+    const seatEl = this.container.querySelector('#assetSeatVal');
+    if (countEl) countEl.textContent = `${layout.items.length} Assets`;
+    if (costEl) costEl.textContent = formatMoney(layout.totalCost);
+    if (seatEl) seatEl.textContent = `${layout.seats} seats`;
+  }
+
+  updateInspectorPosition() {
+    const el = this.container.querySelector('.inspector-pos');
+    if (el && this.selectedMesh) {
+      el.textContent = `Position: X ${this.selectedMesh.position.x.toFixed(1)} | Z ${this.selectedMesh.position.z.toFixed(1)} (0.5 grid snapped)`;
+    }
   }
 
   updateInspectorUI() {
     const inspectorBox = this.container.querySelector('#objectInspectorBox');
     if (!inspectorBox) return;
 
-    if (this.selectedMesh) {
-      const data = this.selectedMesh.userData;
-      inspectorBox.innerHTML = `
-        <div class="inspector-card">
-          <div class="inspector-head">
-            <h4>📦 ${data.name}</h4>
-            <span class="type-badge">${data.type.toUpperCase()}</span>
-          </div>
-          <p class="inspector-pos">Position: X ${this.selectedMesh.position.x.toFixed(1)} | Z ${this.selectedMesh.position.z.toFixed(1)} (0.5 Grid Snapped)</p>
-          
-          <div class="inspector-swatches-title">Material & Fabric Color Swatches</div>
-          <div class="swatch-row">
-            ${this.swatches.map(s => `
-              <button class="swatch-btn ${this.activeSwatch.hex === s.hex ? 'active' : ''}" style="background-color: ${s.text}" data-hex="${s.hex}" title="${s.name}"></button>
-            `).join('')}
-          </div>
-
-          <div class="inspector-actions">
-            <button class="btn-insp btn-dup" id="btnDupMesh">📋 Duplicate</button>
-            <button class="btn-insp btn-del" id="btnDelMesh">🗑️ Delete</button>
-          </div>
-        </div>
-      `;
-
-      const swatchBtns = inspectorBox.querySelectorAll('.swatch-btn');
-      swatchBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const hexVal = Number(btn.getAttribute('data-hex'));
-          const found = this.swatches.find(s => s.hex === hexVal);
-          if (found) this.applySwatchToSelected(found);
-        });
-      });
-
-      const btnDup = inspectorBox.querySelector('#btnDupMesh');
-      if (btnDup) btnDup.addEventListener('click', () => this.duplicateSelectedMesh());
-
-      const btnDel = inspectorBox.querySelector('#btnDelMesh');
-      if (btnDel) btnDel.addEventListener('click', () => this.deleteSelectedMesh());
-    } else {
+    if (!this.selectedMesh) {
       inspectorBox.innerHTML = `
         <div class="inspector-placeholder">
-          <span>👆 Click any 3D asset in the room to edit color, texture, duplicate, or drag across 0.5-unit floor grid.</span>
+          <span>👆 Select any 3D asset in the room to recolour, duplicate, delete or drag it across the 0.5-unit floor grid.</span>
         </div>
       `;
+      return;
     }
+
+    const data = this.selectedMesh.userData;
+    const activeHex = data.swatchHex;
+    inspectorBox.innerHTML = `
+      <div class="inspector-card">
+        <div class="inspector-head">
+          <h4>📦 ${escapeHtml(data.name)}</h4>
+          <span class="type-badge">${escapeHtml(String(data.type).toUpperCase())}</span>
+        </div>
+        <p class="inspector-pos">Position: X ${this.selectedMesh.position.x.toFixed(1)} | Z ${this.selectedMesh.position.z.toFixed(1)} (0.5 grid snapped)</p>
+        <p class="inspector-cost">Indicative rental: <strong>${formatMoney(data.cost)}</strong></p>
+
+        <div class="inspector-swatches-title" id="swatchGroupLabel">Material &amp; fabric colour</div>
+        <div class="swatch-row" role="group" aria-labelledby="swatchGroupLabel">
+          ${this.swatches.map(s => `
+            <button type="button" class="swatch-btn ${activeHex === s.hex ? 'active' : ''}" style="background-color: ${s.text}" data-hex="${s.hex}" title="${escapeHtml(s.name)}" aria-label="Apply ${escapeHtml(s.name)}" aria-pressed="${activeHex === s.hex}"></button>
+          `).join('')}
+        </div>
+
+        <div class="inspector-actions">
+          <button type="button" class="btn-insp btn-dup" id="btnDupMesh">📋 Duplicate</button>
+          <button type="button" class="btn-insp btn-del" id="btnDelMesh">🗑️ Delete</button>
+        </div>
+      </div>
+    `;
+
+    inspectorBox.querySelectorAll('.swatch-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const hexVal = Number(btn.getAttribute('data-hex'));
+        const found = this.swatches.find(s => s.hex === hexVal);
+        if (found) this.applySwatchToSelected(found);
+      });
+    });
+
+    const btnDup = inspectorBox.querySelector('#btnDupMesh');
+    if (btnDup) btnDup.addEventListener('click', () => this.duplicateSelectedMesh());
+
+    const btnDel = inspectorBox.querySelector('#btnDelMesh');
+    if (btnDel) btnDel.addEventListener('click', () => this.deleteSelectedMesh());
   }
 
-  renderSwatches() {
-    this.updateInspectorUI();
-  }
+  // ------------------------------------------------------------- loop / life
 
-  // ⏸️ WebGL Loop Control & Garbage Collection Safety
   animate() {
     if (!this.animating) return;
+    this.rafHandle = requestAnimationFrame(this.animate);
 
-    requestAnimationFrame(() => this.animate());
-
-    const time = Date.now() * 0.0005;
-    const pointLight = this.scene ? this.scene.children.find(c => c.isPointLight) : null;
-    if (pointLight) {
-      pointLight.position.x = Math.sin(time) * 8;
-      pointLight.position.z = Math.cos(time) * 8;
+    if (this.pointLight) {
+      const t = Date.now() * 0.0005;
+      this.pointLight.position.x = Math.sin(t) * 8;
+      this.pointLight.position.z = Math.cos(t) * 8;
     }
-
+    if (this.controls) this.controls.update();
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
   }
 
   open() {
+    // Idempotent: a second open() while already open must not start a second loop.
+    if (this.renderer) return;
     this.render();
-    setTimeout(() => this.initThreeScene(), 50);
+    requestAnimationFrame(() => {
+      if (this.renderer) return;
+      this.initThreeScene();
+      this.updateStats();
+    });
   }
 
   close() {
-    this.animating = false; // Pause WebGL loop immediately
-    if (this.placedObjects) {
-      this.placedObjects.forEach(obj => this.disposeObject(obj));
+    this.animating = false;
+    if (this.rafHandle !== null) {
+      cancelAnimationFrame(this.rafHandle);
+      this.rafHandle = null;
     }
+
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+
+    this.unbindThreeEvents();
+
+    if (this.controls) {
+      this.controls.dispose();
+      this.controls = null;
+    }
+
+    if (this.scene) {
+      const seen = new Set();
+      this.disposeObject(this.scene, seen);
+      this.scene.environment = null;
+      this.scene.clear();
+    }
+
+    if (this.envTexture) { this.envTexture.dispose(); this.envTexture = null; }
+    if (this.pmrem) { this.pmrem.dispose(); this.pmrem = null; }
+
     if (this.renderer) {
       this.renderer.dispose();
+      this.renderer.forceContextLoss();
+      this.renderer.domElement = null;
       this.renderer = null;
     }
+
+    this.placedObjects = [];
+    this.floorObjects = [];
+    this.selectedMesh = null;
+    this.pendingDrag = null;
+    this.isDragging = false;
+    this.scene = null;
+    this.camera = null;
+    this.dirLight = null;
+    this.pointLight = null;
+    this.canvasHolder = null;
     this.container.innerHTML = '';
   }
 
+  // ------------------------------------------------------------------- view
+
   bindEvents() {
-    const btnAddTable = this.container.querySelector('#btnAddTable');
-    if (btnAddTable) btnAddTable.addEventListener('click', () => this.addTableMesh(0, 0, 'New Banquet Table'));
+    const spawn = (id, type) => {
+      const btn = this.container.querySelector(id);
+      if (btn) btn.addEventListener('click', () => this.spawnAsset(type));
+    };
+    spawn('#btnAddTable', 'table');
+    spawn('#btnAddStage', 'stage');
+    spawn('#btnAddPodium', 'podium');
+    spawn('#btnAddSound', 'sound');
 
-    const btnAddStage = this.container.querySelector('#btnAddStage');
-    if (btnAddStage) btnAddStage.addEventListener('click', () => this.addStageMesh(0, 0, 'New LED Stage'));
-
-    const btnAddPodium = this.container.querySelector('#btnAddPodium');
-    if (btnAddPodium) btnAddPodium.addEventListener('click', () => this.addPodiumMesh(0, 0, 'New Glass Podium'));
-
-    const btnAddSound = this.container.querySelector('#btnAddSound');
-    if (btnAddSound) btnAddSound.addEventListener('click', () => this.addSoundTowerMesh(0, 0, 'New Sound Tower'));
+    const setCamera = (pos, target) => {
+      if (!this.camera) return; // scene may not be initialised yet
+      this.camera.position.set(pos[0], pos[1], pos[2]);
+      if (this.controls) {
+        this.controls.target.set(target[0], target[1], target[2]);
+        this.controls.update();
+      } else {
+        this.camera.lookAt(target[0], target[1], target[2]);
+      }
+    };
 
     const btnCamTop = this.container.querySelector('#btnCamTop');
-    if (btnCamTop) btnCamTop.addEventListener('click', () => {
-      this.camera.position.set(0, 25, 0.1);
-      this.camera.lookAt(0, 0, 0);
-    });
+    if (btnCamTop) btnCamTop.addEventListener('click', () => setCamera([0, 30, 0.1], [0, 0, 0]));
 
     const btnCam3D = this.container.querySelector('#btnCam3D');
-    if (btnCam3D) btnCam3D.addEventListener('click', () => {
-      this.camera.position.set(0, 14, 18);
-      this.camera.lookAt(0, 0, 0);
-    });
+    if (btnCam3D) btnCam3D.addEventListener('click', () => setCamera([0, 14, 18], [0, 1, 0]));
+
+    const btnCamGuest = this.container.querySelector('#btnCamGuest');
+    if (btnCamGuest) btnCamGuest.addEventListener('click', () => setCamera([0, 3.2, 13], [0, 1.6, -8]));
 
     const btnClose = this.container.querySelector('#btnClose3DEditor');
     if (btnClose) btnClose.addEventListener('click', () => this.close());
@@ -695,45 +1099,42 @@ export class ThreeDLiveSpaceEditor {
   render() {
     this.container.innerHTML = `
       <div class="three-editor-modal-overlay">
-        <div class="three-editor-card">
-          <!-- Header -->
+        <div class="three-editor-card" role="dialog" aria-modal="true" aria-label="3D event space editor">
           <div class="three-editor-header">
             <div class="header-left">
-              <h2>🎮 Interactive 3D Real-Time Event Space Editor</h2>
-              <span class="editor-sub">Multi-mesh composites • 0.5-Unit Snap Grid • Live Text CanvasTextures</span>
+              <h2>🎮 Interactive 3D Event Space Editor</h2>
+              <span class="editor-sub">Orbit &amp; zoom • drag to reposition • 0.5-unit snap grid • live slogan textures</span>
             </div>
             <div class="header-right">
-              <div class="stats-pill">
-                <span id="assetCountVal">0 Assets</span> | <span id="assetCostVal" class="text-gold">$0</span>
+              <div class="stats-pill" title="Indicative rental for the assets currently on the floor">
+                <span id="assetCountVal">0 Assets</span> |
+                <span id="assetSeatVal">0 seats</span> |
+                <span id="assetCostVal" class="text-gold">${formatMoney(0)}</span>
               </div>
-              <button class="btn-close-editor" id="btnClose3DEditor">✕</button>
+              <button type="button" class="btn-close-editor" id="btnClose3DEditor" aria-label="Close 3D editor">✕</button>
             </div>
           </div>
 
-          <!-- Main Layout -->
           <div class="three-editor-workspace">
             <div class="asset-library-sidebar">
               <h3>📦 3D Asset Library</h3>
-              <p>Click item to spawn on 3D floor:</p>
+              <p>Click an item to place it on a free spot:</p>
 
               <div class="asset-buttons-grid">
-                <button class="asset-spawn-btn" id="btnAddTable">
-                  <span class="icon">🍽️</span>
-                  <span>Banquet Table & Surround Chairs</span>
+                <button type="button" class="asset-spawn-btn" id="btnAddTable">
+                  <span class="icon" aria-hidden="true">🍽️</span>
+                  <span>Banquet Table &amp; Chairs</span>
                 </button>
-
-                <button class="asset-spawn-btn" id="btnAddStage">
-                  <span class="icon">🎭</span>
-                  <span>LED Stage & Slogan Banner</span>
+                <button type="button" class="asset-spawn-btn" id="btnAddStage">
+                  <span class="icon" aria-hidden="true">🎭</span>
+                  <span>LED Stage &amp; Slogan Banner</span>
                 </button>
-
-                <button class="asset-spawn-btn" id="btnAddPodium">
-                  <span class="icon">🎤</span>
-                  <span>Glass Podium & Microphones</span>
+                <button type="button" class="asset-spawn-btn" id="btnAddPodium">
+                  <span class="icon" aria-hidden="true">🎤</span>
+                  <span>Glass Podium &amp; Microphones</span>
                 </button>
-
-                <button class="asset-spawn-btn" id="btnAddSound">
-                  <span class="icon">🔊</span>
+                <button type="button" class="asset-spawn-btn" id="btnAddSound">
+                  <span class="icon" aria-hidden="true">🔊</span>
                   <span>Line Array Sound Tower</span>
                 </button>
               </div>
@@ -741,24 +1142,23 @@ export class ThreeDLiveSpaceEditor {
               <div class="camera-views-box mt-3">
                 <h4>🎥 Camera Angles</h4>
                 <div class="cam-btns-row">
-                  <button class="cam-btn" id="btnCam3D">Perspective 3D</button>
-                  <button class="cam-btn" id="btnCamTop">Top 2D View</button>
+                  <button type="button" class="cam-btn" id="btnCam3D">Perspective</button>
+                  <button type="button" class="cam-btn" id="btnCamTop">Top View</button>
+                  <button type="button" class="cam-btn" id="btnCamGuest">Guest Eye</button>
                 </div>
               </div>
             </div>
 
-            <!-- Central 3D Canvas -->
             <div class="three-canvas-container">
               <div id="threeCanvasHolder" class="three-canvas-holder"></div>
               <div class="canvas-help-hint">
-                💡 Drag mouse on objects to move across 0.5-unit floor grid. Click any object to edit material swatches.
+                💡 Drag empty space to orbit, scroll to zoom. Tap or click an asset to select it, then drag to move it on the 0.5-unit grid.
               </div>
             </div>
 
-            <!-- Right Inspector Sidebar -->
             <div class="object-inspector-sidebar" id="objectInspectorBox">
               <div class="inspector-placeholder">
-                <span>👆 Click any 3D asset in the room to edit color, texture, duplicate, or drag across floor.</span>
+                <span>👆 Select any 3D asset in the room to recolour, duplicate, delete or drag it across the floor.</span>
               </div>
             </div>
           </div>

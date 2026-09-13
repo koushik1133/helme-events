@@ -1,17 +1,22 @@
 {
-  "name": "event-360",
+  "name": "helm-events-360",
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "description": "Helm Events 360° — interactive 4K venue previews, live decor swapping and instant INR cost quoting for luxury and Indian event production.",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite --port 3002 --strictPort --host",
     "build": "vite build",
-    "preview": "vite preview --port 3002 --strictPort"
+    "preview": "vite preview --port 3002 --strictPort",
+    "api": "node server.js",
+    "seed": "node -e \"const fs=require('node:fs');fs.copyFileSync('src/data/backend_db.seed.json','src/data/backend_db.json');console.log('Seeded src/data/backend_db.json')\""
   },
   "dependencies": {
-    "three": "^0.170.0",
-    "lucide": "^0.460.0",
-    "canvas-confetti": "^1.9.4"
+    "canvas-confetti": "^1.9.4",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "vite": "^6.0.0"

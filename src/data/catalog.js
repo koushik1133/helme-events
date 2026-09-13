@@ -1,9 +1,24 @@
+/**
+ * Item catalog — Helm Events rental inventory.
+ *
+ * MONEY UNIT: `price` is an INTEGER NUMBER OF RUPEES (INR), quoted **per unit,
+ * per event day**, exclusive of GST, transport and labour. No paise, no floats,
+ * no other currency. Format for display only, via `formatMoney` in
+ * `src/utils/format.js` (Indian lakh/crore grouping).
+ *
+ * Tiering is deliberate: budget < standard < premium < ultra-luxury, so the
+ * swapper tells a coherent upgrade story inside each category.
+ *
+ * Every `id` must be unique ACROSS categories — `getItemById()` scans every
+ * category and returns the first match, so a duplicate id makes the later copy
+ * unreachable dead data.
+ */
 export const ITEM_CATALOG = {
   chairs: [
     {
       id: 'chair-folding',
       name: 'Standard Folding Chair',
-      price: 8,
+      price: 40,
       category: 'chairs',
       description: 'Durable white resin folding chair with padded vinyl seat for outdoor event seating.',
       imageUrl: '/images/chair_folding_white.jpg',
@@ -13,7 +28,7 @@ export const ITEM_CATALOG = {
     {
       id: 'chair-chiavari-gold',
       name: 'Gold Chiavari Chair',
-      price: 18,
+      price: 250,
       category: 'chairs',
       description: 'Elegant metallic gold Chiavari chair with ivory velvet cushion for luxury galas and weddings.',
       imageUrl: '/images/chair_chiavari_gold.jpg',
@@ -23,7 +38,7 @@ export const ITEM_CATALOG = {
     {
       id: 'chair-velvet-armchair',
       name: 'Luxury Emerald Velvet Armchair',
-      price: 45,
+      price: 1200,
       category: 'chairs',
       description: 'Plush emerald green velvet lounge armchair with polished brass frame.',
       imageUrl: '/images/chair_velvet_armchair.jpg',
@@ -33,7 +48,7 @@ export const ITEM_CATALOG = {
     {
       id: 'chair-ghost',
       name: 'Modern Ghost Acrylic Chair',
-      price: 25,
+      price: 350,
       category: 'chairs',
       description: 'Sleek transparent polycarbonate ghost designer chair for minimalist modern events.',
       imageUrl: '/images/chair_ghost_acrylic.jpg',
@@ -43,7 +58,7 @@ export const ITEM_CATALOG = {
     {
       id: 'chair-throne',
       name: 'VIP Royal Mahogany Throne Chair',
-      price: 85,
+      price: 4500,
       category: 'chairs',
       description: 'High-back carved mahogany throne chair with hand-applied gold leaf accents.',
       imageUrl: '/images/chair_throne_mahogany.jpg',
@@ -53,7 +68,7 @@ export const ITEM_CATALOG = {
     {
       id: 'chair-maharaja-throne',
       name: 'Royal Maharaja Gold Throne Pair',
-      price: 250,
+      price: 18000,
       category: 'chairs',
       description: 'Hand-carved teakwood wedding throne with gold foil and red velvet cushions.',
       imageUrl: '/images/chair_maharaja_throne.jpg',
@@ -63,7 +78,7 @@ export const ITEM_CATALOG = {
     {
       id: 'chair-gaddi-baithak',
       name: 'Traditional Velvet Gaddi Baithak',
-      price: 120,
+      price: 6500,
       category: 'chairs',
       description: 'Low-floor royal gaddi seating with brocade bolsters and floor cushions.',
       imageUrl: '/images/chair_gaddi_baithak.jpg',
@@ -73,7 +88,7 @@ export const ITEM_CATALOG = {
     {
       id: 'chair-vvip-executive',
       name: 'Rally VVIP Cushioned Armchair',
-      price: 65,
+      price: 850,
       category: 'chairs',
       description: 'Heavy-duty VVIP high-back stage chair for political dignitaries & guest speakers.',
       imageUrl: '/images/chair_vvip_executive.jpg',
@@ -86,7 +101,7 @@ export const ITEM_CATALOG = {
     {
       id: 'sofa-royal-maharani',
       name: 'Royal Maharani Gold Velvet Sofa',
-      price: 350,
+      price: 22000,
       category: 'sofas',
       description: 'Hand-carved royal gold leaf sofa with plush crimson velvet seating for brides & VIP guests.',
       imageUrl: '/images/chair_maharaja_throne.jpg',
@@ -96,7 +111,7 @@ export const ITEM_CATALOG = {
     {
       id: 'sofa-modern-chesterfield',
       name: 'Luxury Leather Chesterfield Sofa',
-      price: 280,
+      price: 9500,
       category: 'sofas',
       description: 'Deep-button tufted Italian cognac leather 3-seater Chesterfield sofa.',
       imageUrl: '/images/chair_velvet_armchair.jpg',
@@ -106,7 +121,7 @@ export const ITEM_CATALOG = {
     {
       id: 'sofa-velvet-lounge',
       name: 'Velvet VIP Modular Lounge Sofa',
-      price: 220,
+      price: 14000,
       category: 'sofas',
       description: 'Curved sapphire blue velvet modular sectional sofa for high-end VIP lounges.',
       imageUrl: '/images/chair_velvet_armchair.jpg',
@@ -119,7 +134,7 @@ export const ITEM_CATALOG = {
     {
       id: 'stage-digital-podium',
       name: 'Acrylic LED Digital Summit Podium',
-      price: 1200,
+      price: 35000,
       category: 'podiums',
       description: 'High-tech digital podium with 24-inch HD teleprompter screen and goose-neck mic array.',
       imageUrl: '/images/stage_digital_podium.jpg',
@@ -129,7 +144,7 @@ export const ITEM_CATALOG = {
     {
       id: 'stage-bulletproof-podium',
       name: 'Grand Rally Stage & Bulletproof Glass Podium',
-      price: 2800,
+      price: 450000,
       category: 'podiums',
       description: 'Elevated political rally stage with bulletproof glass podium and official seals.',
       imageUrl: '/images/stage_bulletproof_podium.jpg',
@@ -139,7 +154,7 @@ export const ITEM_CATALOG = {
     {
       id: 'podium-wooden-presidential',
       name: 'Carved Mahogany Presidential Podium',
-      price: 450,
+      price: 9000,
       category: 'podiums',
       description: 'Classic solid mahogany wooden podium with carved seal emblem and brass reading light.',
       imageUrl: '/images/props/podium-wooden-presidential.png',
@@ -149,7 +164,7 @@ export const ITEM_CATALOG = {
     {
       id: 'podium-acrylic-modern',
       name: 'Sleek Clear Acrylic VIP Podium',
-      price: 380,
+      price: 6500,
       category: 'podiums',
       description: 'Ultra-clear minimalist acrylic podium with integrated LED edge lighting.',
       imageUrl: '/images/props/podium-acrylic-modern.png',
@@ -162,7 +177,7 @@ export const ITEM_CATALOG = {
     {
       id: 'table-round-standard',
       name: 'Standard Round Banquet Table',
-      price: 40,
+      price: 450,
       category: 'tables',
       description: '60-inch round banquet dining table with white floor-length linen.',
       imageUrl: '/images/table_round_standard.jpg',
@@ -172,7 +187,7 @@ export const ITEM_CATALOG = {
     {
       id: 'table-rustic-wood',
       name: 'Rustic Solid Oak Farmhouse Table',
-      price: 120,
+      price: 3500,
       category: 'tables',
       description: '8-foot handcrafted solid oak harvest table with matte protective finish.',
       imageUrl: '/images/table_rustic_wood.jpg',
@@ -182,7 +197,7 @@ export const ITEM_CATALOG = {
     {
       id: 'table-led-glass',
       name: 'Glass LED Illuminated Cocktail Table',
-      price: 250,
+      price: 4500,
       category: 'tables',
       description: 'Tempered glass table with programmable RGB ambient under-lighting.',
       imageUrl: '/images/table_led_glass.jpg',
@@ -192,7 +207,7 @@ export const ITEM_CATALOG = {
     {
       id: 'table-cocktail',
       name: 'Marble Cocktail High-Top Table',
-      price: 85,
+      price: 1400,
       category: 'tables',
       description: 'Carrara white marble top cocktail table with brushed brass pedestal base.',
       imageUrl: '/images/table_cocktail.jpg',
@@ -202,7 +217,7 @@ export const ITEM_CATALOG = {
     {
       id: 'table-antique-jhula',
       name: 'Carved Royal Wooden Jhula (Swing)',
-      price: 450,
+      price: 25000,
       category: 'tables',
       description: 'Handcrafted antique wooden swing setup with brass chains & fresh marigold garlands.',
       imageUrl: '/images/table_antique_jhula.jpg',
@@ -212,7 +227,7 @@ export const ITEM_CATALOG = {
     {
       id: 'table-summit-desk',
       name: 'Curved International Summit Desk',
-      price: 850,
+      price: 45000,
       category: 'tables',
       description: 'Curved wood veneer conference table with integrated mic units and digital monitors.',
       imageUrl: '/images/table_summit_desk.jpg',
@@ -225,7 +240,7 @@ export const ITEM_CATALOG = {
     {
       id: 'fountain-royal-marble',
       name: 'Royal Sculpted White Marble Fountain',
-      price: 1400,
+      price: 65000,
       category: 'fountains',
       description: 'Grand Renaissance-style carved white marble fountain with bronze spouts — plaza centerpiece.',
       imageUrl: '/images/fountain_royal_marble.jpg',
@@ -235,17 +250,17 @@ export const ITEM_CATALOG = {
     {
       id: 'fountain-tiered-stone',
       name: 'Classic Tiered Stone Fountain',
-      price: 650,
+      price: 18000,
       category: 'fountains',
       description: 'Three-tiered Mediterranean carved limestone water fountain feature.',
-      imageUrl: '/images/zone_stone_fountain_360.jpg',
+      imageUrl: '/images/fountain_royal_marble.jpg',
       panoramaUrl: '/images/variants/zone-fountain/fountain-tiered-stone.jpg',
       color: '#94a3b8'
     },
     {
       id: 'fountain-glass-waterfall',
       name: 'Modern Glass Waterfall Wall',
-      price: 950,
+      price: 35000,
       category: 'fountains',
       description: 'Architectural tempered glass water wall with underwater LED illumination.',
       imageUrl: '/images/fountain_glass_waterfall.jpg',
@@ -255,17 +270,17 @@ export const ITEM_CATALOG = {
     {
       id: 'fountain-dancing-jets',
       name: 'LED Dancing Water Jet Fountain',
-      price: 1850,
+      price: 185000,
       category: 'fountains',
       description: 'Choreographed multi-jet fountain with synchronized color-changing lasers.',
-      imageUrl: '/images/zone_dancing_jets_360.jpg',
+      imageUrl: '/images/fountain_glass_waterfall.jpg',
       panoramaUrl: '/images/variants/zone-fountain/fountain-dancing-jets.jpg',
       color: '#ec4899'
     },
     {
       id: 'fountain-black-granite',
       name: 'Black Granite Cube Fountain',
-      price: 1100,
+      price: 42000,
       category: 'fountains',
       description: 'Minimalist black granite cube with a calm water sheet and soft LED rim lighting.',
       imageUrl: '/images/fountain_black_granite.jpg',
@@ -275,7 +290,7 @@ export const ITEM_CATALOG = {
     {
       id: 'fountain-steel-sphere',
       name: 'Stainless Steel Sphere Fountain',
-      price: 1250,
+      price: 48000,
       category: 'fountains',
       description: 'Polished steel orb fountain with continuous water sheeting and cool white LEDs.',
       imageUrl: '/images/fountain_steel_sphere.jpg',
@@ -285,7 +300,7 @@ export const ITEM_CATALOG = {
     {
       id: 'fountain-brass-lotus',
       name: 'Brass Lotus Urli Fountain',
-      price: 980,
+      price: 22000,
       category: 'fountains',
       description: 'Floating brass lotus bowl with cascading water and warm amber petal lighting.',
       imageUrl: '/images/fountain_brass_lotus.jpg',
@@ -298,7 +313,7 @@ export const ITEM_CATALOG = {
     {
       id: 'fountain-horn-speakers',
       name: 'High-Output Rally Horn Speaker Array',
-      price: 600,
+      price: 12000,
       category: 'audio',
       description: 'Heavy-duty 360-degree horn loudspeaker towers for election crowd sound projection.',
       imageUrl: '/images/lighting_rally_highmast.jpg',
@@ -308,7 +323,7 @@ export const ITEM_CATALOG = {
     {
       id: 'audio-line-array',
       name: 'Concert Line-Array Speaker Towers',
-      price: 1800,
+      price: 65000,
       category: 'audio',
       description: 'Flown professional line-array PA system for large outdoor stages and rallies.',
       imageUrl: '/images/lighting_rally_highmast.jpg',
@@ -321,7 +336,7 @@ export const ITEM_CATALOG = {
     {
       id: 'stage-wooden-riser',
       name: 'Modular Wooden Riser Stage',
-      price: 350,
+      price: 28000,
       category: 'stages',
       description: '16x12ft carpeted wooden stage platform with skirt for presentations.',
       imageUrl: '/images/stage_wooden_riser.jpg',
@@ -331,7 +346,7 @@ export const ITEM_CATALOG = {
     {
       id: 'stage-led-arch',
       name: 'Concert LED Arch Truss Stage',
-      price: 1850,
+      price: 185000,
       category: 'stages',
       description: 'Professional aluminum truss stage with curved LED video arch and spotlights.',
       imageUrl: '/images/stage_led_arch.jpg',
@@ -341,42 +356,24 @@ export const ITEM_CATALOG = {
     {
       id: 'stage-royal-pavilion',
       name: 'Royal Velvet Pavilion Stage',
-      price: 2400,
+      price: 275000,
       category: 'stages',
       description: 'Elevated stage pavilion with velvet drapes, gold pillars, and crystal backdrop.',
       imageUrl: '/images/stage_royal_pavilion.jpg',
       panoramaUrl: '/images/zone_stage_360.jpg',
       color: '#800020'
     },
-    {
-      id: 'stage-bulletproof-podium',
-      name: 'Grand Rally Stage & Bulletproof Glass Podium',
-      price: 2800,
-      category: 'stages',
-      description: 'Elevated political rally stage with bulletproof glass podium and official seals.',
-      imageUrl: '/images/stage_bulletproof_podium.jpg',
-      panoramaUrl: '/images/india_election_360.jpg',
-      color: '#f97316'
-    },
+    // NOTE: `stage-bulletproof-podium` and `stage-digital-podium` live in `podiums`.
+    // They used to be duplicated here; the copies were unreachable via getItemById().
     {
       id: 'stage-royal-mandap',
       name: 'Carved Pillar Royal Wedding Mandap Stage',
-      price: 3500,
+      price: 325000,
       category: 'stages',
       description: 'Four-pillar carved wooden mandap stage with Haveli archways and sacred havan kund.',
       imageUrl: '/images/stage_royal_mandap.jpg',
       panoramaUrl: '/images/india_function_360.jpg',
       color: '#dc2626'
-    },
-    {
-      id: 'stage-digital-podium',
-      name: 'Acrylic LED Digital Summit Podium',
-      price: 1200,
-      category: 'stages',
-      description: 'High-tech digital podium with 24-inch HD teleprompter screen and goose-neck mic array.',
-      imageUrl: '/images/stage_digital_podium.jpg',
-      panoramaUrl: '/images/india_meeting_360.jpg',
-      color: '#2563eb'
     }
   ],
 
@@ -384,7 +381,7 @@ export const ITEM_CATALOG = {
     {
       id: 'backdrop-floral-wall',
       name: 'Rose & Hydrangea Floral Wall',
-      price: 550,
+      price: 25000,
       category: 'backdrops',
       description: '8x10ft dense silk rose and hydrangea flower wall photo backdrop.',
       imageUrl: '/images/backdrop_floral_wall.jpg',
@@ -394,7 +391,7 @@ export const ITEM_CATALOG = {
     {
       id: 'backdrop-hedge-wall',
       name: 'Greenery Boxwood Hedge Wall',
-      price: 380,
+      price: 18000,
       category: 'backdrops',
       description: 'Lush living greenery boxwood hedge backdrop with neon marquee sign.',
       imageUrl: '/images/backdrop_hedge_wall.jpg',
@@ -404,7 +401,7 @@ export const ITEM_CATALOG = {
     {
       id: 'backdrop-shimmer-sequin',
       name: 'Shimmer Sequined Gold Photo Wall',
-      price: 420,
+      price: 15000,
       category: 'backdrops',
       description: 'Interactive gold shimmer sequin wall that reflects ambient stage lights.',
       imageUrl: '/images/backdrop_shimmer_sequin.jpg',
@@ -414,7 +411,7 @@ export const ITEM_CATALOG = {
     {
       id: 'backdrop-marigold-garland',
       name: 'Fresh Yellow & Orange Marigold Garland Backdrop',
-      price: 650,
+      price: 35000,
       category: 'backdrops',
       description: 'Traditional fresh marigold and jasmine flower curtain with temple brass bells.',
       imageUrl: '/images/backdrop_marigold_garland.jpg',
@@ -424,7 +421,7 @@ export const ITEM_CATALOG = {
     {
       id: 'backdrop-election-flags',
       name: 'Tricolor Campaign Flag & Banner Wall',
-      price: 750,
+      price: 45000,
       category: 'backdrops',
       description: 'High-impact political rally marquee backdrop with party flags and slogan hoardings.',
       imageUrl: '/images/backdrop_election_flags.jpg',
@@ -434,7 +431,7 @@ export const ITEM_CATALOG = {
     {
       id: 'backdrop-seamless-led',
       name: 'Curved 4K Seamless Video Screen Wall',
-      price: 2500,
+      price: 350000,
       category: 'backdrops',
       description: '40ft ultra-fine pitch LED video wall backdrop for live broadcasts and presentations.',
       imageUrl: '/images/backdrop_seamless_led.jpg',
@@ -444,7 +441,7 @@ export const ITEM_CATALOG = {
     {
       id: 'screen-layout-center',
       name: 'Screen Layout: Center Wide Wall',
-      price: 2500,
+      price: 350000,
       category: 'backdrops',
       description: 'Full-width curved LED wall centered behind the podium — classic summit broadcast look.',
       imageUrl: '/images/backdrop_seamless_led.jpg',
@@ -454,7 +451,7 @@ export const ITEM_CATALOG = {
     {
       id: 'screen-layout-left',
       name: 'Screen Layout: Left Tower + Branding',
-      price: 2200,
+      price: 260000,
       category: 'backdrops',
       description: 'Tall LED tower on stage-left with a smaller center branding panel — asymmetric placement.',
       imageUrl: '/images/backdrop_election_flags.jpg',
@@ -464,7 +461,7 @@ export const ITEM_CATALOG = {
     {
       id: 'screen-layout-dual',
       name: 'Screen Layout: Dual Side Screens',
-      price: 2800,
+      price: 420000,
       category: 'backdrops',
       description: 'Paired left/right LED side screens flanking the stage with a narrower center brand panel.',
       imageUrl: '/images/backdrop_floral_wall.jpg',
@@ -474,7 +471,7 @@ export const ITEM_CATALOG = {
     {
       id: 'screen-layout-shimmer',
       name: 'Screen Layout: Shimmer Gold Photo Wall',
-      price: 1600,
+      price: 65000,
       category: 'backdrops',
       description: 'Gold sequin shimmer wall behind the stage instead of a full LED video wall.',
       imageUrl: '/images/backdrop_shimmer_sequin.jpg',
@@ -487,7 +484,7 @@ export const ITEM_CATALOG = {
     {
       id: 'lighting-fairy-canopy',
       name: 'Fairy Light Starlight Canopy',
-      price: 450,
+      price: 18000,
       category: 'lighting',
       description: '1,000 warm-white micro LED string lights draped into a ceiling canopy.',
       imageUrl: '/images/lighting_fairy_canopy.jpg',
@@ -497,7 +494,7 @@ export const ITEM_CATALOG = {
     {
       id: 'lighting-rgb-uplighting',
       name: 'Smart RGB Uplighting Package',
-      price: 280,
+      price: 9600,
       category: 'lighting',
       description: '12 wireless DMX battery uplights to wash perimeter walls in custom colors.',
       imageUrl: '/images/lighting_rgb_uplighting.jpg',
@@ -507,7 +504,7 @@ export const ITEM_CATALOG = {
     {
       id: 'lighting-chandeliers',
       name: 'Crystal Chandelier Array',
-      price: 850,
+      price: 75000,
       category: 'lighting',
       description: 'Trio of grand Swarovski crystal chandeliers on dimmable brass rigging.',
       imageUrl: '/images/lighting_chandeliers.jpg',
@@ -517,7 +514,7 @@ export const ITEM_CATALOG = {
     {
       id: 'lighting-rally-highmast',
       name: 'Rally Stadium High-Mast Floodlight Array',
-      price: 950,
+      price: 65000,
       category: 'lighting',
       description: 'Professional high-mast LED floodlights for illuminating night election rallies.',
       imageUrl: '/images/lighting_rally_highmast.jpg',
@@ -527,7 +524,7 @@ export const ITEM_CATALOG = {
     {
       id: 'lighting-temple-lanterns',
       name: 'Royal Palace Hanging Brass Lanterns',
-      price: 700,
+      price: 28000,
       category: 'lighting',
       description: 'Handcrafted antique brass hanging lanterns with warm amber candle glow.',
       imageUrl: '/images/lighting_temple_lanterns.jpg',
@@ -537,7 +534,7 @@ export const ITEM_CATALOG = {
     {
       id: 'fountain-brass-diyas',
       name: 'Grand Temple Brass Urli & Diya Cascade',
-      price: 450,
+      price: 22000,
       category: 'lighting',
       description: 'Multi-tiered floating lotus Urli with oil diyas and floating rose petals — ambient ceremonial lighting.',
       imageUrl: '/images/lighting_temple_lanterns.jpg',
@@ -547,10 +544,28 @@ export const ITEM_CATALOG = {
   ]
 };
 
-export function getItemById(id) {
+/** Flat id -> item index. Built once; throws loudly on a duplicate id. */
+const ITEM_INDEX = (() => {
+  const index = new Map();
   for (const cat in ITEM_CATALOG) {
-    const item = ITEM_CATALOG[cat].find(i => i.id === id);
-    if (item) return item;
+    for (const item of ITEM_CATALOG[cat]) {
+      if (index.has(item.id)) {
+        // Two entries with one id means the second is dead data nobody can reach.
+        console.error(`[catalog] duplicate item id "${item.id}" (category "${cat}") — ignored.`);
+        continue;
+      }
+      index.set(item.id, item);
+    }
   }
-  return null;
+  return index;
+})();
+
+export function getItemById(id) {
+  if (!id) return null;
+  return ITEM_INDEX.get(id) || null;
+}
+
+/** Every catalog item, flattened. Useful for search / totals. */
+export function allItems() {
+  return Array.from(ITEM_INDEX.values());
 }

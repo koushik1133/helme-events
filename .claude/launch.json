@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "helm-dev",
+      "runtimeExecutable": "/Users/koushikgoudshaganti/Desktop/Agency/Helm/node_modules/.bin/vite",
+      "runtimeArgs": ["--port", "3002", "--strictPort", "--host"],
+      "port": 3002
+    }
+  ]
+}

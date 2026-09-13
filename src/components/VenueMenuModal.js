@@ -1,5 +1,6 @@
 import { VENUE_ZONES } from '../data/zones.js';
-import { getItemById } from '../data/catalog.js';
+import { formatMoney, escapeHtml } from '../utils/format.js';
+import { buildQuote } from '../utils/quote.js';
 
 export class VenueMenuModal {
   constructor(containerElement, onSelectZone, activeSelections) {
@@ -25,15 +26,8 @@ export class VenueMenuModal {
   }
 
   calculateZoneCost(zone) {
-    let total = 0;
-    zone.slots.forEach(slot => {
-      const selectedItemId = this.activeSelections[slot.id] || slot.defaultItemId;
-      const item = getItemById(selectedItemId);
-      if (item) {
-        total += item.price * slot.quantity;
-      }
-    });
-    return total;
+    const bucket = buildQuote(this.activeSelections).zones.find(z => z.zoneId === zone.id);
+    return bucket ? bucket.zoneTotal : 0;
   }
 
   render() {
@@ -53,17 +47,23 @@ export class VenueMenuModal {
           </div>
 
           <div class="venue-menu-grid">
+            ${VENUE_ZONES.length === 0 ? `
+              <div class="venue-menu-empty">
+                <strong>No venue zones available.</strong>
+                <p>The venue catalogue could not be loaded. Reload the page or contact your Helm Events producer.</p>
+              </div>
+            ` : ''}
             ${VENUE_ZONES.map(zone => {
               const cost = this.calculateZoneCost(zone);
               return `
-                <div class="venue-menu-item-card" data-zone-id="${zone.id}">
+                <div class="venue-menu-item-card" data-zone-id="${zone.id}" tabindex="0" role="button" aria-label="Open ${escapeHtml(zone.name)} in the 360 studio">
                   <div class="venue-card-img-wrap">
-                    <img src="${zone.panoramaUrl}" alt="${zone.name}" class="venue-card-img" />
-                    <span class="venue-card-badge">$${cost.toLocaleString()}</span>
+                    <img src="${escapeHtml(zone.panoramaUrl)}" alt="${escapeHtml(zone.name)}" class="venue-card-img" />
+                    <span class="venue-card-badge">Decor from ${formatMoney(cost)}</span>
                   </div>
                   <div class="venue-card-body">
-                    <h4>${zone.name}</h4>
-                    <p>${zone.subtitle}</p>
+                    <h4>${escapeHtml(zone.name)}</h4>
+                    <p>${escapeHtml(zone.subtitle)}</p>
                     <button class="btn-menu-launch" data-zone-id="${zone.id}">
                       Enter 360° Studio →
                     </button>
@@ -99,12 +99,21 @@ export class VenueMenuModal {
 
     const itemCards = this.container.querySelectorAll('.venue-menu-item-card');
     itemCards.forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-menu-launch')) return;
+      const activate = () => {
         const zoneId = card.getAttribute('data-zone-id');
         this.close();
         if (zoneId && this.onSelectZone) {
           this.onSelectZone(zoneId);
+        }
+      };
+      card.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-menu-launch')) return;
+        activate();
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          activate();
         }
       });
     });

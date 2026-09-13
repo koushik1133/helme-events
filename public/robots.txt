@@ -1,0 +1,19 @@
+# Helm Events 360°
+#
+# Indexing is ALLOWED on purpose. Link-unfurling bots (Slackbot, LinkedIn,
+# WhatsApp, Twitterbot) honour robots.txt, and a `Disallow: /` here would kill
+# the Open Graph previews this site relies on when a demo link is shared.
+#
+# If this deployment ever becomes a private client-only demo, replace the block
+# below with `User-agent: *` / `Disallow: /` AND add
+# <meta name="robots" content="noindex"> to index.html — accepting that link
+# previews stop working.
+
+User-agent: *
+Allow: /
+
+# The local dev API surface is never deployed, but be explicit.
+Disallow: /api/
+
+# No Sitemap: directive — this is a single-page app with one URL, so a sitemap
+# would add nothing. Do not point at a sitemap.xml that does not exist.

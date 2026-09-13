@@ -1,0 +1,22 @@
+{
+  "name": "Helm Events 360°",
+  "short_name": "Helm 360",
+  "description": "Interactive 4K venue previews, live decor swapping and instant INR cost quoting for luxury and Indian event production.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "categories": ["business", "productivity", "lifestyle"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -2,3 +2,14 @@ node_modules
 dist
 .DS_Store
 *.log
+.vite
+.vercel
+
+# Live local API store (regenerate with: npm run seed)
+src/data/backend_db.json
+
+# Env / local overrides
+.env
+.env.*
+!.env.example
+*.local

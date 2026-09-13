@@ -1,5 +1,6 @@
 import { getItemById } from '../data/catalog.js';
 import { resolveScenePanorama, getPropImage, hasSceneVariant } from '../data/sceneVariants.js';
+import { formatMoney, escapeHtml } from '../utils/format.js';
 
 /**
  * Viewer360 — Pannellum equirectangular viewer with hotspot cards
@@ -23,6 +24,9 @@ export class Viewer360 {
     this._overlayBuilt       = false;
     this._loadGeneration     = 0;
     this._currentPanorama    = null;
+    this._overlayTimer       = null;
+    this._timeKey            = 'day';
+    this._engineFailed       = false;
   }
 
   loadZone(zoneData, activeSelectionsObj = {}, overridePanoramaUrl = null) {
@@ -45,7 +49,6 @@ export class Viewer360 {
     }
     this._currentPanorama = panoramaUrl;
 
-    this._stopLoop();
     this._destroyViewer();
     this._overlayBuilt = false;
 
@@ -53,6 +56,7 @@ export class Viewer360 {
       this._loadFallback(panoramaUrl, zoneData);
       return;
     }
+    this._engineFailed = false;
 
     this.container.innerHTML = '';
     this.container.style.position = 'relative';
@@ -81,13 +85,30 @@ export class Viewer360 {
       if (this._overlayEl?.parentNode) this._overlayEl.parentNode.removeChild(this._overlayEl);
       this._overlayEl = this._buildOverlay(zoneData);
       this.container.appendChild(this._overlayEl);
+      this._applyTimeOfDay();
       this._startLoop();
     };
 
     try {
       this.viewer.on('load', buildOverlay);
-    } catch (e) {}
-    setTimeout(buildOverlay, 900);
+      this.viewer.on('error', msg => {
+        if (myGen !== this._loadGeneration) return;
+        this._showEngineError(
+          'This 360° view could not be loaded.',
+          String(msg || 'The panorama image failed to decode.'),
+          panoramaUrl,
+          zoneData
+        );
+      });
+    } catch (e) { /* older Pannellum builds may not expose .on */ }
+
+    // Safety net: some builds never fire 'load'. Tracked so it can be cancelled
+    // on the next zone load instead of leaking a pending timer per swap.
+    if (this._overlayTimer) clearTimeout(this._overlayTimer);
+    this._overlayTimer = setTimeout(() => {
+      this._overlayTimer = null;
+      buildOverlay();
+    }, 900);
   }
 
   updatePanorama(newPanoramaUrl, selectionsOverride = null) {
@@ -113,8 +134,7 @@ export class Viewer360 {
           }
         });
       } else {
-        this.activeSelections.forEach((val, key) => { activeObj[key] = val; });
-        this.customWriting.forEach((val, key) => { activeObj[`custom_text_${key}`] = val; });
+        Object.assign(activeObj, this._selectionsAsObject());
       }
       this.loadZone(this.currentZone, activeObj, newPanoramaUrl);
 
@@ -147,7 +167,7 @@ export class Viewer360 {
     if (nameEl && item) nameEl.textContent = item.name;
 
     const priceEl = card.querySelector('.hs-card-price');
-    if (priceEl && item && slot) priceEl.textContent = `$${(item.price * slot.quantity).toLocaleString()}`;
+    if (priceEl && item && slot) priceEl.textContent = formatMoney(Math.round(item.price * slot.quantity));
 
     const writingEl = card.querySelector('.hs-card-writing');
     if (writingText) {
@@ -167,8 +187,20 @@ export class Viewer360 {
     const beacon = card.querySelector('.hs-beacon');
     if (beacon) beacon.className = `hs-beacon${isSwapped ? ' hs-beacon-swapped' : ''}`;
 
-    // Live prop ghost image near the hotspot
-    const prop = this._overlayEl.querySelector(`.hs-prop[data-slot-id="${slotId}"]`);
+    // Live prop ghost image near the hotspot. It may not exist yet: the overlay
+    // omits a sprite for items whose look is baked into the panorama, so
+    // swapping from a baked item to an unbaked one has to create it on the fly,
+    // otherwise the swap produces no visible change at all.
+    let prop = this._overlayEl.querySelector(`.hs-prop[data-slot-id="${slotId}"]`);
+    if (!prop && item && slot && !hasSceneVariant(this.currentZone?.id, slotId, newItemId)) {
+      prop = this._createProp(slot, item, newItemId);
+      if (prop) this._overlayEl.appendChild(prop);
+    }
+    if (prop && item && hasSceneVariant(this.currentZone?.id, slotId, newItemId)) {
+      // Now baked into the plate — don't draw it twice.
+      prop.remove();
+      prop = null;
+    }
     if (prop && item) {
       const propSrc = getPropImage(newItemId, item.imageUrl);
       const propImg = prop.querySelector('img');
@@ -208,7 +240,12 @@ export class Viewer360 {
     overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:50;overflow:visible;';
 
     // Live prop sprites only for slots without a baked 360 plate (avoid double-draw)
-    const PROP_CATEGORIES = new Set(['podiums', 'stages', 'chairs', 'tables', 'backdrops', 'fountains']);
+    // Every swappable category gets a live prop sprite. `lighting` and `audio`
+    // were missing, which is why zone-banquet and zone-lounge had slots where
+    // nothing at all changed on swap.
+    const PROP_CATEGORIES = new Set([
+      'podiums', 'stages', 'chairs', 'tables', 'backdrops', 'fountains', 'lighting', 'audio', 'sofas'
+    ]);
     zoneData.slots.forEach(slot => {
       if (!PROP_CATEGORIES.has(slot.category)) return;
       const selId = this.activeSelections.get(slot.id);
@@ -216,20 +253,8 @@ export class Viewer360 {
       if (!item) return;
       // Baked variant already encodes this element in the panorama
       if (hasSceneVariant(zoneData.id, slot.id, selId)) return;
-      const propSrc = getPropImage(selId, item.imageUrl);
-      if (!propSrc) return;
-
-      const swapped = selId !== slot.defaultItemId;
-      const scale = slot.propScale || 1;
-      const prop = document.createElement('div');
-      prop.className = `hs-prop${swapped ? ' hs-prop-swapped' : ''}`;
-      prop.setAttribute('data-slot-id', slot.id);
-      prop.setAttribute('data-pitch', slot.pos3D.pitch - 4);
-      prop.setAttribute('data-yaw', slot.pos3D.yaw);
-      prop.setAttribute('data-scale', String(scale));
-      prop.style.cssText = 'display:none;position:absolute;transform:translate(-50%,-70%);pointer-events:none;';
-      prop.innerHTML = `<img src="${propSrc}" alt="${item.name}" />`;
-      overlay.appendChild(prop);
+      const prop = this._createProp(slot, item, selId);
+      if (prop) overlay.appendChild(prop);
     });
 
     // Item slot cards
@@ -238,7 +263,7 @@ export class Viewer360 {
       const item    = getItemById(selId);
       const swapped = selId !== slot.defaultItemId;
       const writing = this.customWriting.get(slot.id);
-      const price   = item ? (item.price * slot.quantity).toLocaleString() : '0';
+      const price   = formatMoney(item ? Math.round(item.price * slot.quantity) : 0);
 
       const card = document.createElement('div');
       card.className  = 'hs-card';
@@ -250,13 +275,13 @@ export class Viewer360 {
       card.innerHTML = `
         <div class="hs-beacon${swapped ? ' hs-beacon-swapped' : ''}"></div>
         <div class="hs-card-inner">
-          <img class="hs-card-img" src="${item?.imageUrl || ''}" alt="${slot.label}" />
+          <img class="hs-card-img" src="${escapeHtml(item?.imageUrl || '')}" alt="${escapeHtml(slot.label)}" loading="lazy" />
           <div class="hs-card-info">
-            <span class="hs-card-label">${slot.label}</span>
-            <strong class="hs-card-name">${item?.name || '—'}</strong>
-            ${writing ? `<em class="hs-card-writing">✍️ "${writing}"</em>` : ''}
+            <span class="hs-card-label">${escapeHtml(slot.label)}</span>
+            <strong class="hs-card-name">${escapeHtml(item?.name || '—')}</strong>
+            ${writing ? `<em class="hs-card-writing">✍️ "${escapeHtml(writing)}"</em>` : ''}
           </div>
-          <div class="hs-card-price">$${price}</div>
+          <div class="hs-card-price">${price}</div>
         </div>
         <span class="hs-swap-badge">Tap to swap ↕</span>
       `;
@@ -301,6 +326,23 @@ export class Viewer360 {
     }
 
     return overlay;
+  }
+
+  /** Build one positioned prop sprite for a slot, or null if it has no artwork. */
+  _createProp(slot, item, itemId) {
+    const propSrc = getPropImage(itemId, item?.imageUrl);
+    if (!propSrc || !slot?.pos3D) return null;
+    const swapped = itemId !== slot.defaultItemId;
+    const scale = slot.propScale || 1;
+    const prop = document.createElement('div');
+    prop.className = `hs-prop${swapped ? ' hs-prop-swapped' : ''}`;
+    prop.setAttribute('data-slot-id', slot.id);
+    prop.setAttribute('data-pitch', slot.pos3D.pitch - 4);
+    prop.setAttribute('data-yaw', slot.pos3D.yaw);
+    prop.setAttribute('data-scale', String(scale));
+    prop.style.cssText = 'display:none;position:absolute;transform:translate(-50%,-70%);pointer-events:none;';
+    prop.innerHTML = `<img src="${escapeHtml(propSrc)}" alt="${escapeHtml(item.name)}" loading="lazy" />`;
+    return prop;
   }
 
   _updateCardPositions() {
@@ -368,6 +410,10 @@ export class Viewer360 {
 
   _destroyViewer() {
     this._stopLoop();
+    if (this._overlayTimer) {
+      clearTimeout(this._overlayTimer);
+      this._overlayTimer = null;
+    }
     if (this._overlayEl?.parentNode) {
       this._overlayEl.parentNode.removeChild(this._overlayEl);
       this._overlayEl = null;
@@ -378,18 +424,50 @@ export class Viewer360 {
     }
   }
 
-  toggleAutoRotate() {
-    this.autoRotate = !this.autoRotate;
-    if (this.viewer && typeof this.viewer.startAutoRotate === 'function') {
-      if (this.autoRotate) this.viewer.startAutoRotate(-2);
-      else this.viewer.stopAutoRotate();
-    }
+  /**
+   * Explicitly set auto-rotation. The guided tour needs to turn rotation ON
+   * regardless of the current state, which `toggleAutoRotate()` cannot do.
+   * @param {boolean} on
+   * @returns {boolean} the resulting state
+   */
+  setAutoRotate(on) {
+    this.autoRotate = Boolean(on);
+    if (!this.viewer) return this.autoRotate;
+    try {
+      if (this.autoRotate) {
+        if (typeof this.viewer.startAutoRotate === 'function') this.viewer.startAutoRotate(-2);
+      } else if (typeof this.viewer.stopAutoRotate === 'function') {
+        this.viewer.stopAutoRotate();
+      }
+    } catch (e) { /* viewer torn down mid-flight */ }
     return this.autoRotate;
   }
 
-  /** Soft day/night grade over the panorama canvas (CSS filter). */
+  toggleAutoRotate() {
+    return this.setAutoRotate(!this.autoRotate);
+  }
+
+  /**
+   * Soft day/night grade over the panorama canvas (CSS filter).
+   * The key is remembered and re-applied after every zone load / element swap,
+   * because Pannellum builds a brand new <canvas> each time.
+   */
   setTimeOfDay(timeKey = 'day') {
-    const canvas = this.container?.querySelector('canvas') || this.container;
+    this._timeKey = timeKey || 'day';
+    this._applyTimeOfDay();
+    return this._timeKey;
+  }
+
+  /** Current time-of-day key, so callers can restore UI state. */
+  getTimeOfDay() {
+    return this._timeKey;
+  }
+
+  _applyTimeOfDay() {
+    const timeKey = this._timeKey;
+    const canvas = this.container?.querySelector('canvas')
+      || this.container?.querySelector('.v360-fallback-img')
+      || this.container;
     if (!canvas) return;
     const filters = {
       dawn: 'brightness(0.95) saturate(1.15) hue-rotate(-8deg)',
@@ -401,11 +479,67 @@ export class Viewer360 {
     canvas.style.transition = 'filter 0.6s ease';
   }
 
+  /**
+   * Pannellum is loaded from a CDN. When that fails (blocked network, CSP,
+   * offline demo) we still show the venue photo, but we say plainly that this
+   * is a flat still and not the interactive 360 view — silently degrading to a
+   * photo while the UI still promises "360°" is exactly the kind of claim this
+   * product cannot afford to get caught making.
+   */
   _loadFallback(panoramaUrl, zoneData) {
+    this._engineFailed = true;
+    this._showEngineError(
+      '360° engine unavailable — showing a flat still',
+      'The Pannellum viewer could not be loaded (network, firewall or ad-blocker). '
+        + 'Panning, hotspots and live swaps are disabled until it loads. Reconnect and reload to restore them.',
+      panoramaUrl,
+      zoneData
+    );
+  }
+
+  /** Visible, accessible failure state layered over the still image. */
+  _showEngineError(title, detail, panoramaUrl, zoneData) {
+    this._stopLoop();
     this.container.innerHTML = `
-      <div style="position:relative;width:100%;height:100%;background:#090a0f;">
-        <img src="${panoramaUrl}" style="width:100%;height:100%;object-fit:cover;" alt="${zoneData.name}" />
+      <div class="v360-error" style="position:relative;width:100%;height:100%;background:#090a0f;overflow:hidden;">
+        <img class="v360-fallback-img" src="${escapeHtml(panoramaUrl || '')}"
+             alt="${escapeHtml(zoneData?.name || 'Venue')} — still photograph"
+             style="width:100%;height:100%;object-fit:cover;filter:brightness(0.55);" />
+        <div role="alert" aria-live="assertive"
+             style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(92%,460px);
+                    text-align:center;background:rgba(9,10,15,0.92);border:1px solid rgba(245,158,11,0.55);
+                    border-radius:14px;padding:20px 22px;color:#f8fafc;font-size:14px;line-height:1.5;
+                    box-shadow:0 18px 48px rgba(0,0,0,0.55);">
+          <div style="font-size:26px;line-height:1;margin-bottom:10px;" aria-hidden="true">⚠️</div>
+          <strong style="display:block;font-size:15px;margin-bottom:8px;color:#fbbf24;">${escapeHtml(title)}</strong>
+          <span style="display:block;opacity:0.85;">${escapeHtml(detail)}</span>
+          <button type="button" class="v360-error-retry"
+                  style="margin-top:14px;padding:9px 18px;border-radius:999px;border:1px solid rgba(248,250,252,0.35);
+                         background:transparent;color:#f8fafc;font:inherit;cursor:pointer;">
+            Retry
+          </button>
+        </div>
       </div>
     `;
+    const retry = this.container.querySelector('.v360-error-retry');
+    if (retry) {
+      retry.addEventListener('click', () => {
+        if (zoneData) this.loadZone(zoneData, this._selectionsAsObject(), panoramaUrl);
+      });
+    }
+    this._applyTimeOfDay();
+  }
+
+  /** Current selections (plus custom text) as the flat slotId -> itemId object. */
+  _selectionsAsObject() {
+    const obj = {};
+    this.activeSelections.forEach((val, key) => { obj[key] = val; });
+    this.customWriting.forEach((val, key) => { obj[`custom_text_${key}`] = val; });
+    return obj;
+  }
+
+  /** True when the 360 engine failed and the viewer is showing a flat still. */
+  isEngineAvailable() {
+    return !this._engineFailed && Boolean(this.viewer);
   }
 }

@@ -1,150 +1,90 @@
 import { defineConfig } from 'vite';
-import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createApiHandler } from './src/services/devApi.js';
 
-// Embedded API plugin so /api endpoints work in Vite dev server without external dependencies
-function apiDevPlugin() {
-  const dbPath = path.resolve(__dirname, 'src', 'data', 'backend_db.json');
+// ESM has no __dirname. `"type": "module"` is set in package.json, so derive it.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-  const getDb = () => {
-    try {
-      if (fs.existsSync(dbPath)) {
-        return JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-      }
-    } catch (e) {}
-    return {
-      state: {
-        activeSelections: {
-          'slot-stage-main': 'stage-led-arch',
-          'slot-table-banquet': 'table-round-standard',
-          'slot-chair-banquet': 'chair-chiavari-gold',
-          'slot-backdrop-photo': 'backdrop-marigold-garland',
-          'slot-lighting-main': 'lighting-chandeliers',
-          'slot-fountain-main': 'fountain-royal-marble',
-          'slot-sofa-lounge': 'sofa-royal-maharani',
-          'slot-podium-main': 'stage-digital-podium'
-        },
-        currentZoneId: 'zone-stage',
-        lastUpdated: new Date().toISOString()
-      },
-      swapHistory: [],
-      proposals: [],
-      vendors: [],
-      bookings: []
-    };
-  };
+const DB_PATH = path.resolve(__dirname, 'src', 'data', 'backend_db.json');
 
-  const saveDb = (data) => {
-    try {
-      const dir = path.dirname(dbPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (e) {}
+/**
+ * Mounts the local API (src/services/devApi.js) as dev-server middleware.
+ *
+ * This is the ONLY /api implementation in dev — there is no proxy fall-through
+ * any more, so unknown /api routes get a real 404 instead of a 500 from a
+ * connection-refused proxy. `npm run api` mounts the exact same handler on its
+ * own port for anyone who wants the API standalone.
+ *
+ * `configureServer` means none of this exists in the production build. The
+ * deployed app is a pure static SPA and persists to localStorage.
+ */
+function helmApiPlugin() {
+  const handleApi = createApiHandler({
+    dbPath: DB_PATH,
+    // Same-origin only. No wildcard CORS, ever.
+    allowedOrigins: []
+  });
+
+  const mount = (server) => {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url || !req.url.startsWith('/api/')) return next();
+      handleApi(req, res).catch((err) => {
+        console.error('[helm-api] Unhandled error:', err);
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: false, error: 'Internal server error' }));
+      });
+    });
   };
 
   return {
-    name: 'vite-plugin-helme-api',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        if (!req.url.startsWith('/api/')) return next();
-
-        const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-        const pathname = url.pathname;
-
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-
-        const db = getDb();
-
-        if (pathname === '/api/health') {
-          res.end(JSON.stringify({ status: 'ok', service: 'Helme Events 360 Embedded API' }));
-          return;
-        }
-
-        if (pathname === '/api/state' && req.method === 'GET') {
-          res.end(JSON.stringify({ success: true, data: db.state }));
-          return;
-        }
-
-        if (req.method === 'POST') {
-          let body = '';
-          req.on('data', chunk => { body += chunk; });
-          req.on('end', () => {
-            let data = {};
-            try { data = body ? JSON.parse(body) : {}; } catch (e) {}
-
-            if (pathname === '/api/state') {
-              if (data.activeSelections) db.state.activeSelections = { ...db.state.activeSelections, ...data.activeSelections };
-              if (data.currentZoneId) db.state.currentZoneId = data.currentZoneId;
-              db.state.lastUpdated = new Date().toISOString();
-              saveDb(db);
-              res.end(JSON.stringify({ success: true, data: db.state }));
-              return;
-            }
-
-            if (pathname === '/api/swap') {
-              const { slotId, itemId, itemTitle, zoneId, category } = data;
-              if (slotId && itemId) {
-                db.state.activeSelections[slotId] = itemId;
-                if (zoneId) db.state.currentZoneId = zoneId;
-                db.state.lastUpdated = new Date().toISOString();
-                db.swapHistory.unshift({
-                  id: `swap_${Date.now()}`,
-                  slotId, itemId, itemTitle, category: category || 'furniture', zoneId: zoneId || db.state.currentZoneId, timestamp: new Date().toISOString()
-                });
-                saveDb(db);
-                res.end(JSON.stringify({ success: true, message: `Backend updated: ${itemTitle || itemId}`, activeSelections: db.state.activeSelections }));
-                return;
-              }
-            }
-
-            if (pathname === '/api/proposals') {
-              const prop = { id: `prop_${Date.now()}`, ...data, createdAt: new Date().toISOString() };
-              db.proposals.unshift(prop);
-              saveDb(db);
-              res.end(JSON.stringify({ success: true, proposal: prop }));
-              return;
-            }
-
-            if (pathname === '/api/bookings') {
-              const booking = { id: `book_${Date.now()}`, ...data, status: 'confirmed', createdAt: new Date().toISOString() };
-              db.bookings.push(booking);
-              saveDb(db);
-              res.end(JSON.stringify({ success: true, booking }));
-              return;
-            }
-
-            res.end(JSON.stringify({ success: true, received: data }));
-          });
-          return;
-        }
-
-        if (pathname === '/api/activity' && req.method === 'GET') {
-          res.end(JSON.stringify({ success: true, swaps: db.swapHistory }));
-          return;
-        }
-
-        next();
-      });
-    }
+    name: 'vite-plugin-helm-api',
+    configureServer: mount,
+    // `npm run preview` now behaves like `npm run dev` instead of having no API.
+    configurePreviewServer: mount
   };
 }
 
 export default defineConfig({
-  plugins: [apiDevPlugin()],
+  // Absolute base ('/'). Deliberately NOT './': the Vercel SPA rewrite serves
+  // index.html for arbitrary paths, and relative asset URLs would resolve
+  // against the fake path and 404. Set an explicit base only if hosting
+  // genuinely moves to a subpath.
+  base: '/',
+  plugins: [helmApiPlugin()],
+
   server: {
     port: 3002,
-    open: false,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3011',
-        changeOrigin: true,
-        secure: false,
-        ws: true
+    strictPort: true,
+    open: false
+  },
+
+  preview: {
+    port: 3002,
+    strictPort: true
+  },
+
+  build: {
+    // NOT 'esnext'. esnext emits syntax that white-screens on any Safari/iOS or
+    // in-app browser a version behind — unacceptable for a demo opened on a
+    // client's own iPad. es2020 covers every browser from 2020 onward.
+    target: 'es2020',
+    sourcemap: false,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        // three.js is ~60% of the JS. Split it out so it is fetched only when
+        // the 3D editor is dynamically imported, and cached independently of
+        // app code.
+        manualChunks: {
+          three: ['three'],
+          confetti: ['canvas-confetti']
+        },
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]'
       }
     }
-  },
-  build: {
-    target: 'esnext'
   }
 });
