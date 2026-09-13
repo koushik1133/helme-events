@@ -11,7 +11,7 @@ import { Viewer360 } from './engine/Viewer360.js';
 import { AudioEngine } from './engine/AudioEngine.js';
 import { ApiService } from './services/apiService.js';
 import { K as STORAGE_KEYS, loadRaw, saveRaw } from './services/storage.js';
-import { formatMoney, escapeHtml } from './utils/format.js';
+import { formatMoney, formatNumber, escapeHtml } from './utils/format.js';
 
 // Original Components
 import { InteractiveMap } from './components/InteractiveMap.js';
@@ -343,7 +343,7 @@ class Event360App {
     this.vendorManager = new VendorManager(this.vendorContainer);
     this.inventoryTracker = new InventoryTracker(this.inventoryContainer);
     this.calendarBooking = new CalendarBooking(this.calendarContainer);
-    this.zoneNotes = new ZoneNotes(this.zoneNotesContainer);
+    this.zoneNotes = new ZoneNotes(this.zoneNotesContainer, () => this.currentZoneId);
     this.revenueAnalytics = new RevenueAnalytics(this.revenueContainer, this.activeSelections);
 
     // Phase 3: Visual & Experience
@@ -367,7 +367,7 @@ class Event360App {
       (selections) => {
         Object.assign(this.activeSelections, selections);
         this.updateAllComponents(this.activeSelections);
-        this.showToast('Mood board style matched and applied!');
+        this.showToast(`🎨 Colour match applied to ${Object.keys(selections).length} element(s) in this zone.`);
       }
     );
 
@@ -393,7 +393,7 @@ class Event360App {
       (selections) => {
         Object.assign(this.activeSelections, selections);
         this.updateAllComponents(this.activeSelections);
-        this.showToast('🤖 AI-Optimized budget configuration applied!');
+        this.showToast('Budget-optimised configuration applied.');
         confetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
       }
     );
@@ -404,7 +404,7 @@ class Event360App {
       (selections) => {
         Object.assign(this.activeSelections, selections);
         this.updateAllComponents(this.activeSelections);
-        this.showToast('📝 AI Event Brief recommendations applied!');
+        this.showToast('📝 Event brief applied to the zones in scope.');
         confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
       }
     );
@@ -1369,25 +1369,69 @@ class Event360App {
     }
   }
 
+  /**
+   * Instant Layout — build a complete, coherent venue configuration from the brief.
+   *
+   * This used to be "AI Auto-Builder": `Math.random()` over three presets, a toast
+   * claiming a "5,000-Guest Mega Layout" regardless of the actual brief, and a
+   * political slogan stamped onto every event including weddings. It is now a
+   * deterministic rule table driven by the shared event state — same inputs, same
+   * layout, every time — and it says so.
+   */
   runAIAutoBuilder() {
-    const presets = ['royal', 'cyber', 'garden'];
-    const randomPreset = presets[Math.floor(Math.random() * presets.length)];
-    this.applyThemePreset(randomPreset);
+    const brief = eventState.get();
+    const guests = eventState.getGuestCount();
+    const budget = eventState.getBudgetTarget();
 
-    this.activeSelections['custom_text_slot-election-podium'] = 'VISHAL JANSABHA 2026';
-    this.activeSelections['custom_text_slot-meeting-podium'] = 'GLOBAL TECH SUMMIT';
+    // Event type picks the design language; budget picks the tier within it.
+    const styleByType = {
+      wedding: 'royal',
+      political: 'royal',
+      corporate: 'cyber',
+      private: 'garden'
+    };
+    let preset = styleByType[brief.eventType] || 'royal';
+    // A stated budget below roughly ₹800 per guest can't carry the luxury tier.
+    if (budget > 0 && guests > 0 && budget / guests < 800) preset = 'minimal';
+
+    this.applyThemePreset(preset, { silent: true });
+
+    // Podium text only belongs on events that actually have a podium.
+    if (brief.eventType === 'political') {
+      this.activeSelections['custom_text_slot-election-podium'] =
+        (brief.eventName && brief.eventName !== 'Untitled Event') ? brief.eventName : 'Jansabha 2026';
+    }
+    if (brief.eventType === 'corporate') {
+      this.activeSelections['custom_text_slot-meeting-podium'] =
+        (brief.eventName && brief.eventName !== 'Untitled Event') ? brief.eventName : 'Annual Summit';
+    }
+
+    // Scale seating and table counts to the real headcount.
+    const SEATS_PER_TABLE = 10;
+    VENUE_ZONES.forEach(zone => {
+      zone.slots.forEach(slot => {
+        if (slot.category === 'chairs') slot.quantity = Math.max(1, guests);
+        if (slot.category === 'tables') slot.quantity = Math.max(1, Math.ceil(guests / SEATS_PER_TABLE));
+      });
+    });
 
     this.updateAllComponents(this.activeSelections);
-    this.showToast(`⚡ AI Auto-Builder generated 5,000-Guest Mega Layout (${randomPreset.toUpperCase()})!`);
+
+    const styleLabel = { royal: 'Royal Gold', cyber: 'Cyber Neon', garden: 'Garden Boho', minimal: 'Minimalist Platinum' }[preset];
+    this.showToast(`Built a ${styleLabel} layout for ${formatNumber(guests)} guests.`);
     confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
 
     if (this.notificationCenter) {
-      this.notificationCenter.addNotification('AI Builder Complete', `Generated ${randomPreset} preset for 5,000 guests.`, '⚡');
+      this.notificationCenter.addNotification(
+        'Instant Layout ready',
+        `${styleLabel} configuration for ${formatNumber(guests)} guests across ${VENUE_ZONES.length} zones.`,
+        '⚡'
+      );
       this.updateNotifBadge();
     }
   }
 
-  applyThemePreset(presetKey) {
+  applyThemePreset(presetKey, { silent = false } = {}) {
     let presetMap = {};
 
     switch (presetKey) {
@@ -1461,7 +1505,7 @@ class Event360App {
       this.viewer360.loadZone(zone, this.activeSelections);
     }
 
-    this.showToast(`✨ Applied ${presetKey.toUpperCase()} Theme Preset!`);
+    if (!silent) this.showToast(`✨ Applied the ${presetKey.toUpperCase()} design preset.`);
   }
 
   showToast(message) {
