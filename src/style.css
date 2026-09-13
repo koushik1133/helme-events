@@ -82,6 +82,11 @@
   --bg-over-media: rgba(15, 23, 42, 0.88);
   --border-terminal: rgba(255, 255, 255, 0.12);
 
+  /* Ink for surfaces that are hardcoded white by inline styles in component
+     templates (print areas, signature pads, QR sheets). Same in both themes. */
+  --ink-on-white: #1d1d1f;
+  --ink-on-white-muted: #5c5c61;
+
   /* Helm brand marks (not themed) */
   --brand-slate: #1c2b36;
   --brand-coral: #d0776c;
@@ -412,7 +417,7 @@ body {
 }
 
 .logo-subtitle {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
   font-weight: 500;
   white-space: nowrap;
@@ -544,7 +549,7 @@ body {
   right: -2px;
   background: var(--solid-rose);
   color: var(--on-rose);
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   width: 16px;
   height: 16px;
@@ -970,7 +975,7 @@ body {
   right: 8px;
   background: var(--solid-emerald);
   color: var(--on-emerald);
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
@@ -1154,7 +1159,7 @@ body {
   transform: translateX(-50%);
   background: var(--solid-emerald);
   color: var(--on-emerald);
-  font-size: 0.55rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   padding: 1px 4px;
   border-radius: var(--radius-xs);
@@ -1175,9 +1180,9 @@ body {
   cursor: pointer;
 }
 
-.hotspot-text .slot-label { font-size: 0.65rem; color: var(--text-muted); }
+.hotspot-text .slot-label { font-size: var(--fs-2xs); color: var(--text-muted); }
 .hotspot-text .item-name { font-size: 0.78rem; color: var(--text-main); font-weight: 700; }
-.hotspot-text .writing-badge { font-size: 0.68rem; color: var(--accent-gold); font-weight: 700; }
+.hotspot-text .writing-badge { font-size: var(--fs-2xs); color: var(--accent-gold); font-weight: 700; }
 .hotspot-text .item-price { font-size: 0.72rem; color: var(--accent-emerald); font-weight: 700; }
 
 .hud-top-bar {
@@ -1247,7 +1252,7 @@ body {
 }
 
 .drawer-title small {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
 }
 
@@ -1273,7 +1278,7 @@ body {
 }
 
 .slot-writing-tag {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--accent-gold);
   font-weight: 700;
   margin-top: 2px;
@@ -1401,7 +1406,7 @@ body {
 }
 
 .text-presets small {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
 }
 
@@ -1409,7 +1414,7 @@ body {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   color: var(--text-main);
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   padding: 2px 8px;
   border-radius: var(--radius-xs);
   cursor: pointer;
@@ -2482,7 +2487,7 @@ body {
 }
 
 .item-slot-label {
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
 }
 
@@ -2577,7 +2582,7 @@ body {
   right: -4px;
   background: var(--solid-rose);
   color: var(--on-rose);
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   width: 16px;
   height: 16px;
@@ -3231,9 +3236,9 @@ body {
 
 @media (max-width: 480px) {
   .logo-title { font-size: 0.85rem; }
-  .nav-tab, .time-btn, .india-mode-btn { padding: 3px 6px; font-size: 0.68rem; }
-  .preset-select { font-size: 0.68rem; padding: 3px 6px; }
-  .node-price-tag { font-size: 0.65rem; }
+  .nav-tab, .time-btn, .india-mode-btn { padding: 3px 6px; font-size: var(--fs-2xs); }
+  .preset-select { font-size: var(--fs-2xs); padding: 3px 6px; }
+  .node-price-tag { font-size: var(--fs-2xs); }
   .photo-node-button { padding: 2px 4px; }
   .node-thumb { width: 22px; height: 22px; }
 
@@ -3581,7 +3586,7 @@ body {
   background: var(--scrim);
   backdrop-filter: blur(10px);
   color: var(--accent-gold);
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 3px 8px;
   border-radius: var(--radius-pill);
@@ -3606,7 +3611,7 @@ body {
   right: 8px;
   background: rgba(0, 0, 0, 0.8);
   color: var(--text-on-media);
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   padding: 3px 8px;
   border-radius: var(--radius-pill);
@@ -3764,12 +3769,12 @@ body {
   z-index: var(--z-modal);
 }
 
-/* `:empty` breaks on a stray whitespace text node; guard on content instead. */
-#threeDEditorContainer:empty,
-#threeDEditorContainer.hidden,
-#threeDEditorContainer:not(:has(*)) {
-  display: none;
-}
+/* `:empty` breaks on a stray whitespace text node; `.hidden` is the explicit
+   escape hatch. Kept as SEPARATE rules — one unsupported selector in a list
+   invalidates the whole list. */
+#threeDEditorContainer:empty { display: none; }
+#threeDEditorContainer.hidden { display: none; }
+#threeDEditorContainer:not(:has(*)) { display: none; }
 
 #colorThemeContainer {
   position: relative;
@@ -4080,7 +4085,7 @@ body {
 .type-badge {
   background: rgba(99, 102, 241, 0.15);
   color: var(--accent-indigo);
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
@@ -4248,7 +4253,7 @@ body {
 }
 
 .hs-card-label {
-  font-size: 0.58rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -4266,7 +4271,7 @@ body {
 }
 
 .hs-card-writing {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   color: var(--accent-gold);
   white-space: nowrap;
   overflow: hidden;
@@ -4287,7 +4292,7 @@ body {
 .hs-swap-badge {
   display: block;
   text-align: center;
-  font-size: 0.55rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--text-on-media-dim);
   background: rgba(0,0,0,0.5);
@@ -4424,7 +4429,7 @@ body {
   color: var(--accent-indigo);
   border: 1px solid var(--border-indigo);
   border-radius: 100px;
-  font-size: 0.67rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 3px 10px;
   width: fit-content;
@@ -4498,7 +4503,7 @@ body {
 }
 
 .ism-current-label {
-  font-size: 0.63rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -4543,7 +4548,7 @@ body {
 }
 
 .ism-qty {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   color: var(--text-dim);
 }
 
@@ -4602,7 +4607,7 @@ body {
   left: 8px;
   background: var(--solid-gold);
   color: var(--on-gold);
-  font-size: 0.58rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 100px;
@@ -4616,7 +4621,7 @@ body {
   right: 8px;
   background: var(--solid-sky);
   color: var(--on-sky);
-  font-size: 0.55rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 100px;
@@ -4626,7 +4631,7 @@ body {
 
 .ism-option-qty-hint {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -4698,7 +4703,7 @@ body {
 }
 
 .ism-option-desc {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--text-dim);
   margin: 0;
   display: -webkit-box;
@@ -4724,7 +4729,7 @@ body {
 }
 
 .ism-diff {
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 6px;
@@ -4906,7 +4911,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.55rem;
+  font-size: var(--fs-2xs);
   color: var(--text-on-media);
   line-height: 1;
 }
@@ -4971,7 +4976,7 @@ body {
 }
 
 .hs-label {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
@@ -4988,7 +4993,7 @@ body {
 }
 
 .hs-writing {
-  font-size: 0.68rem;
+  font-size: var(--fs-2xs);
   color: var(--accent-gold);
   font-weight: 600;
 }
@@ -5000,7 +5005,7 @@ body {
 }
 
 .hs-swap-hint {
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   color: var(--accent-indigo);
   font-weight: 700;
   background: var(--tint-indigo);
@@ -5021,7 +5026,7 @@ body {
 .fallback-dot-label {
   background: rgba(0,0,0,0.7);
   color: var(--text-on-media);
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
@@ -5135,7 +5140,7 @@ body {
 }
 
 .nav-tooltip-tag {
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   letter-spacing: 0.8px;
   color: var(--accent-sky);
@@ -6500,4 +6505,170 @@ summary:focus-visible,
 
   table, figure, .invoice-row, .contract-clause { break-inside: avoid; }
   h1, h2, h3, h4 { break-after: avoid; }
+}
+
+
+/* ==========================================================================
+   20. GLOBAL NAV SEARCH RESULTS + REMAINING NAV HOOKS
+   ========================================================================== */
+
+.nav-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-ms);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-search-result {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "kind label" "kind detail";
+  align-items: center;
+  gap: 2px var(--space-2);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.nav-search-result:hover,
+.nav-search-result.is-active {
+  background: var(--bg-surface-hover);
+}
+
+.nsr-kind {
+  grid-area: kind;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-indigo);
+  background: var(--tint-indigo);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.nsr-label {
+  grid-area: label;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.nsr-detail {
+  grid-area: detail;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+/* Nav buttons that had no style hook of their own. */
+.btn-3d-editor {
+  background: linear-gradient(135deg, var(--solid-violet), var(--solid-indigo));
+  color: var(--on-indigo);
+  border: none;
+  font-weight: 600;
+}
+
+.btn-3d-editor:hover { opacity: 0.94; }
+
+.btn-venue-menu,
+.btn-cart-nav,
+.btn-sound-toggle {
+  background: var(--bg-surface);
+  color: var(--text-main);
+}
+
+.nav-tab-ai-ops.active { color: var(--accent-violet); }
+
+.theme-mode-label { font-size: var(--fs-2xs); font-weight: 600; }
+
+.item-icon { font-size: var(--fs-md); line-height: 1; }
+
+.hud-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.hud-hint {
+  font-size: var(--fs-2xs);
+  color: var(--text-on-media-dim);
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   21. TYPE FLOOR
+   Nothing in a client demo may render below 11px.
+   ========================================================================== */
+.hs-swap-badge,
+.hs-card-label,
+.nav-tooltip-tag,
+.ism-active-badge,
+.ism-scene-badge,
+.notif-badge,
+.ism-qty,
+.ism-current-label {
+  font-size: var(--fs-2xs);
+}
+
+
+/* ==========================================================================
+   22. SAFETY NET FOR INLINE WHITE PANELS
+   Several component templates hardcode `background: white | #fff | #f8fafc`
+   inline while their text inherits `color: var(--text-main)`, which in the
+   DEFAULT dark theme is #f5f5f7 — white on white, 1.09:1, invisible.
+   The real fix belongs in those templates (filed as a request); this rule
+   guarantees legibility in the meantime. Inline background wins over an
+   inline-free colour, so only `color` is forced here.
+   ========================================================================== */
+
+[style*="background: white"],
+[style*="background:white"],
+[style*="background: #fff"],
+[style*="background:#fff"],
+[style*="background: #ffffff"],
+[style*="background:#ffffff"],
+[style*="background: #f8fafc"],
+[style*="background:#f8fafc"],
+[style*="background: #e2e8f0"],
+[style*="background:#e2e8f0"] {
+  color: var(--ink-on-white);
+}
+
+[style*="background: white"] h1, [style*="background:white"] h1,
+[style*="background: white"] h2, [style*="background:white"] h2,
+[style*="background: white"] h3, [style*="background:white"] h3,
+[style*="background: white"] h4, [style*="background:white"] h4,
+[style*="background: white"] strong, [style*="background:white"] strong,
+[style*="background: #f8fafc"] h1, [style*="background:#f8fafc"] h1,
+[style*="background: #f8fafc"] h2, [style*="background:#f8fafc"] h2,
+[style*="background: #f8fafc"] h3, [style*="background:#f8fafc"] h3,
+[style*="background: #f8fafc"] h4, [style*="background:#f8fafc"] h4,
+[style*="background: #f8fafc"] strong, [style*="background:#f8fafc"] strong,
+[style*="background: #fff"] h3, [style*="background:#fff"] h3,
+[style*="background: #fff"] strong, [style*="background:#fff"] strong {
+  color: var(--ink-on-white);
+}
+
+[style*="background: white"] p, [style*="background:white"] p,
+[style*="background: white"] small, [style*="background:white"] small,
+[style*="background: #f8fafc"] p, [style*="background:#f8fafc"] p,
+[style*="background: #f8fafc"] small, [style*="background:#f8fafc"] small {
+  color: var(--ink-on-white-muted);
 }

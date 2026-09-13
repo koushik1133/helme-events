@@ -57,6 +57,7 @@ import { BudgetOptimizer } from './components/BudgetOptimizer.js';
 import { EventBriefGenerator } from './components/EventBriefGenerator.js';
 import { CustomEventBriefWizard } from './components/CustomEventBriefWizard.js';
 import { N8nArchitectureWorkflow } from './components/N8nArchitectureWorkflow.js';
+import { EventDetailsPanel } from './components/EventDetailsPanel.js';
 
 class Event360App {
   constructor() {
@@ -152,6 +153,7 @@ class Event360App {
     this.testimonialContainer = document.getElementById('testimonialContainer');
     this.playlistContainer = document.getElementById('playlistContainer');
     this.n8nOpsContainer = document.getElementById('n8nOpsContainer');
+    this.eventDetailsContainer = document.getElementById('eventDetailsContainer');
 
     // New modal containers
     this.colorThemeContainer = document.getElementById('colorThemeContainer');
@@ -335,7 +337,7 @@ class Event360App {
     this.inventoryTracker = new InventoryTracker(this.inventoryContainer);
     this.calendarBooking = new CalendarBooking(this.calendarContainer);
     this.zoneNotes = new ZoneNotes(this.zoneNotesContainer);
-    this.revenueAnalytics = new RevenueAnalytics(this.revenueContainer);
+    this.revenueAnalytics = new RevenueAnalytics(this.revenueContainer, this.activeSelections);
 
     // Phase 3: Visual & Experience
     this.weatherSimulator = new WeatherSimulator(
@@ -444,6 +446,13 @@ class Event360App {
     // Phase 5: AI & Ops Architecture
     this.n8nArchitecture = new N8nArchitectureWorkflow(this.n8nOpsContainer);
 
+    this.eventDetailsPanel = new EventDetailsPanel(this.eventDetailsContainer, (details) => {
+      this.showToast(`Saved: ${details.eventName} — ${details.guestCount} guests`);
+      // Every planning component subscribes to eventState and re-renders itself;
+      // this refresh is only for the catalogue-driven surfaces.
+      this.updateAllComponents(this.activeSelections);
+    });
+
     // Update notification badge
     this.updateNotifBadge();
   }
@@ -503,6 +512,15 @@ class Event360App {
 
     if (this.btnOpen3DEditor) {
       this.btnOpen3DEditor.addEventListener('click', () => this.open3DEditor());
+    }
+
+    const btnEventDetails = document.getElementById('btnEventDetails');
+    if (btnEventDetails) {
+      btnEventDetails.addEventListener('click', () => {
+        this._lastTrigger = btnEventDetails;
+        this.noteModalOpened('eventDetailsPanel');
+        this.eventDetailsPanel.open();
+      });
     }
 
     if (this.btnSoundToggle) {
@@ -849,6 +867,7 @@ class Event360App {
         break;
       case 'revenue':
         this.activateSection(this.revenueContainer);
+        if (this.revenueAnalytics.updateSelections) this.revenueAnalytics.updateSelections(this.activeSelections);
         if (this.revenueAnalytics.render) this.revenueAnalytics.render();
         break;
       case 'testimonials':
@@ -1144,6 +1163,7 @@ class Event360App {
       ['eventBriefGenerator', this.eventBriefGenerator, this.briefGenContainer],
       ['customEventBriefWizard', this.customEventBriefWizard, this.customBriefWizardContainer],
       ['threeDLiveSpaceEditor', this.threeDLiveSpaceEditor, this.threeDEditorContainer],
+      ['eventDetailsPanel', this.eventDetailsPanel, this.eventDetailsContainer],
       ['swapperModal', this.swapperModal, this.swapperContainer],
       ['venueMenuModal', this.venueMenuModal, this.venueMenuContainer],
       ['cartPaymentModal', this.cartPaymentModal, this.cartModalContainer]
