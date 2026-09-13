@@ -116,7 +116,7 @@ export class CostCard {
           </div>
 
           <div class="drawer-footer">
-            <span>${VENUE_ZONES.length} Photorealistic 360° Zones • Live Price Sync</span>
+            <span>${zoneBreakdown.length} of ${VENUE_ZONES.length} zones in scope for this event • Live price sync</span>
             <strong>Subtotal (excl. GST): ${formatMoney(grandTotal)}</strong>
           </div>
         </div>

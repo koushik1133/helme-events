@@ -95,6 +95,9 @@ export class NotificationCenter {
     if (!badge) return;
     const count = this.getUnreadCount();
     badge.textContent = count > 0 ? String(count) : '';
+    // index.html ships the badge with the `hidden` attribute so nothing flashes
+    // before JS runs; keep both in sync.
+    badge.hidden = count === 0;
     badge.style.display = count > 0 ? 'flex' : 'none';
   }
 

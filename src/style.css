@@ -2183,15 +2183,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   font-size: 0.7rem;
   font-weight: 700;
+  overflow: hidden;
 }
 
-.b-stage { background: var(--solid-violet); }
-.b-audio { background: var(--accent-indigo); }
-.b-decor { background: var(--accent-gold); }
-.b-chairs { background: var(--accent-emerald); }
+/* Each fill carries its own legible foreground (was a blanket `color: white`,
+   which gave 1.41:1 on the gold segment). */
+.b-stage  { background: var(--solid-violet);  color: var(--on-violet); }
+.b-audio  { background: var(--solid-indigo);  color: var(--on-indigo); }
+.b-decor  { background: var(--solid-gold);    color: var(--on-gold); }
+.b-chairs { background: var(--solid-emerald); color: var(--on-emerald); }
 
 /* ==========================================================================
    11. PROPOSALS MANAGER
@@ -2382,8 +2384,8 @@ body {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
-  background: var(--accent-emerald);
-  color: white;
+  background: var(--solid-emerald);
+  color: var(--on-emerald);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 4px 8px;

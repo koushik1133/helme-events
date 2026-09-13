@@ -21,6 +21,7 @@ import {
   SELLER_STATE,
   GST_RATE
 } from './format.js';
+import { zonesInScope } from '../data/eventState.js';
 
 /* ------------------------------------------------------------------ seller */
 
@@ -114,9 +115,17 @@ export function resolveItemId(selection, fallbackId) {
  * Walk VENUE_ZONES (never Object.entries(selections) — that also contains
  * `custom_text_*` keys) and build the priced line items.
  */
-export function buildQuoteLines(activeSelections = {}) {
+export function buildQuoteLines(activeSelections = {}, options = {}) {
   const lines = [];
-  VENUE_ZONES.forEach(zone => {
+  // Only the zones this event actually uses. Quoting all 8 put an election rally
+  // stage on every wedding invoice.
+  const allZoneIds = VENUE_ZONES.map(z => z.id);
+  const scope = Array.isArray(options.zoneIds) && options.zoneIds.length
+    ? options.zoneIds
+    : zonesInScope(allZoneIds);
+  const inScope = new Set(scope);
+
+  VENUE_ZONES.filter(zone => inScope.has(zone.id)).forEach(zone => {
     zone.slots.forEach(slot => {
       const itemId = resolveItemId(activeSelections[slot.id], slot.defaultItemId);
       const item = getItemById(itemId);
@@ -165,7 +174,7 @@ export function paymentSchedule(total) {
  */
 export function buildQuote(activeSelections = {}, options = {}) {
   const buyerState = options.buyerState || SELLER_STATE;
-  const lines = buildQuoteLines(activeSelections);
+  const lines = buildQuoteLines(activeSelections, options);
   const subtotal = sumLines(lines);
   const gst = computeGst(subtotal, buyerState);
   const grandTotal = subtotal + gst.total;

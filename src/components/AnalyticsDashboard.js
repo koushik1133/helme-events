@@ -1,4 +1,5 @@
 import { VENUE_ZONES } from '../data/zones.js';
+import { zonesInScope } from '../data/eventState.js';
 import { getItemById } from '../data/catalog.js';
 import { formatMoney, formatNumber, escapeHtml } from '../utils/format.js';
 import { eventState } from '../data/eventState.js';
@@ -69,7 +70,10 @@ export class AnalyticsDashboard {
     let audioUnits = 0;
     const byCategory = {};
 
-    VENUE_ZONES.forEach(zone => {
+    // Only the zones this event actually uses — the dashboard used to average in
+    // the election rally and the summit podium for a wedding.
+    const inScope = new Set(zonesInScope(VENUE_ZONES.map(z => z.id)));
+    VENUE_ZONES.filter(zone => inScope.has(zone.id)).forEach(zone => {
       zone.slots.forEach(slot => {
         const itemId = this.activeSelections[slot.id] || slot.defaultItemId;
         const item = getItemById(itemId);

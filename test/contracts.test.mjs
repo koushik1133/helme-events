@@ -186,3 +186,45 @@ test('readJSON survives corrupt storage instead of throwing', () => {
   assert.equal(readJSON('missing', 'fallback'), 'fallback');
   delete globalThis.localStorage;
 });
+
+// -------------------------------------------------------- event scoping
+
+test('a quote only includes the zones the event actually uses', async () => {
+  const { eventState, zonesInScope, ZONES_BY_EVENT_TYPE } = await import('../src/data/eventState.js');
+  const allZoneIds = VENUE_ZONES.map(z => z.id);
+
+  for (const type of Object.keys(ZONES_BY_EVENT_TYPE)) {
+    eventState.set({ eventType: type, scopeZoneIds: null });
+    const scope = zonesInScope(allZoneIds);
+    assert.ok(scope.length > 0, `${type}: scope must never be empty`);
+    assert.ok(scope.length < allZoneIds.length, `${type}: scope should be narrower than the whole venue`);
+
+    const q = buildQuote(defaultSelections(), { buyerState: 'Telangana' });
+    for (const line of q.lines) {
+      assert.ok(scope.includes(line.zoneId),
+        `${type}: quote contains ${line.zoneId}, which is not in scope`);
+    }
+  }
+});
+
+test('a wedding is never quoted for the election rally stage', async () => {
+  const { eventState } = await import('../src/data/eventState.js');
+  eventState.set({ eventType: 'wedding', scopeZoneIds: null });
+  const q = buildQuote(defaultSelections(), { buyerState: 'Telangana' });
+  assert.ok(!q.lines.some(l => l.zoneId === 'zone-india-election'),
+    'a wedding quote must not include the political rally zone');
+  assert.ok(q.lines.some(l => l.zoneId === 'zone-india-function'),
+    'a wedding quote should include the mandap zone');
+});
+
+test('an explicit zone scope overrides the event type', async () => {
+  const { eventState, zonesInScope } = await import('../src/data/eventState.js');
+  const allZoneIds = VENUE_ZONES.map(z => z.id);
+  eventState.set({ eventType: 'wedding', scopeZoneIds: ['zone-stage'] });
+  assert.deepEqual(zonesInScope(allZoneIds), ['zone-stage']);
+
+  // An all-invalid override must fall back rather than quote nothing.
+  eventState.set({ scopeZoneIds: ['zone-does-not-exist'] });
+  assert.ok(zonesInScope(allZoneIds).length > 0, 'scope must never collapse to empty');
+  eventState.set({ scopeZoneIds: null });
+});

@@ -74,6 +74,7 @@ const DEFAULTS = Object.freeze({
   endDate: '',
   guestCount: 250,
   budgetTarget: 0, // INTEGER RUPEES
+  scopeZoneIds: null, // null = derive from eventType; an array overrides it
   currency: 'INR'
 });
 
@@ -98,6 +99,10 @@ function sanitize(raw) {
     if (Number.isFinite(n)) base[k] = n;
   });
   base.currency = 'INR';
+  // Array-valued, so it is handled outside the STRING_KEYS/NUMERIC_KEYS loops.
+  if (Array.isArray(raw.scopeZoneIds)) {
+    base.scopeZoneIds = raw.scopeZoneIds.filter(v => typeof v === 'string');
+  }
 
   if (!parseISODate(base.startDate)) base.startDate = todayISO();
   if (!parseISODate(base.endDate)) base.endDate = base.startDate;
@@ -179,3 +184,40 @@ class EventState {
 export const eventState = new EventState();
 
 export default eventState;
+
+/**
+ * Which venue zones belong to which kind of event.
+ *
+ * Before this existed, every total iterated all 8 zones, so a wedding quote
+ * silently included the election rally stage and the corporate summit podium.
+ * That is the single fastest way to lose credibility in a live pitch.
+ */
+export const ZONES_BY_EVENT_TYPE = Object.freeze({
+  wedding: ['zone-india-function', 'zone-stage', 'zone-banquet', 'zone-entrance', 'zone-fountain', 'zone-lounge'],
+  political: ['zone-india-election', 'zone-stage', 'zone-entrance'],
+  corporate: ['zone-india-meeting', 'zone-banquet', 'zone-entrance', 'zone-lounge'],
+  private: ['zone-lounge', 'zone-banquet', 'zone-fountain', 'zone-entrance']
+});
+
+/**
+ * The zone ids currently in scope for the quote.
+ *
+ * An explicit `scopeZoneIds` on the event state always wins, so a planner can
+ * include or drop a zone by hand. Otherwise it falls back to the event type,
+ * and finally to every zone (which is the old behaviour, kept only as a
+ * last resort so nothing can ever silently quote zero).
+ */
+export function zonesInScope(allZoneIds) {
+  const state = eventState.get();
+  const explicit = Array.isArray(state.scopeZoneIds) ? state.scopeZoneIds.filter(Boolean) : null;
+  if (explicit && explicit.length) {
+    const valid = explicit.filter(id => allZoneIds.includes(id));
+    if (valid.length) return valid;
+  }
+  const byType = ZONES_BY_EVENT_TYPE[state.eventType];
+  if (byType) {
+    const valid = byType.filter(id => allZoneIds.includes(id));
+    if (valid.length) return valid;
+  }
+  return [...allZoneIds];
+}
