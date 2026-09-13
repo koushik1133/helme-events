@@ -17,92 +17,37 @@
   <div id="bar"></div>
   <div id="host"></div>
   <script type="module">
+    /* Dev-only harness: mounts the home screen against the REAL crm store,
+       session and permission matrix so the four variants can be eyeballed.
+       Not an entry point — Vite only builds index.html. */
     import { HomeScreen } from '/src/components/home/HomeScreen.js';
+    import { crmStore } from '/src/crm/store.js';
+    import * as finance from '/src/crm/finance.js';
+    import { session } from '/src/auth/session.js';
+    import { can } from '/src/auth/permissions.js';
 
-    const today = new Date();
-    const iso = (offset) => { const d = new Date(today); d.setDate(d.getDate() + offset);
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-    const hoursAgo = (h) => new Date(Date.now() - h * 3600000).toISOString();
-
-    const clients = [
-      { id: 'c1', name: 'Sharma Family' }, { id: 'c2', name: 'Infosys Ltd' },
-      { id: 'c3', name: 'Kapoor–Mehta' }, { id: 'c4', name: 'Telangana Pradesh Committee' },
-      { id: 'c5', name: 'Deloitte India' }, { id: 'c6', name: 'Reddy Wedding' }
-    ];
-    const deals = [
-      { id:'d1', code:'EV-2026-118', clientId:'c1', title:'Sharma–Mehta Sangeet', category:'wedding', phase:'production', stage:'in_production',
-        eventStartDate: iso(4), venue:{name:'Taj Krishna, Banjara Hills'}, guestCount:420, netValue:2450000, eventManagerId:'u3',
-        eventDates:[1,2,3], vendors:[{name:'Bloomsbury',service:'Florals',status:'pending'},{name:'SoundHub',service:'Audio',status:'confirmed'},{name:'Zaika',service:'Catering',status:'pending'}],
-        checklist:[{id:'t1',label:'Confirm mandap fabrication drawings',due:iso(-2)},{id:'t2',label:'Lock sangeet run of show',due:iso(1)}] },
-      { id:'d2', code:'EV-2026-121', clientId:'c2', title:'Infosys Leadership Summit', category:'corporate', phase:'production', stage:'planning',
-        eventStartDate: iso(26), venue:{name:'HICC Novotel'}, guestCount:900, netValue:5800000, eventManagerId:'u3',
-        vendors:[{name:'LEDWorks',service:'LED wall',status:'pending'}], checklist:[{id:'t3',label:'Stage GA drawing to client',due:iso(6)}] },
-      { id:'d3', code:'EV-2026-130', clientId:'c3', title:'Kapoor Reception', category:'wedding', phase:'production', stage:'booked',
-        eventStartDate: iso(58), venue:{name:'Falaknuma Palace'}, guestCount:600, netValue:9200000 },
-      { id:'d4', code:'EV-2026-133', clientId:'c4', title:'District Rally — Warangal', category:'political', phase:'sales', stage:'negotiation',
-        eventStartDate: iso(12), netValue:1800000, salesOwnerId:'u2', probability:0.7, firstRespondedAt: hoursAgo(96), lastContactAt: hoursAgo(96), createdAt: hoursAgo(200) },
-      { id:'d5', code:'EV-2026-136', clientId:'c5', title:'Deloitte Townhall', category:'corporate', phase:'sales', stage:'proposal_sent',
-        eventStartDate: iso(70), netValue:3100000, salesOwnerId:'u2', firstRespondedAt: hoursAgo(30), lastContactAt: hoursAgo(300), createdAt: hoursAgo(400) },
-      { id:'d6', code:'EV-2026-140', clientId:'c6', title:'Reddy Wedding — full', category:'wedding', phase:'sales', stage:'enquiry',
-        eventStartDate: iso(140), guestCount:800, source:'venue_partner', budgetIndicated:6000000, salesOwnerId:'u2', createdAt: hoursAgo(7.4) },
-      { id:'d7', code:'EV-2026-141', clientId:'c1', title:'Sharma Haldi add-on', category:'wedding', phase:'sales', stage:'enquiry',
-        eventStartDate: iso(3), guestCount:120, source:'repeat', budgetIndicated:450000, salesOwnerId:'u2', createdAt: hoursAgo(1.6) },
-      { id:'d8', code:'EV-2026-142', clientId:'c2', title:'Infosys offsite — Goa', category:'corporate', phase:'sales', stage:'enquiry',
-        eventStartDate: iso(95), guestCount:250, source:'referral', budgetIndicated:2200000, salesOwnerId:'u2', createdAt: hoursAgo(0.4) }
-    ].map(d => ({ ...d, wonAt: d.phase === 'production' ? iso(-40) : null, grossValue: Math.round((d.netValue||0)*1.18) }));
-
-    const milestones = [
-      { id:'m1', dealId:'d2', label:'Balance on delivery', amountDueGross: 2050000, amountReceived:0, tdsDeducted:0, dueDate: iso(-74), status:'invoiced' },
-      { id:'m2', dealId:'d3', label:'Second milestone', amountDueGross: 1850000, amountReceived:400000, dueDate: iso(-41), status:'part_paid' },
-      { id:'m3', dealId:'d1', label:'Pre-event balance', amountDueGross: 980000, amountReceived:0, dueDate: iso(-6), status:'invoiced' },
-      { id:'m4', dealId:'d1', label:'Final settlement', amountDueGross: 420000, amountReceived:0, dueDate: iso(3), status:'pending' },
-      { id:'m5', dealId:'d3', label:'Pre-event balance', amountDueGross: 3600000, amountReceived:0, dueDate: iso(18), status:'pending' },
-      { id:'m6', dealId:'d2', label:'Milestone 2', amountDueGross: 2400000, amountReceived:0, dueDate: iso(9), status:'pending' }
-    ];
-    const receipts = [
-      { id:'r1', dealId:'d3', amount: 400000, tdsDeducted: 0, receivedOn: iso(-8) },
-      { id:'r2', dealId:'d2', amount: 1158000, tdsDeducted: 22000, receivedOn: iso(-3) }
-    ];
-    const activity = [
-      { at: hoursAgo(2), byName:'Priya Nair', text:'Moved Deloitte Townhall to Proposal sent' },
-      { at: hoursAgo(9), byName:'Meera Iyer', text:'Recorded ₹11,58,000 receipt against Infosys Leadership Summit' },
-      { at: hoursAgo(27), byName:'Arjun Rao', text:'Confirmed SoundHub for Sharma–Mehta Sangeet' },
-      { at: hoursAgo(49), byName:'Rohan Desai', text:'Approved the revised mandap concept' }
-    ];
-    const store = {
-      listDeals: () => deals, listClients: () => clients,
-      listMilestones: () => milestones, listReceipts: () => receipts, listActivity: () => activity
-    };
-
-    const users = {
-      admin: { id:'u1', name:'Rohan Desai', role:'director' },
-      sales: { id:'u2', name:'Priya Nair', role:'sales_manager' },
-      event_manager: { id:'u3', name:'Arjun Rao', role:'event_manager' },
-      finance: { id:'u4', name:'Meera Iyer', role:'finance' }
-    };
-    let current = 'admin';
-    let empty = false;
+    const empties = { deals: () => [], clients: () => [], milestones: () => [], receipts: () => [], invoices: () => [], activity: () => [] };
+    let useEmpty = false;
     const host = document.getElementById('host');
-    let home;
     function paint() {
-      home = new HomeScreen(host, {
-        store: empty ? { listDeals: () => [], listClients: () => [], listMilestones: () => [], listReceipts: () => [], listActivity: () => [] } : store,
-        session: { getCurrentUser: () => users[current] },
+      new HomeScreen(host, {
+        store: useEmpty ? empties : crmStore,
+        finance, session, can,
         navigate: (r, p) => console.log('navigate', r, p)
-      });
-      home.render();
+      }).render();
     }
     const bar = document.getElementById('bar');
-    Object.keys(users).forEach(k => {
-      const b = document.createElement('button'); b.textContent = k;
-      b.onclick = () => { current = k; paint(); }; bar.appendChild(b);
+    ['admin', 'sales_manager', 'event_manager', 'finance'].forEach(role => {
+      const b = document.createElement('button'); b.textContent = role;
+      b.onclick = () => { session.switchRole(role); paint(); }; bar.appendChild(b);
     });
     const t = document.createElement('button'); t.textContent = 'theme';
     t.onclick = () => document.documentElement.setAttribute('data-theme',
       document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
     bar.appendChild(t);
     const e = document.createElement('button'); e.textContent = 'empty';
-    e.onclick = () => { empty = !empty; paint(); }; bar.appendChild(e);
+    e.onclick = () => { useEmpty = !useEmpty; paint(); }; bar.appendChild(e);
+    session.switchRole('admin');
     paint();
   </script>
 </body>

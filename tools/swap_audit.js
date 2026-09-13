@@ -77,3 +77,17 @@ document.getElementById('run').addEventListener('click', async () => {
 
 // Convenience for a scripted (non-clicking) run.
 window.__runAudit = runAudit;
+
+// Auto-run: the dev server reloads whenever any source file is saved, so the
+// audit must be able to complete without anyone being there to click.
+window.__auditDone = false;
+window.__auditError = null;
+import('three').then(
+  () => { document.getElementById('run').click(); },
+  e => { window.__auditError = 'three failed to load: ' + (e?.message || e); statusEl.textContent = window.__auditError; }
+);
+const origRun = runAudit;
+window.__runAudit = async () => { const r = await origRun(); window.__auditDone = true; return r; };
+document.getElementById('run').addEventListener('click', () => {
+  const t = setInterval(() => { if (window.__auditRows) { window.__auditDone = true; clearInterval(t); } }, 200);
+});

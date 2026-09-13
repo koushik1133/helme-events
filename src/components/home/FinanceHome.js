@@ -29,13 +29,19 @@ import { activityList } from './homeUI.js';
 
 const BUCKET_LABEL = { 0: '1–30 days', 30: '31–60 days', 60: '61–90 days', 90: '90+ days' };
 
-function ageingTable(rows) {
+function ageingTable(rows, fresh) {
   if (!rows.length) {
-    return emptyState({
-      mark: '✓', good: true,
-      title: 'Nothing is overdue',
-      body: 'Every invoice past its due date has been settled. Scheduled dues that have not fallen due yet are in the table below.'
-    });
+    return fresh
+      ? emptyState({
+          mark: '◌',
+          title: 'No receivables yet',
+          body: 'Once a won deal has a payment schedule, anything past its due date lands in this table, aged 1–30 / 31–60 / 61–90 / 90+ days.'
+        })
+      : emptyState({
+          mark: '✓', good: true,
+          title: 'Nothing is overdue',
+          body: 'Every invoice past its due date has been settled. Scheduled dues that have not fallen due yet are in the table below.'
+        });
   }
   const total = rows.reduce((s, r) => s + r.balance, 0);
   return `
@@ -162,7 +168,7 @@ export function renderFinanceHome(model) {
       badge: ageing.rows.length,
       badgeHot: ageing.rows.length > 0,
       action: { go: 'payments', label: 'All receivables' },
-      body: ageingTable(ageing.rows)
+      body: ageingTable(ageing.rows, isFresh(model))
     })}
     ${card({
       title: 'Upcoming — pre-event, next 30 days',

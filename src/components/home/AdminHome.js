@@ -92,7 +92,7 @@ export function renderAdminHome(model) {
     });
   });
 
-  events90.filter(d => !d.eventManagerId).slice(0, 3).forEach(d => {
+  events90.filter(d => !d.eventManagerId && (daysUntil(d.eventStartDate, model.today) ?? 99) <= 45).slice(0, 2).forEach(d => {
     needs.push({
       severity: 'warn',
       title: `${d.title || d.code} has no event manager`,

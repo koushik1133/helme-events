@@ -40,6 +40,12 @@ import { StyleLibrary } from './components/StyleLibrary.js';
 // Phase 2: Business Ops
 import { VendorManager } from './components/VendorManager.js';
 import { InventoryTracker } from './components/InventoryTracker.js';
+
+// CRM. Clients and deals are separate records: one family or company, many events.
+import { ClientList } from './components/crm/ClientList.js';
+import { ClientDetail } from './components/crm/ClientDetail.js';
+import { DealBoard } from './components/crm/DealBoard.js';
+import { PaymentsScreen } from './components/crm/PaymentsScreen.js';
 import { CalendarBooking } from './components/CalendarBooking.js';
 import { ZoneNotes } from './components/ZoneNotes.js';
 
@@ -388,6 +394,24 @@ class Event360App {
     // Phase 2: Business Ops
     this.vendorManager = new VendorManager(this.vendorContainer);
     this.inventoryTracker = new InventoryTracker(this.inventoryContainer);
+
+    // CRM screens mount straight into their workspace sections. Opening a client
+    // swaps the list for the detail in the same container and back again, so the
+    // section router stays the only router.
+    const openClient = (clientId) => {
+      this.setSection('clients');
+      if (this.clientList) { this.clientList.destroy(); this.clientList = null; }
+      if (this.clientDetail) this.clientDetail.destroy();
+      this.clientDetail = new ClientDetail(this.sections.clients, clientId, () => {
+        this.clientDetail.destroy();
+        this.clientDetail = null;
+        this.clientList = new ClientList(this.sections.clients, openClient);
+      });
+    };
+    this.openCrmClient = openClient;
+    this.clientList = new ClientList(this.sections.clients, openClient);
+    this.dealBoard = new DealBoard(this.sections.deals, openClient);
+    this.paymentsScreen = new PaymentsScreen(this.sections.payments, openClient);
     this.calendarBooking = new CalendarBooking(this.calendarContainer);
     this.zoneNotes = new ZoneNotes(this.zoneNotesContainer, () => this.currentZoneId);
 
@@ -897,7 +921,12 @@ class Event360App {
   renderSection(name) {
     try {
       if (name === 'home' && this.homeScreen?.render) this.homeScreen.render();
-      if (name === 'clients' && this.clientList?.render) this.clientList.render();
+      if (name === 'clients') {
+        // A client detail may be open; do not stomp it with the list.
+        if (this.clientDetail?.render) this.clientDetail.render();
+        else if (!this.clientList) this.clientList = new ClientList(this.sections.clients, this.openCrmClient);
+        else this.clientList.render();
+      }
       if (name === 'deals' && this.dealBoard?.render) this.dealBoard.render();
       if (name === 'payments' && this.paymentsScreen?.render) this.paymentsScreen.render();
       if (name === 'studio') this.switchView(this.activeView || 'map');

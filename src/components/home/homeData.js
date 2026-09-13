@@ -139,12 +139,71 @@ export function relativeTime(when) {
 
 const EMPTY = Object.freeze({ deals: [], clients: [], milestones: [], receipts: [], activity: [] });
 
-function safeList(store, method) {
+/**
+ * Read one collection from whatever shape the store happens to expose:
+ * `listDeals()`, `deals()` or `get().deals`. The CRM store ships the middle
+ * form; the others are here so this screen survives a refactor next door.
+ */
+function safeList(store, name) {
+  const cap = name[0].toUpperCase() + name.slice(1);
   try {
-    if (!store || typeof store[method] !== 'function') return null;
-    const out = store[method]();
-    return Array.isArray(out) ? out : null;
-  } catch { return null; }
+    if (!store) return null;
+    for (const fn of [`list${cap}`, name]) {
+      if (typeof store[fn] === 'function') {
+        const out = store[fn]();
+        if (Array.isArray(out)) return out;
+      }
+    }
+    if (typeof store.get === 'function') {
+      const snap = store.get();
+      if (snap && Array.isArray(snap[name])) return snap[name];
+    }
+  } catch { /* a broken store must never blank the front door */ }
+  return null;
+}
+
+/**
+ * Capability names used by this screen, mapped onto the real matrix in
+ * `src/auth/permissions.js`, whose signature is `can(user, action, resource)`.
+ */
+const CAPABILITY = {
+  view_financials: ['view', 'money.value'],
+  view_margin: ['view', 'money.margin'],
+  view_pipeline: ['view', 'pipeline'],
+  view_payments: ['view', 'payment'],
+  view_all_deals: ['view', 'report'] // only the all-scope roles hold reports
+};
+
+/** Earliest and latest event date, from `eventDates` or `functions`. */
+function eventRange(deal) {
+  const dates = []
+    .concat(Array.isArray(deal.eventDates) ? deal.eventDates : [])
+    .concat(Array.isArray(deal.functions) ? deal.functions : [])
+    .map(x => (typeof x === 'string' ? x : (x && (x.date || x.day))))
+    .filter(x => /^\d{4}-\d{2}-\d{2}$/.test(String(x)))
+    .sort();
+  return { start: dates[0] || deal.eventStartDate || '', end: dates[dates.length - 1] || deal.eventEndDate || '' };
+}
+
+/**
+ * Normalise a stored Deal into the flat shape this screen reads.
+ * Nothing derived is ever written back — these are display copies.
+ */
+function normaliseDeal(deal) {
+  const { start, end } = eventRange(deal);
+  const quoted = Math.round(Number(deal.quotedValue ?? deal.netValue ?? 0) || 0);
+  const discount = Math.round(Number(deal.discount || 0) || 0);
+  const net = Number.isFinite(deal.netValue) ? Math.round(deal.netValue) : Math.max(0, quoted - discount);
+  const wonEntry = (Array.isArray(deal.stageHistory) ? deal.stageHistory : [])
+    .find(h => h && (h.stage === 'won' || h.stage === 'booked'));
+  return {
+    ...deal,
+    eventStartDate: start,
+    eventEndDate: end,
+    netValue: net,
+    grossValue: Math.round(Number(deal.grossValue ?? net * 1.18) || 0),
+    wonAt: deal.wonAt || (wonEntry && wonEntry.at) || deal.contractSignedAt || ''
+  };
 }
 
 /**
@@ -156,31 +215,38 @@ export function buildHomeModel(deps = {}) {
   const { store = null, finance = null, session = null } = deps;
 
   let user = null;
-  try { user = session && typeof session.getCurrentUser === 'function' ? session.getCurrentUser() : null; }
-  catch { user = null; }
+  try {
+    if (session) {
+      if (typeof session.getUser === 'function') user = session.getUser();
+      else if (typeof session.getCurrentUser === 'function') user = session.getCurrentUser();
+    }
+  } catch { user = null; }
   user = user || { id: null, name: 'there', role: ROLES.event_manager };
 
   const role = normaliseRole(user.role);
   const injectedCan = typeof deps.can === 'function' ? deps.can : null;
-  const can = (action, resource = null) => {
-    if (injectedCan) {
-      try { return !!injectedCan(user, action, resource); } catch { return false; }
+  const can = (capability) => {
+    const mapped = CAPABILITY[capability];
+    if (injectedCan && mapped) {
+      try { return !!injectedCan(user, mapped[0], mapped[1]); } catch { return false; }
     }
-    return !!(FALLBACK_CAN[role] || {})[action];
+    return !!(FALLBACK_CAN[role] || {})[capability];
   };
 
-  const deals = safeList(store, 'listDeals');
-  const connected = deals !== null;
+  const rawDeals = safeList(store, 'deals');
+  const connected = rawDeals !== null;
+  const deals = (rawDeals || EMPTY.deals).map(normaliseDeal);
 
   const model = {
     user, role, roleLabel: ROLE_LABEL[role], can, connected,
     today: todayISO(),
     fy: financialYear(),
-    deals: deals || EMPTY.deals,
-    clients: safeList(store, 'listClients') || EMPTY.clients,
-    milestones: safeList(store, 'listMilestones') || safeList(store, 'listPaymentMilestones') || EMPTY.milestones,
-    receipts: safeList(store, 'listReceipts') || EMPTY.receipts,
-    activity: safeList(store, 'listActivity') || EMPTY.activity,
+    deals,
+    clients: safeList(store, 'clients') || EMPTY.clients,
+    milestones: safeList(store, 'milestones') || EMPTY.milestones,
+    receipts: safeList(store, 'receipts') || EMPTY.receipts,
+    invoices: safeList(store, 'invoices') || [],
+    activity: safeList(store, 'activity') || EMPTY.activity,
     finance
   };
   model.clientById = new Map(model.clients.map(c => [c.id, c]));
@@ -273,8 +339,44 @@ export function openMilestones(model) {
   );
 }
 
+const BUCKET_FROM_LABEL = { '0-30': 0, '31-60': 30, '61-90': 60, '90+': 90 };
+
+/**
+ * Prefer the real finance module when the host injects it: `receivables()`
+ * there already computes GST per place of supply and treats TDS as settlement
+ * rather than shortfall. The local computation below is the fallback.
+ */
+function ageingFromFinance(model) {
+  const f = model.finance;
+  if (!f || typeof f.receivables !== 'function') return null;
+  let r;
+  try {
+    r = f.receivables(model.deals, model.clients, model.milestones, model.receipts, model.invoices, model.today);
+  } catch { return null; }
+  if (!r) return null;
+  const rows = (r.overdue || []).map(row => ({
+    milestone: row.milestone,
+    deal: row.deal || model.dealById.get(row.milestone && row.milestone.dealId) || { title: 'Unlinked milestone' },
+    balance: row.amount,
+    overdueBy: row.daysOverdue,
+    bucket: BUCKET_FROM_LABEL[row.bucket] ?? 0,
+    client: (row.client && row.client.name) || clientName(model, row.deal || {})
+  }));
+  const buckets = { 0: 0, 30: 0, 60: 0, 90: 0 };
+  Object.entries(r.buckets || {}).forEach(([k, v]) => { buckets[BUCKET_FROM_LABEL[k] ?? 0] += v; });
+  return {
+    rows, buckets,
+    overdue: r.totalOverdue || 0,
+    upcoming: r.totalUpcoming || 0,
+    total: (r.totalOverdue || 0) + (r.totalUpcoming || 0),
+    upcomingRows: r.upcoming || []
+  };
+}
+
 /** Post-event money past its due date, split into ageing buckets. */
 export function receivablesAgeing(model) {
+  const fromFinance = ageingFromFinance(model);
+  if (fromFinance) return fromFinance;
   const today = model.today;
   const buckets = { 0: 0, 30: 0, 60: 0, 90: 0 };
   const rows = [];
@@ -298,17 +400,35 @@ export function receivablesAgeing(model) {
 /** Pre-event money scheduled but not yet due — the low-risk half. */
 export function upcomingMilestones(model, withinDays = 30) {
   const limit = addDaysISO(model.today, withinDays);
+  const fromFinance = ageingFromFinance(model);
+  if (fromFinance) {
+    return fromFinance.upcomingRows
+      .filter(r => r.dueDate && r.dueDate >= model.today && r.dueDate <= limit)
+      .map(r => ({ ...r.milestone, dueDate: r.dueDate, amountDueGross: r.amount, amountReceived: 0, tdsDeducted: 0 }))
+      .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+  }
   return openMilestones(model)
     .filter(m => m.dueDate && m.dueDate >= model.today && m.dueDate <= limit)
     .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
 }
 
+const REPLY_TYPES = ['call', 'email', 'whatsapp', 'meeting', 'reply', 'contacted', 'proposal_sent', 'quote_sent', 'note'];
+
+/** Has anyone logged an outbound contact against this deal or its client? */
+function hasReply(model, deal) {
+  if (deal.firstRespondedAt) return true;
+  return model.activity.some(a =>
+    a && (a.dealId === deal.id || (a.clientId && a.clientId === deal.clientId)) &&
+    REPLY_TYPES.includes(String(a.type || '').toLowerCase())
+  );
+}
+
 /** Enquiries nobody has replied to yet, oldest first. The sales screen's core. */
 export function unansweredEnquiries(model) {
   return scopedDeals(model)
-    .filter(d => isOpenSales(d) && !d.firstRespondedAt)
+    .filter(d => d.stage === 'enquiry' && isOpenSales(d) && !hasReply(model, d))
     .map(d => {
-      const hours = hoursSince(d.enquiryAt || d.createdAt);
+      const hours = hoursSince(d.enquiryAt || d.createdAt || d.stageChangedAt);
       return { deal: d, hours, sla: slaBand(hours), client: clientName(model, d) };
     })
     .sort((a, b) => (b.hours ?? 0) - (a.hours ?? 0));
