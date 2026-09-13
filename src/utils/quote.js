@@ -21,7 +21,7 @@ import {
   SELLER_STATE,
   GST_RATE
 } from './format.js';
-import { zonesInScope } from '../data/eventState.js';
+import { zonesInScope, eventState } from '../data/eventState.js';
 
 /* ------------------------------------------------------------------ seller */
 
@@ -90,12 +90,133 @@ export function sacFor(category) {
   return SAC_BY_CATEGORY[category] || DEFAULT_SAC;
 }
 
+/* ------------------------------------------------------------- the basket */
+
+/**
+ * The quote is derived from the venue configuration, but a salesperson must be
+ * able to edit it like a basket: change a line quantity, drop a line the client
+ * does not want, and put it back. Those edits live HERE, next to the pricing,
+ * so the cost card, the cart, the invoice and the contract can never disagree.
+ *
+ * Shape: { quantities: { slotId: positiveInt }, excluded: [slotId] }
+ */
+const BASKET_KEY = 'helm_events_basket_v1';
+
+/** Guest count the catalogue quantities in zones.js were authored against. */
+export const BASELINE_GUESTS = 250;
+
+/** Categories whose quantity genuinely follows the guest count. */
+export const GUEST_SCALED_CATEGORIES = new Set(['chairs', 'tables']);
+
+function sanitizeBasket(raw) {
+  const out = { quantities: {}, excluded: [] };
+  if (!raw || typeof raw !== 'object') return out;
+  const q = raw.quantities;
+  if (q && typeof q === 'object' && !Array.isArray(q)) {
+    for (const [slotId, value] of Object.entries(q)) {
+      const n = Math.round(Number(value));
+      if (typeof slotId === 'string' && Number.isFinite(n) && n > 0) {
+        out.quantities[slotId] = Math.min(n, 100000);
+      }
+    }
+  }
+  if (Array.isArray(raw.excluded)) {
+    out.excluded = [...new Set(raw.excluded.filter(v => typeof v === 'string' && v))];
+  }
+  return out;
+}
+
+let basket = sanitizeBasket(readJSON(BASKET_KEY, null));
+const basketListeners = new Set();
+
+function persistBasket() {
+  writeJSON(BASKET_KEY, basket);
+  const snapshot = getBasket();
+  basketListeners.forEach(fn => {
+    try { fn(snapshot); } catch { /* one bad subscriber must not stop the rest */ }
+  });
+}
+
+/** Read-only snapshot of the basket edits. */
+export function getBasket() {
+  return { quantities: { ...basket.quantities }, excluded: [...basket.excluded] };
+}
+
+/** Subscribe to basket edits. Returns an unsubscribe function. */
+export function subscribeBasket(fn) {
+  if (typeof fn !== 'function') return () => {};
+  basketListeners.add(fn);
+  return () => basketListeners.delete(fn);
+}
+
+export function isLineRemoved(slotId) {
+  return basket.excluded.includes(slotId);
+}
+
+/** Set an explicit quantity for a line. A non-positive value clears the override. */
+export function setLineQuantity(slotId, quantity) {
+  if (typeof slotId !== 'string' || !slotId) return;
+  const n = Math.round(Number(quantity));
+  if (!Number.isFinite(n) || n <= 0) {
+    delete basket.quantities[slotId];
+  } else {
+    basket.quantities[slotId] = Math.min(n, 100000);
+  }
+  persistBasket();
+}
+
+/** Drop a line from the quote. It stays restorable — nothing is destroyed. */
+export function removeLine(slotId) {
+  if (typeof slotId !== 'string' || !slotId) return;
+  if (!basket.excluded.includes(slotId)) basket.excluded.push(slotId);
+  persistBasket();
+}
+
+/** Put a removed line back into the quote. */
+export function restoreLine(slotId) {
+  const next = basket.excluded.filter(id => id !== slotId);
+  if (next.length === basket.excluded.length) return;
+  basket.excluded = next;
+  persistBasket();
+}
+
+/** Put every removed line back and drop every quantity override. */
+export function resetBasket() {
+  basket = { quantities: {}, excluded: [] };
+  persistBasket();
+}
+
 /* ------------------------------------------------------------------- quote */
 
-/** The one place quantity is resolved from a zone slot. */
-export function slotQuantity(slot) {
-  const q = Number(slot && slot.quantity);
-  return Number.isFinite(q) && q > 0 ? Math.round(q) : 1;
+/**
+ * The one place quantity is resolved for a line.
+ *
+ * Precedence: an explicit per-line override the user typed, then the
+ * per-item quantity the zone declares, then the slot's base quantity —
+ * with seating and table quantities scaled from the shared guest count so
+ * "we have 400 guests, not 250" is reflected in the price immediately.
+ */
+export function slotQuantity(slot, itemId, options = {}) {
+  if (!slot) return 1;
+  const override = basket.quantities[slot.id];
+  if (options.ignoreOverride !== true && Number.isFinite(override) && override > 0) return override;
+
+  const byItem = itemId != null && slot.quantityByItem ? slot.quantityByItem[itemId] : undefined;
+  const raw = Number(byItem != null ? byItem : slot.quantity);
+  const base = Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 1;
+
+  if (options.scaleWithGuests === false) return base;
+  if (!GUEST_SCALED_CATEGORIES.has(slot.category)) return base;
+
+  const guests = Math.max(1, Math.round(Number(eventState.getGuestCount()) || BASELINE_GUESTS));
+  return Math.max(1, Math.round((base * guests) / BASELINE_GUESTS));
+}
+
+/** The un-overridden, un-scaled quantity — shown as the "default" in the UI. */
+export function baseSlotQuantity(slot, itemId) {
+  const byItem = itemId != null && slot && slot.quantityByItem ? slot.quantityByItem[itemId] : undefined;
+  const raw = Number(byItem != null ? byItem : (slot && slot.quantity));
+  return Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 1;
 }
 
 /**
@@ -125,12 +246,16 @@ export function buildQuoteLines(activeSelections = {}, options = {}) {
     : zonesInScope(allZoneIds);
   const inScope = new Set(scope);
 
+  const includeRemoved = options.includeRemoved === true;
+
   VENUE_ZONES.filter(zone => inScope.has(zone.id)).forEach(zone => {
     zone.slots.forEach(slot => {
+      const removed = isLineRemoved(slot.id);
+      if (removed && !includeRemoved) return;
       const itemId = resolveItemId(activeSelections[slot.id], slot.defaultItemId);
       const item = getItemById(itemId);
       if (!item) return;
-      const quantity = slotQuantity(slot);
+      const quantity = slotQuantity(slot, item.id);
       lines.push({
         zoneId: zone.id,
         zoneName: zone.name,
@@ -143,6 +268,9 @@ export function buildQuoteLines(activeSelections = {}, options = {}) {
         sac: sacFor(item.category),
         unitPrice: Math.round(Number(item.price) || 0),
         quantity,
+        defaultQuantity: slotQuantity(slot, item.id, { ignoreOverride: true }),
+        isCustomQuantity: Object.prototype.hasOwnProperty.call(basket.quantities, slot.id),
+        removed,
         lineTotal: Math.round((Number(item.price) || 0) * quantity)
       });
     });
@@ -175,6 +303,10 @@ export function paymentSchedule(total) {
 export function buildQuote(activeSelections = {}, options = {}) {
   const buyerState = options.buyerState || SELLER_STATE;
   const lines = buildQuoteLines(activeSelections, options);
+  // The lines the user has taken out of the quote — kept so the basket can
+  // offer a real "put it back", instead of silently losing them.
+  const removedLines = buildQuoteLines(activeSelections, { ...options, includeRemoved: true })
+    .filter(l => l.removed);
   const subtotal = sumLines(lines);
   const gst = computeGst(subtotal, buyerState);
   const grandTotal = subtotal + gst.total;
@@ -200,7 +332,10 @@ export function buildQuote(activeSelections = {}, options = {}) {
     schedule,
     deposit: schedule[0].amount,
     balanceDue: grandTotal - schedule[0].amount,
-    itemCount: lines.length
+    itemCount: lines.length,
+    removedLines,
+    removedCount: removedLines.length,
+    unitCount: lines.reduce((a, l) => a + l.quantity, 0)
   };
 }
 

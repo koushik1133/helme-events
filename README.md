@@ -229,31 +229,53 @@ Honest list, so nobody rediscovers these:
 
 ---
 
-## Panorama assets — read this before promising a client a "4K 360° tour"
+## Panorama assets
 
-`src/data/panoramaMeta.js` records the measured pixel dimensions of every plate, and
-`Viewer360` picks its projection from them. There are two kinds of plate in this repo:
+Every plate under `public/images` is a **true 2:1 equirectangular full sphere**, 3072 x 1536,
+produced by `tools/pano360.py`. `npm run panorama:check` verifies all 64; `npm test` fails the
+build if any plate is not a full sphere, is under 2048px, or exceeds the 4096px texture limit
+that a long tail of mobile GPUs enforces.
 
-| Kind | Size | Count | How it renders |
-|---|---|---|---|
-| True equirectangular | 2048 × 1024 (2:1) | 32 | Full 360° sphere. Pan all the way round. |
-| Wide-angle photograph | 1376 × 768 (1.79:1) | 32 | **Partial panorama**, 120° horizontal field of view. |
+### What the tool fixes
 
-The second group are ordinary wide photos, not spherical captures. Wrapping one around a
-full sphere — which is what the app used to do — puts a hard seam where the left and right
-edges meet and smears both poles. Rendering them as a partial panorama is honest and looks
-correct, but it is a mitigation, not a fix.
+Measured on the original assets, every plate had three defects that made the sphere look wrong:
 
-**Every plate for the three India verticals (election rally, mandap, summit) is in the
-second group.** Those are the differentiating screens, so they are the first assets worth
-re-shooting or regenerating as true 2:1 equirectangular images at 4096 × 2048. Nothing in
-this repo exceeds 2048 px wide, so no part of the product is genuinely 4K today — do not
-put "4K" in a proposal or on a pricing page until the assets exist.
+| Defect | Measured before | After |
+|---|---|---|
+| Left and right edges did not match (hard seam at yaw 180°) | edge delta 3–4x the interior delta | seam below the interior delta |
+| Top/bottom rows still varied horizontally, so the poles smeared | nadir std up to 38 | under 2 |
+| Half the plates were 1.79:1, stretching the whole sphere | 12% vertical stretch | exact 2:1 |
 
-To regenerate the manifest after adding assets:
+The pole fix is the interesting one. An equirectangular row at latitude φ stores a ring of
+circumference `2π·cos(φ)` in the same pixel count the equator uses, so it is oversampled by
+exactly `1/cos(φ)` — and that oversampling is what you see as radial streaking when you look
+straight down. The tool blurs each row by that factor: zero at the horizon, 3px at 75°, and
+steep only in the last couple of degrees. The outermost 1.8° ease to a true row mean, because
+those rows *are* the pole.
+
+### The honest limitation
+
+These plates are wide photographs mapped onto a sphere. The geometry is now correct and
+seamless, but the content behind the viewer is the photograph's own edges, not a real capture of
+what is actually behind the camera. **Two flat images (a front and a back) do not fix this** —
+at 110° + 150° they cover 260° of 360° and nothing above or below, which is why
+`--reproject --rear` exists but is not what ships.
+
+Genuine upgrades, in order of value:
+
+1. **Shoot with a 360 camera** (Insta360 / Ricoh Theta). Log the tripod height — it turns one
+   click on an object's floor contact into its real distance, which is what makes accurate
+   item overlays possible.
+2. **Generate true equirectangular images** with a tool that outputs the projection natively
+   (Blockade Labs Skybox AI exports 8K equirect). One image per plate, no stitching.
+3. Only then consider outpainting the existing plates.
+
+### Regenerating
 
 ```bash
-find public/images -name '*.jpg' -exec sips -g pixelWidth -g pixelHeight {} +
+python3 tools/pano360.py in.jpg out.jpg      # convert one plate
+npm run panorama:check                        # verify all 64
+npm run panorama:manifest                     # rebuild src/data/panoramaMeta.js
 ```
 
 ## Tests
