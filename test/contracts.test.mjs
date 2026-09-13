@@ -276,3 +276,71 @@ test('the seeded store covers every slot, so a restore is never partial', async 
     }
   }
 });
+
+// ------------------------------------------- 360 swap / quote agreement
+
+test('every changed slot is either baked into the plate or reported for compositing', async () => {
+  const { resolveSceneComposite, isBakedIntoPlate, unbakedChanges } =
+    await import('../src/data/sceneVariants.js');
+
+  // This is the bug that shipped: swapping a second slot reloaded a plate showing
+  // only the FIRST change, silently reverting the other on screen while the quote
+  // still charged for it. Every non-default selection must now be accounted for.
+  for (const zone of VENUE_ZONES) {
+    const selections = defaultSelections();
+
+    // Change every slot in this zone to something other than its default.
+    const changed = [];
+    for (const slot of zone.slots) {
+      const alt = (slot.allowedItemIds || []).find((id) => id !== slot.defaultItemId);
+      if (!alt) continue;
+      selections[slot.id] = alt;
+      changed.push(slot.id);
+    }
+    if (changed.length < 2) continue;   // need at least two to exercise the bug
+
+    const composite = resolveSceneComposite(zone.id, zone, selections);
+    assert.ok(composite, `${zone.id}: resolveSceneComposite returned nothing`);
+
+    const layered = new Set(unbakedChanges(composite).map((c) => c.slotId ?? c));
+    for (const slotId of changed) {
+      const accounted = isBakedIntoPlate(composite, slotId) || layered.has(slotId);
+      assert.ok(accounted,
+        `${zone.id}/${slotId}: changed but neither baked into the plate nor composited — ` +
+        'the 360 view would contradict the quote');
+    }
+  }
+});
+
+test('at most one slot is ever baked into the plate', async () => {
+  const { resolveSceneComposite, isBakedIntoPlate } = await import('../src/data/sceneVariants.js');
+  for (const zone of VENUE_ZONES) {
+    const selections = defaultSelections();
+    for (const slot of zone.slots) {
+      const alt = (slot.allowedItemIds || []).find((id) => id !== slot.defaultItemId);
+      if (alt) selections[slot.id] = alt;
+    }
+    const composite = resolveSceneComposite(zone.id, zone, selections);
+    const baked = zone.slots.filter((s) => isBakedIntoPlate(composite, s.id));
+    assert.ok(baked.length <= 1,
+      `${zone.id}: ${baked.length} slots claim to be baked into one plate — a plate depicts one element`);
+  }
+});
+
+test('a resolved plate always belongs to its own zone', async () => {
+  const { resolveScenePanorama } = await import('../src/data/sceneVariants.js');
+  const { PANORAMA_DIMENSIONS } = await import('../src/data/panoramaMeta.js');
+  for (const zone of VENUE_ZONES) {
+    const selections = defaultSelections();
+    for (const slot of zone.slots) {
+      for (const itemId of slot.allowedItemIds || []) {
+        selections[slot.id] = itemId;
+        const url = resolveScenePanorama(zone.id, zone, selections);
+        if (!url) continue;
+        assert.ok(PANORAMA_DIMENSIONS[url],
+          `${zone.id}/${slot.id}/${itemId}: resolved a plate that is not in the manifest: ${url}`);
+      }
+      selections[slot.id] = slot.defaultItemId;
+    }
+  }
+});

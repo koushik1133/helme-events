@@ -17,6 +17,7 @@ export const GUEST_GROUPS = [
 
 const SEATS_PER_TABLE = 10; // Standard Indian banquet round table.
 const MIN_TABLES = 4;
+const TABLE_CELL_PX = 130;  // drawing room per table, so seats stay clickable
 
 /** Read a CSS custom property so the canvas follows the active theme. */
 function token(name, fallback) {
@@ -155,6 +156,11 @@ export class SeatingChart {
     const rsvpNo = this.guests.filter(g => g.rsvp === 'no').length;
     const rsvpPending = this.guests.filter(g => g.rsvp === 'pending').length;
 
+    // Grow the canvas with the table count instead of squeezing 60 tables into
+    // 600px, where the seats become 4px targets. The pane scrolls instead.
+    const cols = Math.ceil(Math.sqrt(this.tableCount));
+    const canvasPx = Math.max(600, cols * TABLE_CELL_PX);
+
     this.container.innerHTML = `
       <div class="seating-wrapper" style="display:flex; gap:20px; height:100%;">
         <div style="flex:2; display:flex; flex-direction:column; min-width:0;">
@@ -174,11 +180,13 @@ export class SeatingChart {
             change the headcount in <strong>Event Details</strong> and this chart re-sizes.
           </p>
           ${this.renderMessage()}
-          <div class="seating-canvas-container" style="position:relative; min-height:0;">
-            <canvas id="seating-canvas" width="600" height="600"
-              aria-label="Seating chart: ${this.tableCount} tables of ${SEATS_PER_TABLE} seats"
+          <div class="seating-canvas-container"
+               style="position:relative; height:auto; max-height:600px; overflow:auto;">
+            <canvas id="seating-canvas" width="${canvasPx}" height="${canvasPx}"
+              aria-label="Seating chart: ${this.tableCount} tables of ${SEATS_PER_TABLE} seats, ${formatNumber(seated)} seats taken"
               style="background:var(--bg-surface); border:1px solid var(--border-subtle);
-                     border-radius:var(--radius-sm); cursor:pointer; max-width:100%;"></canvas>
+                     border-radius:var(--radius-sm); cursor:pointer; max-width:none;
+                     display:block;"></canvas>
           </div>
         </div>
         <div class="seating-sidebar" style="flex:1; display:flex; flex-direction:column; gap:10px; min-width:0;">
