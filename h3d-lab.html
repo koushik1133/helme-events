@@ -1,0 +1,10 @@
+<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><title>H3D lab</title>
+<link rel="stylesheet" href="/src/style.css">
+<style>html,body{margin:0;height:100%;background:var(--bg-app)}#host{position:absolute;inset:14px}</style>
+</head><body><div id="host"></div>
+<script type="module">
+import { ThreeDLiveSpaceEditor } from '/src/components/ThreeDLiveSpaceEditor.js';
+const ed = new ThreeDLiveSpaceEditor(document.getElementById('host'), {}, null);
+window.__ed = ed; window.__Ed = ThreeDLiveSpaceEditor;
+ed.mount();
+</script></body></html>

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { formatMoney, escapeHtml, readJSON, writeJSON } from '../utils/format.js';
+import { injectStudio3DStyles } from './studio3d/studio3dStyles.js';
 
 /**
  * Arena = the physical floor. Ground plane, grid helper and the drag clamp all
@@ -14,9 +15,46 @@ const DRAG_THRESHOLD_PX = 4;
 /** A client's arrangement must survive a reload. */
 const LAYOUT_KEY = 'helm_3d_layout_v1';
 
-/** Reusable colour scratch objects (no per-frame / per-click allocation). */
-const COLOR_HIGHLIGHT = new THREE.Color(0x6366f1);
-const COLOR_BLACK = new THREE.Color(0x000000);
+/** Brand brass. The single accent in the 3D scene, matching the product chrome. */
+const ACCENT = 0xd9a406;
+
+/**
+ * The two looks. "studio" is a warm dark showroom; "blueprint" is a pale
+ * technical read for printing and for clients who want the plan, not the mood.
+ */
+const LOOKS = {
+  studio: {
+    label: 'Studio',
+    background: 0x0d0f14,
+    fogColor: 0x0d0f14,
+    floorInner: '#2b2f3d',
+    floorMid: '#191c26',
+    floorOuter: '#0f1118',
+    gridColor: 0x8d9ac4,
+    gridOpacity: 0.32,
+    exposure: 0.95,
+    envIntensity: 0.42,
+    ambient: 0.12,
+    keyIntensity: 2.2,
+    tint: null
+  },
+  blueprint: {
+    label: 'Blueprint',
+    background: 0xdfe6f2,
+    fogColor: 0xdfe6f2,
+    floorInner: '#ffffff',
+    floorMid: '#eef2fa',
+    floorOuter: '#dbe3f1',
+    gridColor: 0x2f5fa8,
+    gridOpacity: 0.5,
+    exposure: 1.15,
+    envIntensity: 0.5,
+    ambient: 0.85,
+    keyIntensity: 0.9,
+    // Every tinted surface is pushed towards drafting-ink blue-grey.
+    tint: 0x8fa6c9
+  }
+};
 
 /**
  * Geometries and non-tinted materials shared across every instance of an asset.
@@ -91,10 +129,28 @@ let UID = 0;
 const nextId = () => `a3d_${Date.now().toString(36)}_${(UID++).toString(36)}`;
 
 export class ThreeDLiveSpaceEditor {
-  constructor(containerElement, initialSelections = {}, onUpdateSelections = null) {
+  constructor(containerElement, initialSelections = {}, onUpdateSelections = null, options = {}) {
     this.container = containerElement;
     this.selections = { ...initialSelections };
     this.onUpdateSelections = onUpdateSelections;
+
+    /**
+     * Presentation options. `modal` is a LEGACY shim for the old full-screen
+     * pop-up and defaults to false: this component is an embedded studio view.
+     */
+    this.options = { modal: false, mode: 'view', look: 'studio', ...options };
+
+    /** True between mount() and unmount(). */
+    this.isMounted = false;
+    this.mode = this.options.mode === 'edit' ? 'edit' : 'view';
+    this.look = LOOKS[this.options.look] ? this.options.look : 'studio';
+
+    /** Camera preset tween state (null when the camera is at rest). */
+    this.camTween = null;
+    this.selectionRing = null;
+    this.selectionEdges = null;
+    this._scrim = null;
+    this._rootEl = null;
 
     /**
      * Layout change hook. NOT wired to the quote yet — see
@@ -151,6 +207,7 @@ export class ThreeDLiveSpaceEditor {
     this.onPointerMove = this.onPointerMove.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
     this.handleResize = this.handleResize.bind(this);
+    this.resize = this.handleResize;
     this.onCanvasKeyDown = this.onCanvasKeyDown.bind(this);
   }
 
@@ -163,22 +220,21 @@ export class ThreeDLiveSpaceEditor {
     const ctx = canvas.getContext('2d');
 
     const grad = ctx.createLinearGradient(0, 0, 512, 128);
-    grad.addColorStop(0, '#0f172a');
-    grad.addColorStop(0.5, '#1e1b4b');
-    grad.addColorStop(1, '#0f172a');
+    grad.addColorStop(0, '#101219');
+    grad.addColorStop(0.5, '#191c25');
+    grad.addColorStop(1, '#101219');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 512, 128);
 
-    ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(8, 8, 496, 112);
+    ctx.strokeStyle = 'rgba(217, 164, 6, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(14, 14, 484, 100);
 
-    ctx.font = '700 36px "SF Pro Display", -apple-system, sans-serif';
-    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 34px "SF Pro Display", -apple-system, sans-serif';
+    ctx.fillStyle = '#f4f1ea';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(217, 119, 6, 0.85)';
-    ctx.shadowBlur = 16;
+    ctx.letterSpacing = '4px';
 
     const displayStr = String(textToPaint || 'HELM EVENTS 2026').toUpperCase();
     ctx.fillText(displayStr.length > 22 ? `${displayStr.substring(0, 22)}...` : displayStr, 256, 64);
@@ -193,25 +249,30 @@ export class ThreeDLiveSpaceEditor {
   // ------------------------------------------------------------------- scene
 
   initThreeScene() {
-    const canvasHolder = this.container.querySelector('#threeCanvasHolder');
+    const canvasHolder = this.container.querySelector('.h3d-canvas');
     if (!canvasHolder) return;
     this.canvasHolder = canvasHolder;
 
     const width = canvasHolder.clientWidth || 800;
     const height = canvasHolder.clientHeight || 550;
 
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0b0d14);
+    const look = LOOKS[this.look];
 
-    this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 500);
-    this.camera.position.set(0, 15, 23);
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(look.background);
+    // Aerial fog dissolves the floor edge into the backdrop instead of ending it
+    // on a hard rectangle, which is what made the old scene read as a demo.
+    this.scene.fog = new THREE.Fog(look.fogColor, 34, 104);
+
+    this.camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 500);
+    this.camera.position.set(19, 15.5, 27);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = look.exposure;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.domElement.style.touchAction = 'none';
@@ -228,19 +289,23 @@ export class ThreeDLiveSpaceEditor {
     const roomScene = new RoomEnvironment();
     this.envTexture = this.pmrem.fromScene(roomScene, 0.04).texture;
     this.scene.environment = this.envTexture;
-    this.scene.environmentIntensity = 0.85;
+    // environmentIntensity is a Scene property in three >= r163. Guard anyway so
+    // a version bump cannot silently drop the IBL back to full blast.
+    if ('environmentIntensity' in this.scene) this.scene.environmentIntensity = look.envIntensity;
     roomScene.traverse(child => {
       if (child.geometry) child.geometry.dispose();
       if (child.material) child.material.dispose();
     });
 
     // Direct lighting sits on top of the IBL, so it is much softer than before.
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+    this.ambientLight = new THREE.AmbientLight(0xffffff, look.ambient);
+    this.scene.add(this.ambientLight);
 
-    this.dirLight = new THREE.DirectionalLight(0xfff3dd, 1.6);
-    this.dirLight.position.set(12, 22, 16);
+    this.dirLight = new THREE.DirectionalLight(0xfff3dd, look.keyIntensity);
+    this.dirLight.position.set(14, 24, 14);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.set(2048, 2048);
+    this.dirLight.shadow.radius = 2.5;
     this.dirLight.shadow.camera.near = 0.5;
     this.dirLight.shadow.camera.far = 70;
     this.dirLight.shadow.camera.left = -ARENA.x - 2;
@@ -255,17 +320,17 @@ export class ThreeDLiveSpaceEditor {
 
     // Static warm key-fill. This used to orbit the room every frame, which read
     // as a disco light rather than a venue and made screenshots inconsistent.
-    this.pointLight = new THREE.PointLight(0xffd9a0, 45, 46, 2);
+    this.pointLight = new THREE.PointLight(0xffd9a0, 38, 46, 2);
     this.pointLight.position.set(0, 9, 2);
     this.scene.add(this.pointLight);
 
     // Cool rim from behind the stage so dark assets separate from the floor.
-    const rim = new THREE.DirectionalLight(0x9fb4ff, 0.55);
-    rim.position.set(-14, 9, -18);
-    this.scene.add(rim);
+    this.rimLight = new THREE.DirectionalLight(0x9fb4ff, 0.6);
+    this.rimLight.position.set(-16, 10, -20);
+    this.scene.add(this.rimLight);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, 1, -2);
+    this.controls.target.set(0, 1.1, -1.5);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.07;
     this.controls.minDistance = 6;
@@ -276,6 +341,7 @@ export class ThreeDLiveSpaceEditor {
     this.controls.update();
 
     this.buildFloorGrid();
+    this.buildSelectionIndicator();
     this.populateInitial3DAssets();
     this.bindThreeEvents();
 
@@ -299,50 +365,143 @@ export class ThreeDLiveSpaceEditor {
     this.camera.updateProjectionMatrix();
   }
 
-  /** Soft radial falloff used as the floor's albedo — a flat colour reads as cardboard. */
+  /**
+   * Floor albedo. A soft radial falloff with a faint sheen band, so the floor
+   * reads as a polished surface receding into the fog rather than flat card.
+   */
   createFloorTexture() {
+    const look = LOOKS[this.look];
     const c = document.createElement('canvas');
-    c.width = c.height = 512;
+    c.width = c.height = 1024;
     const ctx = c.getContext('2d');
-    const g = ctx.createRadialGradient(256, 256, 20, 256, 256, 300);
-    g.addColorStop(0, '#2a2e3d');
-    g.addColorStop(0.55, '#1b1e29');
-    g.addColorStop(1, '#0e1017');
+    const g = ctx.createRadialGradient(512, 512, 30, 512, 512, 620);
+    g.addColorStop(0, look.floorInner);
+    g.addColorStop(0.5, look.floorMid);
+    g.addColorStop(1, look.floorOuter);
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    // Very light grain. Without it the gradient bands visibly on wide screens.
+    const img = ctx.getImageData(0, 0, 1024, 1024);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * 7;
+      d[i] += n; d[i + 1] += n; d[i + 2] += n;
+    }
+    ctx.putImageData(img, 0, 0);
+
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
     return tex;
   }
 
+  /**
+   * Grid lines that fade out with distance from the centre of the arena.
+   * A uniform grid shouts across the whole floor; this one recedes, which is
+   * what makes it read as a drawing rather than graph paper.
+   */
+  fadeGridMaterial(material) {
+    return this.fadeEdgeMaterial(material, 0.35, 1.0);
+  }
+
+  /** Shared radial alpha falloff, in arena-normalised units. */
+  fadeEdgeMaterial(material, inner, outer) {
+    material.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('void main() {', 'varying vec3 vGridPos;\nvoid main() {')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGridPos = (modelMatrix * vec4(position, 1.0)).xyz;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('void main() {', 'varying vec3 vGridPos;\nvoid main() {')
+        .replace(
+          '#include <opaque_fragment>',
+          `  float gd = length(vGridPos.xz / vec2(${ARENA.x.toFixed(1)}, ${ARENA.z.toFixed(1)}));\n  diffuseColor.a *= 1.0 - smoothstep(${inner.toFixed(3)}, ${outer.toFixed(3)}, gd);\n#include <opaque_fragment>`
+        );
+    };
+    material.needsUpdate = true;
+    return material;
+  }
+
   buildFloorGrid() {
+    const look = LOOKS[this.look];
     this.floorTexture = this.createFloorTexture();
     const groundGeo = new THREE.PlaneGeometry(ARENA.x * 2, ARENA.z * 2);
     const groundMat = new THREE.MeshPhysicalMaterial({
       map: this.floorTexture,
-      roughness: 0.34,
+      roughness: 0.62,
       metalness: 0.0,
-      clearcoat: 0.55,
-      clearcoatRoughness: 0.22
+      clearcoat: 0.18,
+      clearcoatRoughness: 0.4,
+      transparent: true
     });
+    // Dissolve the floor's edge into the backdrop. A hard rectangle edge is the
+    // single biggest thing that made this read as a three.js sample.
+    this.fadeEdgeMaterial(groundMat, 1.02, 1.38);
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
+    // Two grids: a fine 1 m mesh that is barely there, and a 5 m structural one.
     // GridHelper is square, so draw it at the smaller axis and scale X to match
-    // the ground exactly — no more 5 units of grid floating past the floor.
-    const grid = new THREE.GridHelper(ARENA.z * 2, ARENA.z * 2, 0x6366f1, 0x2f3140);
-    grid.scale.x = ARENA.x / ARENA.z;
-    grid.position.y = 0.012;
-    grid.material.opacity = 0.28;
-    grid.material.transparent = true;
-    // Keep the grid out of raycasts entirely.
-    grid.raycast = () => {};
-    ground.raycast = () => {};
-    this.scene.add(grid);
+    // the ground exactly — no grid floating past the floor.
+    const fine = new THREE.GridHelper(ARENA.z * 2, ARENA.z * 2, look.gridColor, look.gridColor);
+    fine.scale.x = ARENA.x / ARENA.z;
+    fine.position.y = 0.012;
+    fine.material.opacity = look.gridOpacity * 0.45;
+    fine.material.transparent = true;
+    fine.material.depthWrite = false;
+    this.fadeGridMaterial(fine.material);
+    fine.raycast = () => {};
+    this.scene.add(fine);
 
-    this.floorObjects = [ground, grid];
+    const major = new THREE.GridHelper(ARENA.z * 2, 6, look.gridColor, look.gridColor);
+    major.scale.x = ARENA.x / ARENA.z;
+    major.position.y = 0.014;
+    major.material.opacity = look.gridOpacity;
+    major.material.transparent = true;
+    major.material.depthWrite = false;
+    this.fadeGridMaterial(major.material);
+    major.raycast = () => {};
+    this.scene.add(major);
+
+    ground.raycast = () => {};
+    this.floorObjects = [ground, fine, major];
+  }
+
+  /**
+   * Selection feedback: a brass ring on the floor plus the asset's bounding box
+   * picked out in the same brass. Replaces the old lurid emissive flood, which
+   * destroyed the material read of whatever you had just selected.
+   */
+  buildSelectionIndicator() {
+    const ringGeo = new THREE.RingGeometry(0.86, 1, 64);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: ACCENT,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    this.selectionRing = new THREE.Mesh(ringGeo, ringMat);
+    this.selectionRing.rotation.x = -Math.PI / 2;
+    this.selectionRing.position.y = 0.03;
+    this.selectionRing.renderOrder = 2;
+    this.selectionRing.visible = false;
+    this.selectionRing.raycast = () => {};
+    this.scene.add(this.selectionRing);
+
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    boxGeo.dispose();
+    this.selectionEdges = new THREE.LineSegments(
+      edges,
+      new THREE.LineBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.55, depthWrite: false })
+    );
+    this.selectionEdges.visible = false;
+    this.selectionEdges.renderOrder = 2;
+    this.selectionEdges.raycast = () => {};
+    this.scene.add(this.selectionEdges);
   }
 
   /**
@@ -498,6 +657,7 @@ export class ThreeDLiveSpaceEditor {
 
     this.scene.add(group);
     this.placedObjects.push(group);
+    if (LOOKS[this.look].tint !== null) this.applyLookTint();
     this.markShadowsDirty();
     return group;
   }
@@ -585,12 +745,15 @@ export class ThreeDLiveSpaceEditor {
     group.add(stem);
 
     // Per-instance so swatches and the selection highlight do not bleed across tables.
+    // Default is an ivory linen cloth, not the brand accent: a floor of six
+    // identical brass discs is what made the old scene read as a toy.
     const topMat = new THREE.MeshPhysicalMaterial({
-      color: this.activeSwatch.hex,
-      metalness: 0.1,
-      roughness: 0.45,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.25
+      color: 0xe7e0d2,
+      metalness: 0.0,
+      roughness: 0.82,
+      sheen: 0.6,
+      sheenRoughness: 0.7,
+      sheenColor: new THREE.Color(0xfff4e0)
     });
     const top = new THREE.Mesh(S.tableTopGeo, topMat);
     top.position.y = 1.29;
@@ -638,9 +801,9 @@ export class ThreeDLiveSpaceEditor {
     const group = new THREE.Group();
 
     const platformMat = new THREE.MeshPhysicalMaterial({
-      color: 0x14161c,
-      roughness: 0.4,
-      metalness: 0.35,
+      color: 0x1c1f28,
+      roughness: 0.45,
+      metalness: 0.3,
       clearcoat: 0.6,
       clearcoatRoughness: 0.3
     });
@@ -651,11 +814,12 @@ export class ThreeDLiveSpaceEditor {
     group.add(platform);
 
     const stripMat = new THREE.MeshStandardMaterial({
-      color: 0x6366f1,
-      emissive: 0x6366f1,
-      emissiveIntensity: 1.4,
+      color: ACCENT,
+      emissive: ACCENT,
+      emissiveIntensity: 1.1,
       roughness: 0.4
     });
+    stripMat.userData.h3dNoTint = true;
     const strip = new THREE.Mesh(S.stageStripGeo, stripMat);
     strip.position.y = 0.06;
     group.add(strip);
@@ -859,6 +1023,7 @@ export class ThreeDLiveSpaceEditor {
     );
     this.selectedMesh.position.x = clamped.x;
     this.selectedMesh.position.z = clamped.z;
+    this.syncSelectionIndicator();
     this.updateInspectorPosition();
     this.markShadowsDirty();
     this.emitLayoutChange();
@@ -942,6 +1107,7 @@ export class ThreeDLiveSpaceEditor {
     };
 
     // Orbiting must not fight object dragging.
+    this.camTween = null;
     if (this.controls) this.controls.enabled = false;
     try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch { /* no capture available */ }
   }
@@ -971,6 +1137,7 @@ export class ThreeDLiveSpaceEditor {
 
     this.selectedMesh.position.x = clamped.x;
     this.selectedMesh.position.z = clamped.z;
+    this.syncSelectionIndicator();
     this.updateInspectorPosition();
   }
 
@@ -995,12 +1162,156 @@ export class ThreeDLiveSpaceEditor {
   // -------------------------------------------------------------- selection
 
   highlightSelectedObject() {
-    this.placedObjects.forEach(obj => {
-      const main = obj.userData.mainMesh;
-      if (!main || !main.material || !main.material.emissive) return;
-      const on = obj === this.selectedMesh;
-      main.material.emissive.copy(on ? COLOR_HIGHLIGHT : COLOR_BLACK);
-      main.material.emissiveIntensity = on ? 0.55 : 0;
+    const target = this.selectedMesh;
+    const shown = Boolean(target) && this.placedObjects.includes(target);
+
+    if (this.selectionRing) {
+      this.selectionRing.visible = shown;
+      if (shown) {
+        const r = Math.max(target.userData.halfX, target.userData.halfZ) * 1.16;
+        this.selectionRing.scale.set(r, r, 1);
+        this.selectionRing.position.set(target.position.x, 0.03, target.position.z);
+      }
+    }
+
+    if (this.selectionEdges) {
+      this.selectionEdges.visible = shown;
+      if (shown) {
+        this._box.setFromObject(target);
+        const size = this._box.getSize(new THREE.Vector3());
+        const centre = this._box.getCenter(new THREE.Vector3());
+        this.selectionEdges.scale.set(
+          Math.max(size.x, 0.1) * 1.04,
+          Math.max(size.y, 0.1) * 1.04,
+          Math.max(size.z, 0.1) * 1.04
+        );
+        this.selectionEdges.position.copy(centre);
+      }
+    }
+  }
+
+  /** Keep the brass ring under an asset while it is being dragged or nudged. */
+  syncSelectionIndicator() {
+    this.highlightSelectedObject();
+  }
+
+  // ----------------------------------------------------------------- camera
+
+  /**
+   * Every preset goes through here, so presets ease rather than cut. The tween
+   * is stepped in animate() and cancelled the moment the user grabs the orbit
+   * controls, so it can never fight a drag.
+   */
+  flyCameraTo(pos, target, ms = 620) {
+    if (!this.camera || !this.controls) return;
+    const reduce = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
+    const to = { pos: new THREE.Vector3(...pos), target: new THREE.Vector3(...target) };
+
+    if (reduce || ms <= 0) {
+      this.camTween = null;
+      this.camera.position.copy(to.pos);
+      this.controls.target.copy(to.target);
+      this.controls.update();
+      return;
+    }
+    this.camTween = {
+      fromPos: this.camera.position.clone(),
+      fromTarget: this.controls.target.clone(),
+      toPos: to.pos,
+      toTarget: to.target,
+      start: performance.now(),
+      ms
+    };
+  }
+
+  stepCameraTween() {
+    const t = this.camTween;
+    if (!t) return;
+    const raw = Math.min(1, (performance.now() - t.start) / t.ms);
+    // easeInOutCubic
+    const e = raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
+    this.camera.position.lerpVectors(t.fromPos, t.toPos, e);
+    this.controls.target.lerpVectors(t.fromTarget, t.toTarget, e);
+    if (raw >= 1) this.camTween = null;
+  }
+
+  cameraPreset(name) {
+    const presets = {
+      perspective: [[19, 15.5, 27], [0, 0.9, -1.2]],
+      plan: [[0, 38, 0.001], [0, 0, -1]],
+      guest: [[0, 3.1, 12.5], [0, 1.7, -7.5]],
+      stage: [[0, 5.5, -17], [0, 1.8, 2]]
+    };
+    const p = presets[name] || presets.perspective;
+    this.activeCamPreset = presets[name] ? name : 'perspective';
+    this.flyCameraTo(p[0], p[1]);
+    this.container.querySelectorAll('[data-cam]').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.getAttribute('data-cam') === this.activeCamPreset));
+    });
+  }
+
+  // ------------------------------------------------------------------- look
+
+  /**
+   * Swap between the warm studio render and the pale blueprint read. Original
+   * material colours are stashed on first tint so the swap is reversible.
+   */
+  setLook(name) {
+    const look = LOOKS[name];
+    if (!look || name === this.look) return;
+    this.look = name;
+    if (!this.scene) return;
+
+    this.scene.background = new THREE.Color(look.background);
+    if (this.scene.fog) this.scene.fog.color.setHex(look.fogColor);
+    if (this.renderer) this.renderer.toneMappingExposure = look.exposure;
+    if ('environmentIntensity' in this.scene) this.scene.environmentIntensity = look.envIntensity;
+    if (this.ambientLight) this.ambientLight.intensity = look.ambient;
+    if (this.dirLight) this.dirLight.intensity = look.keyIntensity;
+    if (this.pointLight) this.pointLight.intensity = name === 'blueprint' ? 6 : 38;
+    if (this.rimLight) this.rimLight.intensity = name === 'blueprint' ? 0.15 : 0.6;
+
+    // Floor + grids are cheap to rebuild and own their textures, so redo them.
+    (this.floorObjects || []).forEach(obj => {
+      this.scene.remove(obj);
+      this.disposeObject(obj);
+    });
+    if (this.floorTexture) { this.floorTexture.dispose(); this.floorTexture = null; }
+    this.buildFloorGrid();
+
+    this.applyLookTint();
+    this.markShadowsDirty();
+    this.syncLookButtons();
+  }
+
+  applyLookTint() {
+    const tint = LOOKS[this.look].tint;
+    this.placedObjects.forEach(group => {
+      group.traverse(child => {
+        const mats = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
+        mats.forEach(mat => {
+          if (!mat.color || mat.userData.h3dNoTint) return;
+          if (mat.userData.h3dOrigColor === undefined) mat.userData.h3dOrigColor = mat.color.getHex();
+          if (mat.userData.h3dOrigMetal === undefined) mat.userData.h3dOrigMetal = mat.metalness ?? null;
+          if (tint === null) {
+            mat.color.setHex(mat.userData.h3dOrigColor);
+            if (mat.userData.h3dOrigMetal !== null) mat.metalness = mat.userData.h3dOrigMetal;
+          } else {
+            // Desaturate towards ink rather than replacing outright, so an asset
+            // recoloured by the client is still distinguishable in blueprint.
+            mat.color.setHex(mat.userData.h3dOrigColor).lerp(new THREE.Color(tint), 0.72);
+            if (mat.userData.h3dOrigMetal !== null) mat.metalness = Math.min(mat.userData.h3dOrigMetal, 0.15);
+          }
+        });
+      });
+    });
+  }
+
+  syncLookButtons() {
+    this.container.querySelectorAll('[data-look]').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.getAttribute('data-look') === this.look));
     });
   }
 
@@ -1011,6 +1322,9 @@ export class ThreeDLiveSpaceEditor {
     const main = this.selectedMesh.userData.mainMesh;
     if (main && main.material && main.material.color) {
       main.material.color.setHex(swatch.hex);
+      // Keep the blueprint tint reversible: the swatch is the new "original".
+      main.material.userData.h3dOrigColor = swatch.hex;
+      if (LOOKS[this.look].tint !== null) this.applyLookTint();
     }
     this.updateInspectorUI();
     this.emitLayoutChange();
@@ -1118,74 +1432,70 @@ export class ThreeDLiveSpaceEditor {
 
   updateStats() {
     const layout = this.getLayout();
-    const countEl = this.container.querySelector('#assetCountVal');
-    const costEl = this.container.querySelector('#assetCostVal');
-    const seatEl = this.container.querySelector('#assetSeatVal');
-    if (countEl) countEl.textContent = `${layout.items.length} Assets`;
-    if (costEl) costEl.textContent = formatMoney(layout.totalCost);
-    if (seatEl) seatEl.textContent = `${layout.seats} seats`;
+    const set = (sel, value) => {
+      const el = this.container.querySelector(sel);
+      if (el) el.textContent = value;
+    };
+    set('[data-stat="count"]', String(layout.items.length));
+    set('[data-stat="seats"]', String(layout.seats));
+    set('[data-stat="cost"]', formatMoney(layout.totalCost));
   }
 
   updateInspectorPosition() {
-    const el = this.container.querySelector('.inspector-pos');
+    const el = this.container.querySelector('[data-insp="pos"]');
     if (el && this.selectedMesh) {
-      el.textContent = `Position: X ${this.selectedMesh.position.x.toFixed(1)} | Z ${this.selectedMesh.position.z.toFixed(1)} (0.5 grid snapped)`;
+      el.textContent = `X ${this.selectedMesh.position.x.toFixed(1)} · Z ${this.selectedMesh.position.z.toFixed(1)} · snapped to ${GRID_SNAP} m`;
     }
   }
 
   updateInspectorUI() {
-    const inspectorBox = this.container.querySelector('#objectInspectorBox');
-    if (!inspectorBox) return;
+    const box = this.container.querySelector('#h3dInspector');
+    if (!box) return;
 
     if (!this.selectedMesh) {
-      inspectorBox.innerHTML = `
-        <div class="inspector-placeholder">
-          <span>${this.placedObjects.length
-            ? '👆 Select an asset — click it on the floor, or press Enter with the floor focused — to recolour, duplicate, delete or move it.'
-            : '🪑 The floor is empty. Place an asset from the library on the left, or use “Reset floor” to bring back the reference layout.'}</span>
-        </div>
-      `;
+      box.innerHTML = this.placedObjects.length
+        ? `<p class="h3d-empty">Nothing selected. Click an asset on the floor — or focus the plan and press <kbd>Enter</kbd> — to recolour, duplicate, move or remove it.</p>`
+        : `<p class="h3d-empty">The floor is empty. Place an asset above, or restore the reference layout.</p>`;
       return;
     }
 
     const data = this.selectedMesh.userData;
     const activeHex = data.swatchHex;
-    inspectorBox.innerHTML = `
-      <div class="inspector-card">
-        <div class="inspector-head">
-          <h4>📦 ${escapeHtml(data.name)}</h4>
-          <span class="type-badge">${escapeHtml(String(data.type).toUpperCase())}</span>
+    box.innerHTML = `
+      <div class="h3d-card">
+        <div class="h3d-card-head">
+          <h5>${escapeHtml(data.name)}</h5>
+          <span class="h3d-badge">${escapeHtml(String(data.type))}</span>
         </div>
-        <p class="inspector-pos">Position: X ${this.selectedMesh.position.x.toFixed(1)} | Z ${this.selectedMesh.position.z.toFixed(1)} (0.5 grid snapped)</p>
-        <p class="inspector-cost">Indicative rental: <strong>${formatMoney(data.cost)}</strong></p>
+        <p class="h3d-meta" data-insp="pos">X ${this.selectedMesh.position.x.toFixed(1)} · Z ${this.selectedMesh.position.z.toFixed(1)} · snapped to ${GRID_SNAP} m</p>
+        <p class="h3d-meta">Indicative rental <strong>${formatMoney(data.cost)}</strong></p>
 
-        <div class="inspector-swatches-title" id="swatchGroupLabel">Material &amp; fabric colour</div>
-        <div class="swatch-row" role="group" aria-labelledby="swatchGroupLabel">
-          ${this.swatches.map(s => `
-            <button type="button" class="swatch-btn ${activeHex === s.hex ? 'active' : ''}" style="background-color: ${s.text}" data-hex="${s.hex}" title="${escapeHtml(s.name)}" aria-label="Apply ${escapeHtml(s.name)}" aria-pressed="${activeHex === s.hex}"></button>
+        <div class="h3d-swatches" role="group" aria-label="Finish colour">
+          ${this.swatches.map(sw => `
+            <button type="button" class="h3d-swatch" style="background-color:${sw.text}" data-hex="${sw.hex}"
+                    title="${escapeHtml(sw.name)}" aria-label="Apply ${escapeHtml(sw.name)}"
+                    aria-pressed="${activeHex === sw.hex}"></button>
           `).join('')}
         </div>
 
-        <div class="inspector-actions">
-          <button type="button" class="btn-insp btn-dup" id="btnDupMesh">📋 Duplicate</button>
-          <button type="button" class="btn-insp btn-del" id="btnDelMesh">🗑️ Delete</button>
+        <div class="h3d-row">
+          <button type="button" class="h3d-btn" data-act="duplicate">Duplicate</button>
+          <button type="button" class="h3d-btn h3d-btn--danger" data-act="delete">Remove</button>
         </div>
       </div>
     `;
 
-    inspectorBox.querySelectorAll('.swatch-btn').forEach(btn => {
+    box.querySelectorAll('.h3d-swatch').forEach(btn => {
       btn.addEventListener('click', () => {
         const hexVal = Number(btn.getAttribute('data-hex'));
-        const found = this.swatches.find(s => s.hex === hexVal);
+        const found = this.swatches.find(sw => sw.hex === hexVal);
         if (found) this.applySwatchToSelected(found);
       });
     });
-
-    const btnDup = inspectorBox.querySelector('#btnDupMesh');
-    if (btnDup) btnDup.addEventListener('click', () => this.duplicateSelectedMesh());
-
-    const btnDel = inspectorBox.querySelector('#btnDelMesh');
-    if (btnDel) btnDel.addEventListener('click', () => this.deleteSelectedMesh());
+    const dup = box.querySelector('[data-act="duplicate"]');
+    if (dup) dup.addEventListener('click', () => this.duplicateSelectedMesh());
+    const del = box.querySelector('[data-act="delete"]');
+    if (del) del.addEventListener('click', () => this.deleteSelectedMesh());
   }
 
   // ------------------------------------------------------------- loop / life
@@ -1194,30 +1504,52 @@ export class ThreeDLiveSpaceEditor {
     if (!this.animating) return;
     this.rafHandle = requestAnimationFrame(this.animate);
 
+    this.stepCameraTween();
     if (this.controls) this.controls.update();
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
   }
 
-  open() {
-    // Idempotent: a second open() while already open must not start a second loop.
-    if (this.renderer) return;
-    this.render();
+  /**
+   * Mount as an ordinary studio view inside a container the shell sizes.
+   *
+   * This is the entry point. There is no overlay, no backdrop, no fixed
+   * positioning and no z-index unless `{ modal: true }` is passed, which exists
+   * only as a shim for callers that have not been converted yet.
+   */
+  mount(container = this.container, opts = {}) {
+    if (this.isMounted) return this;
+    if (container) this.container = container;
+    if (!this.container) return this;
 
-    // Initialise synchronously. render() applies innerHTML synchronously, so the
-    // canvas holder already exists; the ResizeObserver corrects the camera aspect
-    // and drawing-buffer size once layout settles.
-    //
-    // This used to be deferred to requestAnimationFrame, which does not fire while
-    // the tab is hidden or backgrounded — the panel rendered and the 3D scene
-    // silently never initialised, leaving a blank canvas until the editor was
-    // closed and reopened.
+    injectStudio3DStyles();
+    if (opts.modal !== undefined) this.options.modal = Boolean(opts.modal);
+    if (opts.mode) this.mode = opts.mode === 'edit' ? 'edit' : 'view';
+    if (opts.look && LOOKS[opts.look]) this.look = opts.look;
+
+    this.render();
     this.initThreeScene();
+    this.cameraPreset('perspective');
+    this.camTween = null;   // land on the default framing immediately, do not fly in
+    this.syncLookButtons();
     this.updateStats();
+    this.updateInspectorUI();
+    this.isMounted = true;
+    return this;
   }
 
-  close() {
+  /**
+   * Tear down completely: rAF loop, resize observer, listeners, GPU resources
+   * and the WebGL context itself. Must leave nothing behind — mount/unmount is
+   * expected to cycle many times as the shell switches studio tabs.
+   */
+  unmount() {
+    if (!this.isMounted && !this.renderer) {
+      if (this.container) this.container.innerHTML = '';
+      return;
+    }
+
     this.animating = false;
     if (this.rafHandle !== null) {
       cancelAnimationFrame(this.rafHandle);
@@ -1248,6 +1580,7 @@ export class ThreeDLiveSpaceEditor {
       this._contactTex.dispose();
       this._contactTex = null;
     }
+    if (this.floorTexture) { this.floorTexture.dispose(); this.floorTexture = null; }
     if (this.envTexture) { this.envTexture.dispose(); this.envTexture = null; }
     if (this.pmrem) { this.pmrem.dispose(); this.pmrem = null; }
 
@@ -1258,146 +1591,193 @@ export class ThreeDLiveSpaceEditor {
       this.renderer = null;
     }
 
+    if (this._scrim && this._scrim.parentNode) this._scrim.parentNode.removeChild(this._scrim);
+    this._scrim = null;
+
     this.placedObjects = [];
     this.floorObjects = [];
+    this.selectionRing = null;
+    this.selectionEdges = null;
     this.selectedMesh = null;
     this.pendingDrag = null;
     this.isDragging = false;
+    this.camTween = null;
     this.scene = null;
     this.camera = null;
     this.dirLight = null;
     this.pointLight = null;
+    this.rimLight = null;
+    this.ambientLight = null;
     this.canvasHolder = null;
-    this.container.innerHTML = '';
+    this._rootEl = null;
+    this.isMounted = false;
+    if (this.container) this.container.innerHTML = '';
+  }
+
+  /**
+   * Switch between the cinematic view and the docked edit panel. The panel is a
+   * grid column, so entering edit mode SHRINKS the canvas — it never covers it.
+   */
+  setMode(mode) {
+    const next = mode === 'edit' ? 'edit' : 'view';
+    this.mode = next;
+    if (this._rootEl) this._rootEl.setAttribute('data-mode', next);
+
+    const toggle = this.container.querySelector('#h3dModeToggle');
+    if (toggle) {
+      toggle.textContent = next === 'edit' ? 'Done' : 'Edit';
+      toggle.className = next === 'edit' ? 'h3d-btn' : 'h3d-btn h3d-btn--primary';
+      toggle.setAttribute('aria-expanded', String(next === 'edit'));
+    }
+
+    if (next === 'view') {
+      this.selectedMesh = null;
+      this.highlightSelectedObject();
+      this.updateInspectorUI();
+    }
+    // The canvas has just changed width; correct the aspect on the next frame
+    // as well as now, so it is right both during and after the CSS transition.
+    this.handleResize();
+    requestAnimationFrame(() => this.handleResize());
+    setTimeout(() => this.handleResize(), 300);
+    return this.mode;
+  }
+
+  // ------------------------------------------- legacy modal entry points
+
+  /** @deprecated Use mount(). Kept so unconverted callers still work. */
+  open() {
+    if (this.isMounted) return;
+    this.mount(this.container, { modal: true });
+  }
+
+  /** @deprecated Use unmount(). */
+  close() {
+    this.unmount();
   }
 
   // ------------------------------------------------------------------- view
 
   bindEvents() {
-    const spawn = (id, type) => {
-      const btn = this.container.querySelector(id);
-      if (btn) btn.addEventListener('click', () => this.spawnAsset(type));
-    };
-    spawn('#btnAddTable', 'table');
-    spawn('#btnAddStage', 'stage');
-    spawn('#btnAddPodium', 'podium');
-    spawn('#btnAddSound', 'sound');
-
-    const setCamera = (pos, target) => {
-      if (!this.camera) return; // scene may not be initialised yet
-      this.camera.position.set(pos[0], pos[1], pos[2]);
-      if (this.controls) {
-        this.controls.target.set(target[0], target[1], target[2]);
-        this.controls.update();
-      } else {
-        this.camera.lookAt(target[0], target[1], target[2]);
-      }
+    const on = (sel, fn, evt = 'click') => {
+      const el = this.container.querySelector(sel);
+      if (el) el.addEventListener(evt, fn);
+      return el;
     };
 
-    const btnCamTop = this.container.querySelector('#btnCamTop');
-    if (btnCamTop) btnCamTop.addEventListener('click', () => setCamera([0, 34, 0.1], [0, 0, -1]));
+    this.container.querySelectorAll('[data-spawn]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (this.mode !== 'edit') this.setMode('edit');
+        this.spawnAsset(btn.getAttribute('data-spawn'));
+      });
+    });
 
-    const btnCam3D = this.container.querySelector('#btnCam3D');
-    if (btnCam3D) btnCam3D.addEventListener('click', () => setCamera([0, 15, 23], [0, 1, -2]));
+    this.container.querySelectorAll('[data-cam]').forEach(btn => {
+      btn.addEventListener('click', () => this.cameraPreset(btn.getAttribute('data-cam')));
+    });
 
-    const btnCamGuest = this.container.querySelector('#btnCamGuest');
-    if (btnCamGuest) btnCamGuest.addEventListener('click', () => setCamera([0, 3.2, 13], [0, 1.6, -8]));
+    this.container.querySelectorAll('[data-look]').forEach(btn => {
+      btn.addEventListener('click', () => this.setLook(btn.getAttribute('data-look')));
+    });
 
-    const btnCycle = this.container.querySelector('#btnCycleSel');
-    if (btnCycle) btnCycle.addEventListener('click', () => {
+    on('#h3dModeToggle', () => this.setMode(this.mode === 'edit' ? 'view' : 'edit'));
+    on('[data-act="cycle"]', () => {
       this.cycleSelection(1);
       if (this.canvasHolder) this.canvasHolder.focus();
     });
-
-    const btnReset = this.container.querySelector('#btnResetLayout');
-    if (btnReset) btnReset.addEventListener('click', () => this.resetLayout());
-
-    const btnClose = this.container.querySelector('#btnClose3DEditor');
-    if (btnClose) btnClose.addEventListener('click', () => this.close());
+    on('[data-act="reset"]', () => this.resetLayout());
+    on('#h3dClose', () => this.unmount());
   }
 
   render() {
+    injectStudio3DStyles();
+    const modal = Boolean(this.options.modal);
+
+    if (modal && !this._scrim) {
+      this._scrim = document.createElement('div');
+      this._scrim.className = 'h3d-scrim';
+      this._scrim.addEventListener('click', () => this.unmount());
+      document.body.appendChild(this._scrim);
+    }
+
+    const assets = [
+      ['table', 'Banquet table & chairs', ASSET_SPEC.table.cost],
+      ['stage', 'LED stage & banner', ASSET_SPEC.stage.cost],
+      ['podium', 'Glass podium', ASSET_SPEC.podium.cost],
+      ['sound', 'Line array tower', ASSET_SPEC.sound.cost]
+    ];
+
     this.container.innerHTML = `
-      <div class="three-editor-modal-overlay">
-        <div class="three-editor-card" role="dialog" aria-modal="true" aria-label="3D event space editor">
-          <div class="three-editor-header">
-            <div class="header-left">
-              <h2>📐 3D Floor Plan</h2>
-              <span class="editor-sub">Massing model for layout and seat count — not a photoreal preview. Use the 360° studio for finishes.</span>
-              <span class="editor-sub">The rental figure shown is <strong>indicative only and is not added to the venue quote</strong> — the zone catalogue already prices tables, chairs and staging.</span>
-            </div>
-            <div class="header-right">
-              <div class="stats-pill" title="Indicative rental value of the assets on the floor. Not added to the venue quote.">
-                <span id="assetCountVal">0 Assets</span> |
-                <span id="assetSeatVal">0 seats</span> |
-                <span id="assetCostVal" class="text-gold">${formatMoney(0)}</span>
-              </div>
-              <button type="button" class="btn-close-editor" id="btnClose3DEditor" aria-label="Close 3D editor">✕</button>
-            </div>
+      <div class="h3d-root${modal ? ' h3d-root--modal' : ''}" data-mode="${this.mode}"
+           role="${modal ? 'dialog' : 'region'}" ${modal ? 'aria-modal="true"' : ''} aria-label="3D floor plan">
+        <div class="h3d-bar">
+          <div>
+            <p class="h3d-title">Floor plan</p>
+            <p class="h3d-sub">Massing model — layout and seat count, not finishes</p>
           </div>
-
-          <div class="three-editor-workspace">
-            <div class="asset-library-sidebar">
-              <h3>📦 3D Asset Library</h3>
-              <p>Click an item to place it on a free spot:</p>
-
-              <div class="asset-buttons-grid">
-                <button type="button" class="asset-spawn-btn" id="btnAddTable">
-                  <span class="icon" aria-hidden="true">🍽️</span>
-                  <span>Banquet Table &amp; Chairs</span>
-                </button>
-                <button type="button" class="asset-spawn-btn" id="btnAddStage">
-                  <span class="icon" aria-hidden="true">🎭</span>
-                  <span>LED Stage &amp; Slogan Banner</span>
-                </button>
-                <button type="button" class="asset-spawn-btn" id="btnAddPodium">
-                  <span class="icon" aria-hidden="true">🎤</span>
-                  <span>Glass Podium &amp; Microphones</span>
-                </button>
-                <button type="button" class="asset-spawn-btn" id="btnAddSound">
-                  <span class="icon" aria-hidden="true">🔊</span>
-                  <span>Line Array Sound Tower</span>
-                </button>
-              </div>
-
-              <div class="camera-views-box mt-3">
-                <h4>⌨️ Selection</h4>
-                <div class="cam-btns-row">
-                  <button type="button" class="cam-btn" id="btnCycleSel">Select next asset</button>
-                  <button type="button" class="cam-btn" id="btnResetLayout">Reset floor</button>
-                </div>
-              </div>
-
-              <div class="camera-views-box mt-3">
-                <h4>🎥 Camera Angles</h4>
-                <div class="cam-btns-row">
-                  <button type="button" class="cam-btn" id="btnCam3D">Perspective</button>
-                  <button type="button" class="cam-btn" id="btnCamTop">Top View</button>
-                  <button type="button" class="cam-btn" id="btnCamGuest">Guest Eye</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="three-canvas-container">
-              <div id="threeCanvasHolder" class="three-canvas-holder" tabindex="0" role="application"
-                   aria-label="3D floor plan. Enter or Space selects the next asset, arrow keys move it on the 0.5-unit grid, Delete removes it."></div>
-              <div class="canvas-help-hint">
-                💡 Drag empty space to orbit, scroll to zoom, drag an asset to move it.
-                Keyboard: focus the floor, then <kbd>Enter</kbd> cycles selection, <kbd>↑ ↓ ← →</kbd> nudge
-                (<kbd>Shift</kbd> for a bigger step) and <kbd>Delete</kbd> removes. Your layout is saved automatically.
-              </div>
-            </div>
-
-            <div class="object-inspector-sidebar" id="objectInspectorBox">
-              <div class="inspector-placeholder">
-                <span>👆 Select any 3D asset in the room to recolour, duplicate, delete or drag it across the floor.</span>
-              </div>
-            </div>
+          <span class="h3d-bar-spacer"></span>
+          <div class="h3d-stats" title="Indicative rental value of the assets on the floor. Not added to the venue quote.">
+            <span><b data-stat="count">0</b> assets</span>
+            <span><b data-stat="seats">0</b> seats</span>
+            <span class="h3d-cost" data-stat="cost">${formatMoney(0)}</span>
           </div>
+          <button type="button" class="h3d-btn h3d-btn--primary" id="h3dModeToggle"
+                  aria-expanded="false" aria-controls="h3dPanel">Edit</button>
+          ${modal ? '<button type="button" class="h3d-btn" id="h3dClose" aria-label="Close 3D floor plan">Close</button>' : ''}
         </div>
+
+        <div class="h3d-stage">
+          <div class="h3d-canvas" tabindex="0" role="application"
+               aria-label="3D floor plan. Enter selects the next asset, arrow keys move it on the half-metre grid, Delete removes it."></div>
+          <p class="h3d-hint">Drag the floor to orbit, scroll to zoom, drag an asset to move it.
+             <kbd>Enter</kbd> cycles selection, <kbd>↑↓←→</kbd> nudge, <kbd>Delete</kbd> removes.</p>
+        </div>
+
+        <aside class="h3d-panel" id="h3dPanel" aria-label="Floor plan editor">
+          <div class="h3d-group">
+            <h4>Place</h4>
+            <div class="h3d-list">
+              ${assets.map(([type, label, cost]) => `
+                <button type="button" class="h3d-btn h3d-asset" data-spawn="${type}">
+                  <span>${escapeHtml(label)}</span>
+                  <span class="h3d-price">${formatMoney(cost)}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="h3d-group">
+            <h4>Selection</h4>
+            <div id="h3dInspector"></div>
+            <div class="h3d-row">
+              <button type="button" class="h3d-btn" data-act="cycle">Select next</button>
+              <button type="button" class="h3d-btn" data-act="reset">Reset floor</button>
+            </div>
+          </div>
+
+          <div class="h3d-group">
+            <h4>Camera</h4>
+            <div class="h3d-row">
+              <button type="button" class="h3d-btn" data-cam="perspective" aria-pressed="true">Perspective</button>
+              <button type="button" class="h3d-btn" data-cam="plan" aria-pressed="false">Plan</button>
+              <button type="button" class="h3d-btn" data-cam="guest" aria-pressed="false">Guest eye</button>
+              <button type="button" class="h3d-btn" data-cam="stage" aria-pressed="false">From stage</button>
+            </div>
+          </div>
+
+          <div class="h3d-group">
+            <h4>Render</h4>
+            <div class="h3d-row">
+              <button type="button" class="h3d-btn" data-look="studio" aria-pressed="true">Studio</button>
+              <button type="button" class="h3d-btn" data-look="blueprint" aria-pressed="false">Blueprint</button>
+            </div>
+            <p class="h3d-note">The rental figure is indicative and is not added to the venue quote — the zone catalogue already prices tables, chairs and staging.</p>
+          </div>
+        </aside>
       </div>
     `;
 
+    this._rootEl = this.container.querySelector('.h3d-root');
     this.bindEvents();
   }
 }

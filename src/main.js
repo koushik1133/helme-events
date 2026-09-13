@@ -50,6 +50,7 @@ import { HomeScreen } from './components/home/HomeScreen.js';
 import { crmStore } from './crm/store.js';
 import * as crmFinance from './crm/finance.js';
 import { can } from './auth/permissions.js';
+import { ensureShellStyles } from './shell/shellStyles.js';
 import { CalendarBooking } from './components/CalendarBooking.js';
 import { ZoneNotes } from './components/ZoneNotes.js';
 
@@ -94,6 +95,7 @@ class Event360App {
     // A review link wins over saved state: someone was sent this exact design.
     this.sharedDesignApplied = this.restoreSharedDesign();
 
+    ensureShellStyles();
     this.applyTheme(this.theme);
     this.initUI();
     this.initComponents();
@@ -225,7 +227,8 @@ class Event360App {
       clients: document.getElementById('clientsSection'),
       deals: document.getElementById('dealsSection'),
       payments: document.getElementById('paymentsSection'),
-      studio: document.getElementById('studioSection')
+      studio: document.getElementById('studioSection'),
+      plan: document.getElementById('planSection')
     };
 
     // New modal containers
@@ -254,6 +257,12 @@ class Event360App {
 
     // New tabs & search
     this.tabTimelineView = document.getElementById('tabTimelineView');
+    this.tabVendorsView = document.getElementById('tabVendorsView');
+    this.tabInventoryView = document.getElementById('tabInventoryView');
+    this.tabCalendarView = document.getElementById('tabCalendarView');
+    this.planNavGroup = document.getElementById('planNavGroup');
+    this.studioModeBarHost = document.getElementById('studioModeBarHost');
+    this.studioEditPanelHost = document.getElementById('studioEditPanelHost');
     this.tabSeatingView = document.getElementById('tabSeatingView');
     this.globalNavSearch = document.getElementById('globalNavSearch');
 
@@ -580,13 +589,15 @@ class Event360App {
     // Original tab events
     this.tabMapView.addEventListener('click', () => this.switchView('map'));
     this.tab360View.addEventListener('click', () => this.switchView('studio360'));
-    if (this.tabIndiaView) this.tabIndiaView.addEventListener('click', () => this.switchView('india'));
     if (this.tabFloorPlanView) this.tabFloorPlanView.addEventListener('click', () => this.switchView('floorplan'));
     if (this.tabAnalyticsView) this.tabAnalyticsView.addEventListener('click', () => this.switchView('analytics'));
     if (this.tabProposalsView) this.tabProposalsView.addEventListener('click', () => this.switchView('proposals'));
 
     // New tab & search events
     if (this.tabTimelineView) this.tabTimelineView.addEventListener('click', () => this.switchView('timeline'));
+    if (this.tabVendorsView) this.tabVendorsView.addEventListener('click', () => this.switchView('vendors'));
+    if (this.tabInventoryView) this.tabInventoryView.addEventListener('click', () => this.switchView('inventory'));
+    if (this.tabCalendarView) this.tabCalendarView.addEventListener('click', () => this.switchView('calendar'));
     if (this.tabSeatingView) this.tabSeatingView.addEventListener('click', () => this.switchView('seating'));
     if (this.globalNavSearch) {
       this.globalNavSearch.setAttribute('role', 'combobox');
@@ -945,16 +956,15 @@ class Event360App {
       btn.setAttribute('aria-current', on ? 'page' : 'false');
     });
 
-    // Studio-only chrome.
+    // Each section shows only its own tab group.
     const inStudio = target === 'studio';
+    const inPlan = target === 'plan';
     document.querySelectorAll('.studio-only, .studio-only-actions').forEach(el => {
       el.classList.toggle('hidden', !inStudio);
     });
-    if (!inStudio) {
-      this.featureToolbar?.classList.add('hidden');
-      this.indiaSubBar?.classList.add('hidden');
-      this.featureToolbarOpen = false;
-    }
+    document.querySelectorAll('.plan-only').forEach(el => {
+      el.classList.toggle('hidden', !inPlan);
+    });
 
     // Lets the stylesheet scope studio-only chrome (the live quotation card)
     // without every component needing to know about sections.
@@ -979,7 +989,14 @@ class Event360App {
       }
       if (name === 'deals' && this.dealBoard?.render) this.dealBoard.render();
       if (name === 'payments' && this.paymentsScreen?.render) this.paymentsScreen.render();
-      if (name === 'studio') this.switchView(this.activeView || 'map');
+      if (name === 'studio') {
+        const studioViews = ['map', 'studio360', 'floorplan'];
+        this.switchView(studioViews.includes(this.activeView) ? this.activeView : 'map');
+      }
+      if (name === 'plan') {
+        const planViews = ['timeline', 'seating', 'analytics', 'vendors', 'inventory', 'calendar', 'proposals'];
+        this.switchView(planViews.includes(this.activeView) ? this.activeView : 'timeline');
+      }
     } catch (err) {
       console.error('[Helm] section render failed', name, err);
       const el = this.sections[name];
@@ -1008,20 +1025,22 @@ class Event360App {
     sections.forEach(s => { if (s) { s.classList.remove('active'); s.classList.add('hidden'); } });
   }
 
+  /**
+   * Switch a VIEW — a screen inside the current section. `setSection` owns which
+   * section is on screen; this only ever moves between the views within it.
+   *
+   * Both the tab list and the view list are read from the DOM rather than kept in
+   * hand-maintained arrays, because those arrays were how a removed view kept a
+   * dead reference and a new one got silently forgotten.
+   */
   switchView(viewName) {
     this.activeView = viewName;
 
-    this.hideAllSections();
-
-    // All tab buttons
-    const tabs = [
-      this.tabMapView, this.tab360View, this.tabIndiaView,
-      this.tabFloorPlanView, this.tabAnalyticsView, this.tabProposalsView,
-      this.tabTimelineView, this.tabSeatingView
-    ];
-    tabs.forEach(t => { if (t) t.classList.remove('active'); });
-
-    if (this.indiaSubBar) this.indiaSubBar.classList.add('hidden');
+    document.querySelectorAll('.view-section').forEach(el => {
+      el.classList.remove('active');
+      el.classList.add('hidden');
+    });
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
 
     switch (viewName) {
       case 'map':
@@ -1036,18 +1055,12 @@ class Event360App {
         if (!this.viewer360.currentZone || this.viewer360.currentZone.id !== this.currentZoneId) {
           this.openStudio360(this.currentZoneId);
         } else {
-          // Just re-render the inventory drawer to keep it in sync
           const zone = VENUE_ZONES.find(z => z.id === this.currentZoneId);
-          if (zone) this.renderInventoryDrawer(zone);
+          if (zone) this.refreshStudioChrome(zone);
         }
         break;
       }
 
-      case 'india':
-        if (this.indiaSubBar) this.indiaSubBar.classList.remove('hidden');
-        if (this.tabIndiaView) this.tabIndiaView.classList.add('active');
-        this.switchIndiaMode(this.indiaMode);
-        break;
       case 'floorplan':
         this.activateSection(this.floorPlanContainer, this.tabFloorPlanView);
         this.floorPlanEditor.updateSelections(this.activeSelections);
@@ -1068,15 +1081,15 @@ class Event360App {
         if (this.seatingChart.updateSelections) this.seatingChart.updateSelections(this.activeSelections);
         break;
       case 'vendors':
-        this.activateSection(this.vendorContainer);
+        this.activateSection(this.vendorContainer, this.tabVendorsView);
         if (this.vendorManager.render) this.vendorManager.render();
         break;
       case 'inventory':
-        this.activateSection(this.inventoryContainer);
+        this.activateSection(this.inventoryContainer, this.tabInventoryView);
         if (this.inventoryTracker.render) this.inventoryTracker.render();
         break;
       case 'calendar':
-        this.activateSection(this.calendarContainer);
+        this.activateSection(this.calendarContainer, this.tabCalendarView);
         if (this.calendarBooking.render) this.calendarBooking.render();
         break;
       case 'testimonials':
@@ -1147,39 +1160,25 @@ class Event360App {
     if (this.audioEngine.isPlaying) this.audioEngine.playZoneSound(zoneId);
   }
 
+  /**
+   * Tell the studio chrome the zone or the selections changed.
+   *
+   * The permanent "360° Customizable Objects" drawer is gone: in view mode nothing
+   * overlaps the venue, and the slot list now lives inside the edit panel. This is
+   * the single hook that keeps that panel and the mode bar in step.
+   */
+  refreshStudioChrome(zone) {
+    const target = zone || VENUE_ZONES.find(z => z.id === this.currentZoneId);
+    if (!target) return;
+    this.studioModeBar?.setZone?.(target);
+    if (this.studioEditPanel?.isOpen) {
+      this.studioEditPanel.setZone(target, this.activeSelections);
+    }
+  }
+
+  /** Back-compat shim: older call sites still ask for the drawer by its old name. */
   renderInventoryDrawer(zone) {
-    if (!this.hudSlotsList) return;
-
-    this.hudSlotsList.innerHTML = zone.slots.map(slot => {
-      const selectedItemId = this.activeSelections[slot.id] || slot.defaultItemId;
-      const item = getItemById(selectedItemId);
-      const customText = this.activeSelections[`custom_text_${slot.id}`];
-      const qty = slot.quantityByItem?.[selectedItemId] ?? slot.quantity;
-
-      const itemName = item ? item.name : 'None selected';
-      const lineTotal = item ? Math.round(item.price * qty) : 0;
-      return `
-        <button type="button" class="slot-item-card" data-slot-id="${slot.id}"
-                aria-label="Change ${escapeHtml(slot.label)} — currently ${escapeHtml(itemName)}, ${qty} at ${formatMoney(lineTotal)}">
-          <div class="slot-item-head">
-            <span>${escapeHtml(slot.label)}</span>
-            <small>${qty}x</small>
-          </div>
-          <div class="slot-item-body">
-            <strong>${escapeHtml(itemName)}</strong>
-            <span class="slot-item-price">${formatMoney(lineTotal)}</span>
-          </div>
-          ${customText ? `<div class="slot-writing-tag">✍️ "${escapeHtml(customText)}"</div>` : ''}
-        </button>
-      `;
-    }).join('');
-
-    const cards = this.hudSlotsList.querySelectorAll('.slot-item-card');
-    cards.forEach(card => {
-      card.addEventListener('click', () => {
-        this.openSwapperForSlot(card.getAttribute('data-slot-id'));
-      });
-    });
+    this.refreshStudioChrome(zone);
   }
 
   openSwapperForSlot(slotId) {

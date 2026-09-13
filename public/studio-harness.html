@@ -1,0 +1,27 @@
+<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Studio harness</title><link rel="stylesheet" href="/src/style.css">
+<style>html,body{height:100%} body{margin:0;background:var(--bg-app)}
+#shell{position:absolute;inset:0;overflow:hidden}
+#canvas{position:absolute;inset:0;width:100%;height:100%;background:#111 center/cover no-repeat}
+#themebtn{position:absolute;bottom:12px;left:12px;z-index:999}
+</style></head><body>
+<div id="shell"><div id="canvas" class="studio-canvas"></div></div>
+<button id="themebtn">theme</button>
+<script type="module">
+import { VENUE_ZONES } from '/src/data/zones.js';
+import { StudioEditPanel } from '/src/components/studio/StudioEditPanel.js';
+import { StudioModeBar } from '/src/components/studio/StudioModeBar.js';
+const shell=document.getElementById('shell'), canvas=document.getElementById('canvas');
+let zone=VENUE_ZONES[0]; const sel={};
+canvas.style.backgroundImage=`url(${zone.panoramaUrl})`;
+const bar=new StudioModeBar(shell,{onBack:()=>{},onEdit:()=>panel.open(zone,sel,{returnFocusTo:document.activeElement}),
+ onMenu:[{id:'ar',label:'AR preview code'},{id:'vid',label:'Export walkthrough video'},{id:'notes',label:'Zone notes'}]});
+bar.setZone(zone);
+const panel=new StudioEditPanel(shell,{onSelect:(s,i)=>console.log('select',s,i),onClose:()=>bar.setMode('view'),onFocusSlot:s=>console.log('focus',s)});
+shell.addEventListener('studio:layout',e=>{bar.setMode(e.detail.open?'edit':'view');});
+window.panel=panel; window.zone=zone;
+const q=new URLSearchParams(location.search);
+if(q.get('theme')) document.documentElement.dataset.theme=q.get('theme');
+if(q.get('edit')){ panel.open(zone,sel); if(q.get('tab')) panel._setTab(q.get('tab')); if(q.get('slot')) panel.highlightSlot(q.get('slot')); }
+document.getElementById('themebtn').onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';};
+</script></body></html>

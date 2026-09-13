@@ -66,11 +66,12 @@
 
     <!-- Primary section switcher: the workspace this person is in right now. -->
     <nav class="section-switcher" id="sectionSwitcher" aria-label="Workspace sections">
-      <button class="section-tab active" data-section="home" id="sectionHome"><span>🏠 Home</span></button>
-      <button class="section-tab" data-section="clients" id="sectionClients"><span>👤 Clients</span></button>
-      <button class="section-tab" data-section="deals" id="sectionDeals"><span>📊 Pipeline</span></button>
-      <button class="section-tab" data-section="payments" id="sectionPayments"><span>💰 Payments</span></button>
-      <button class="section-tab" data-section="studio" id="sectionStudio"><span>🎨 Design Studio</span></button>
+      <button class="section-tab active" data-section="home" id="sectionHome"><span>Home</span></button>
+      <button class="section-tab" data-section="clients" id="sectionClients"><span>Clients</span></button>
+      <button class="section-tab" data-section="deals" id="sectionDeals"><span>Pipeline</span></button>
+      <button class="section-tab" data-section="payments" id="sectionPayments"><span>Payments</span></button>
+      <button class="section-tab" data-section="studio" id="sectionStudio"><span>Studio</span></button>
+      <button class="section-tab" data-section="plan" id="sectionPlan"><span>Plan</span></button>
     </nav>
 
     <!-- Who am I signed in as — always visible, always switchable. -->
@@ -78,15 +79,22 @@
 
     <!-- Navigation View Switcher (Center Segmented Pill) -->
     <div class="studio-only" id="studioNavGroup">
-    <nav class="view-toggle-group" aria-label="Main views">
-      <button class="nav-tab active" id="tabMapView"><span>📍 Map</span></button>
-      <button class="nav-tab" id="tab360View"><span>🌀 360° Studio</span></button>
-      <button class="nav-tab nav-tab-india" id="tabIndiaView"><span>🇮🇳 India</span></button>
-      <button class="nav-tab" id="tabFloorPlanView"><span>📐 Floor Plan</span></button>
-      <button class="nav-tab" id="tabAnalyticsView"><span>📊 Analytics</span></button>
-      <button class="nav-tab" id="tabProposalsView"><span>📁 Proposals</span></button>
-      <button class="nav-tab" id="tabTimelineView"><span>📅 Timeline</span></button>
-      <button class="nav-tab" id="tabSeatingView"><span>👥 Seating</span></button>
+    <nav class="view-toggle-group" aria-label="Studio views">
+      <button class="nav-tab active" id="tabMapView"><span>Venue</span></button>
+      <button class="nav-tab" id="tab360View"><span>360° Studio</span></button>
+      <button class="nav-tab" id="tabFloorPlanView"><span>Floor plan</span></button>
+    </nav>
+    </div>
+
+    <div class="plan-only hidden" id="planNavGroup">
+    <nav class="view-toggle-group" aria-label="Plan views">
+      <button class="nav-tab active" id="tabTimelineView"><span>Run sheet</span></button>
+      <button class="nav-tab" id="tabSeatingView"><span>Seating</span></button>
+      <button class="nav-tab" id="tabAnalyticsView"><span>Build</span></button>
+      <button class="nav-tab" id="tabVendorsView"><span>Vendors</span></button>
+      <button class="nav-tab" id="tabInventoryView"><span>Inventory</span></button>
+      <button class="nav-tab" id="tabCalendarView"><span>Calendar</span></button>
+      <button class="nav-tab" id="tabProposalsView"><span>Proposals</span></button>
     </nav>
     </div>
 
@@ -169,40 +177,6 @@
     </div>
   </header>
 
-  <!-- Secondary Feature Toolbar (toggled by Features button) -->
-  <div id="featureToolbar" class="feature-toolbar hidden">
-    <div class="feature-toolbar-scroll">
-      <button class="feature-btn" data-feature="compare"><span>📸 Compare</span></button>
-      <button class="feature-btn" data-feature="collab"><span>🤝 Client Review</span></button>
-      <button class="feature-btn" data-feature="styles"><span>💐 Styles</span></button>
-      <button class="feature-btn" data-feature="vendors"><span>📊 Vendors</span></button>
-      <button class="feature-btn" data-feature="inventory"><span>📦 Inventory</span></button>
-      <button class="feature-btn" data-feature="calendar"><span>📆 Calendar</span></button>
-      <button class="feature-btn" data-feature="notes"><span>💬 Notes</span></button>
-      <button class="feature-btn" data-feature="videoExport"><span>🎬 Export Video</span></button>
-      <button class="feature-btn" data-feature="arQR"><span>✨ AR QR</span></button>
-      <button class="feature-btn" data-feature="playlist"><span>🎵 Playlist</span></button>
-      <button class="feature-btn" data-feature="moodBoard"><span>🖼️ Mood Board</span></button>
-      <button class="feature-btn" data-feature="testimonials"><span>⭐ References</span></button>
-      <button class="feature-btn" data-feature="contract"><span>📜 Contract</span></button>
-      <button class="feature-btn" data-feature="invoice"><span>🧾 Invoice</span></button>
-      <button class="feature-btn" data-feature="budgetAI"><span>🤖 Budget AI</span></button>
-      <button class="feature-btn" data-feature="briefGen"><span>📝 Brief</span></button>
-    </div>
-  </div>
-
-  <!-- Secondary Sub-Bar for India Events Mode Selection -->
-  <div id="indiaSubBar" class="india-sub-bar hidden">
-    <div class="sub-bar-content">
-      <span class="sub-bar-label">Select Event Type:</span>
-      <div class="india-mode-toggle-group" role="group" aria-label="India event type">
-        <button class="india-mode-btn active" data-mode="election"><span>🗳️ Election Rally</span></button>
-        <button class="india-mode-btn" data-mode="function"><span>🌺 Grand Function / Mandap</span></button>
-        <button class="india-mode-btn" data-mode="meeting"><span>💼 Public Summit Meeting</span></button>
-      </div>
-    </div>
-  </div>
-
   <!-- Main Viewport -->
   <main class="app-viewport">
     <!-- Role home. The front door for everyone who signs in. -->
@@ -220,52 +194,30 @@
 
     <!-- View 2: Full 360° Photo WebGL Studio -->
     <section id="studio360Container" class="view-section hidden">
-      <div id="canvas360Holder" class="canvas-360-holder"></div>
-      <div class="hud-top-bar">
-        <button class="btn-hud-back" id="btnBackToMap">← Back to Map</button>
-        <div class="zone-active-pill" id="hudZoneTitle">Main Stage & Performance Lawn</div>
-        <div class="hud-actions">
-          <button class="btn-hud-toggle" id="btnAutoRotate">🔄 Auto Rotate</button>
-          <button class="btn-hud-toggle" id="btnWatchTour360">🌀 Watch Progress Tour</button>
+      <!--
+        View mode is the default and NOTHING overlaps the venue. The mode bar is a
+        thin strip at the top; the edit panel docks to the right and SHRINKS the
+        canvas rather than covering it, which is the whole point — you watch the
+        venue change while you edit it.
+      -->
+      <div class="studio-stage" id="studioStage" data-mode="view">
+        <div class="studio-canvas-wrap">
+          <div id="canvas360Holder" class="canvas-360-holder"></div>
+          <div id="studioModeBarHost" class="studio-mode-bar-host"></div>
         </div>
-      </div>
-      <aside class="hud-inventory-drawer">
-        <div class="drawer-title">
-          <span>360° Customizable Objects</span>
-          <small>Click any item to interchange</small>
-        </div>
-        <div class="slots-list" id="hudSlotsList"></div>
-      </aside>
-      <div class="hud-bottom-bar">
-        <span class="hud-hint">
-          🖱️ <strong>Drag mouse / Touch</strong> to rotate 360° • 📜 <strong>Scroll</strong> to zoom • 🎯 <strong>Click Hotspots</strong> to interchange
-        </span>
+        <div id="studioEditPanelHost" class="studio-edit-panel-host" hidden></div>
       </div>
     </section>
 
     <!-- View 3: 📐 Interactive 2D/3D Site Floor Plan Editor -->
     <section id="floorPlanContainer" class="view-section hidden"></section>
 
-    <!-- View 4: 📊 Event Telemetry & Analytics Dashboard -->
-    <section id="analyticsContainer" class="view-section hidden"></section>
 
-    <!-- View 5: 📁 Saved Proposals & B2B Printable Contract Exporter -->
-    <section id="proposalsContainer" class="view-section hidden"></section>
 
-    <!-- View 6: 📅 Multi-Day Event Timeline Planner -->
-    <section id="timelineContainer" class="view-section hidden"></section>
 
-    <!-- View 7: 👥 Guest Seating Chart Builder -->
-    <section id="seatingContainer" class="view-section hidden"></section>
 
-    <!-- View 8: 📊 Vendor Management -->
-    <section id="vendorContainer" class="view-section hidden"></section>
 
-    <!-- View 9: 📦 Inventory Tracker -->
-    <section id="inventoryContainer" class="view-section hidden"></section>
 
-    <!-- View 10: 📆 Calendar & Date Booking -->
-    <section id="calendarContainer" class="view-section hidden"></section>
 
     <!-- View 12: ⭐ Testimonial Wall -->
     <section id="testimonialContainer" class="view-section hidden"></section>
@@ -274,6 +226,19 @@
     <section id="playlistContainer" class="view-section hidden"></section>
 
     </div><!-- /#studioSection -->
+
+    <!-- Plan: the delivery tools. These were cluttering the Design Studio, where a
+         run sheet never belonged — it is not a design surface. -->
+    <div id="planSection" class="app-section hidden">
+      <section id="analyticsContainer" class="view-section hidden"></section>
+      <section id="proposalsContainer" class="view-section hidden"></section>
+      <section id="timelineContainer" class="view-section hidden"></section>
+      <section id="seatingContainer" class="view-section hidden"></section>
+      <section id="vendorContainer" class="view-section hidden"></section>
+      <section id="inventoryContainer" class="view-section hidden"></section>
+      <section id="calendarContainer" class="view-section hidden"></section>
+    </div>
+
   </main>
 
   <!-- Persistent Floating Cost Card -->
