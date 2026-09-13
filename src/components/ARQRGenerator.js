@@ -96,9 +96,9 @@ export class ARQRGenerator {
               <h3 style="margin:0 0 var(--space-2) 0; font-size:var(--fs-md);">Or copy the link</h3>
               <p style="margin:0 0 var(--space-2) 0; font-size:var(--fs-xs); color:var(--text-muted);">
                 ${includesState
-                  ? `Includes all ${itemCount} selected item${itemCount === 1 ? '' : 's'}.`
+                  ? `Opens this exact setup — all ${itemCount} selected item${itemCount === 1 ? '' : 's'} are restored on the phone.`
                   : itemCount
-                    ? 'Opens the planner. The selection list was too long to fit in a scannable code, so it is not included.'
+                    ? 'Opens the planner. This selection is too long to fit in a code that still scans reliably, so the setup is not attached.'
                     : 'Opens the planner. Nothing is selected yet, so no setup is attached.'}
               </p>
               <input id="qr-url-field" type="text" readonly aria-label="Shareable link" value="${escapeHtml(url)}"

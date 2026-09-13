@@ -1160,15 +1160,32 @@ class Event360App {
    * render, so the HUD never shows the pre-link state.
    */
   restoreSharedDesign() {
-    const match = /[#&]design=([A-Za-z0-9\-_]+)/.exec(window.location.hash || '');
-    if (!match) return false;
-
     let restored = null;
+
+    // Form 1 — the AR QR deep link: ?state=slot~item!slot~item (the "slot-"
+    // prefix is stripped to keep the QR symbol small enough to scan).
     try {
-      restored = decodeDesignState(match[1]);
-    } catch (err) {
-      console.error('[Helm] could not decode review link', err);
+      const compact = new URLSearchParams(window.location.search).get('state');
+      if (compact) {
+        restored = {};
+        for (const pair of compact.split('!')) {
+          const [slot, item] = pair.split('~');
+          if (slot && item) restored[`slot-${slot}`] = item;
+        }
+      }
+    } catch { /* a malformed link must never block startup */ }
+
+    // Form 2 — the review link: #design=<base64url of the diff>
+    const match = /[#&]design=([A-Za-z0-9\-_]+)/.exec(window.location.hash || '');
+    if (!restored && !match) return false;
+    if (match) {
+      try {
+        restored = decodeDesignState(match[1]);
+      } catch (err) {
+        console.error('[Helm] could not decode review link', err);
+      }
     }
+
     if (!restored || !Object.keys(restored).length) {
       // showToast needs the DOM, which is ready by the time the app is constructed.
       setTimeout(() => this.showToast('That review link could not be read.'), 0);
@@ -1176,9 +1193,13 @@ class Event360App {
     }
 
     const clean = this.normalizeSelections(restored);
+    if (!Object.keys(clean).length) {
+      setTimeout(() => this.showToast('That shared link referenced items we no longer stock.'), 0);
+      return false;
+    }
     Object.assign(this.activeSelections, clean);
-    // Drop the fragment so a later reload does not silently re-apply it.
-    history.replaceState(null, '', window.location.pathname + window.location.search);
+    // Drop the shared params so a later reload does not silently re-apply them.
+    history.replaceState(null, '', window.location.pathname);
     const count = Object.keys(clean).length;
     setTimeout(() => this.showToast(`🔗 Loaded shared design — ${count} custom ${count === 1 ? 'selection' : 'selections'}`), 0);
     return true;
