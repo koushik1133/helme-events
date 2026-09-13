@@ -159,10 +159,25 @@ test('every panorama has measured dimensions recorded', () => {
   }
 });
 
-test('recorded panorama dimensions are sane', () => {
+test('every plate is a true 2:1 full sphere', async () => {
+  const { isTrue360, nonSphericalPlates } = await import('../src/data/panoramaMeta.js');
+  const bad = nonSphericalPlates();
+  assert.deepEqual(bad, [],
+    'these plates are not 2:1 and will seam/smear on a sphere — run tools/pano360.py on them: ' + bad.join(', '));
   for (const [url, d] of Object.entries(PANORAMA_DIMENSIONS)) {
     assert.ok(d.w > 0 && d.h > 0, `${url}: bad dimensions`);
-    assert.ok(d.w > d.h, `${url}: a panorama should be wider than it is tall`);
+    assert.ok(isTrue360(url), `${url}: not a full sphere`);
+    assert.ok(d.w >= 2048, `${url}: ${d.w}px is too low-res for a 360 backdrop`);
+    assert.ok(d.w <= 4096, `${url}: ${d.w}px exceeds the 4096 texture limit a long tail of mobile GPUs enforces`);
+  }
+});
+
+test('the viewer never applies a partial-panorama projection', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/engine/Viewer360.js', import.meta.url), 'utf8');
+  for (const token of ['haov', 'vaov', 'vOffset']) {
+    assert.ok(!src.includes(token),
+      `Viewer360 references ${token}: every plate is a full sphere, so limiting the field of view would crop the venue`);
   }
 });
 

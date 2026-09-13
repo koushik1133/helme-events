@@ -13,7 +13,9 @@
     "preview": "vite preview --port 3002 --strictPort",
     "api": "node server.js",
     "seed": "node -e \"const fs=require('node:fs');fs.copyFileSync('src/data/backend_db.seed.json','src/data/backend_db.json');console.log('Seeded src/data/backend_db.json')\"",
-    "test": "node --test 'test/*.test.mjs'"
+    "test": "node --test 'test/*.test.mjs'",
+    "panorama:manifest": "python3 tools/make_pano_manifest.py",
+    "panorama:check": "python3 tools/pano360.py --check-all"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
