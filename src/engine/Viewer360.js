@@ -398,11 +398,14 @@ export class Viewer360 {
     let note = this._overlayEl.querySelector('.v360-composite-note');
     const changed = unbakedChanges(this._composite);
 
-    if (!changed.length) { if (note) note.remove(); return; }
-
     const names = changed
       .map(c => getItemById(c.itemId)?.name)
       .filter(Boolean);
+
+    // Guard on what we can actually NAME, not on the raw change count: an item id
+    // that no longer resolves would otherwise render "0 changes are shown ... : ."
+    if (!names.length) { if (note) note.remove(); return; }
+
     const text = names.length === 1
       ? `${names[0]} is shown as a composited layer over this photograph — the room and the other elements are the real plate.`
       : `${names.length} changes are shown as composited layers over this photograph: ${names.join(', ')}.`;

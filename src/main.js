@@ -1156,6 +1156,15 @@ class Event360App {
         continue;
       }
       if (typeof value === 'string') {
+        // Reject ids that no longer resolve. A stale review link, an old saved
+        // proposal or a retired SKU would otherwise become a phantom line priced
+        // at zero — visible in the quote, worth nothing, impossible to explain.
+        if (!slotId.startsWith('custom_text_') && !getItemById(value)) {
+          const slot = VENUE_ZONES.flatMap(z => z.slots).find(sl => sl.id === slotId);
+          console.warn('[Helm] unknown item', value, 'for', slotId, '- falling back to the slot default');
+          if (slot) out[slotId] = slot.defaultItemId;
+          continue;
+        }
         out[slotId] = value;
       } else if (value && typeof value === 'object' && typeof value.itemId === 'string') {
         out[slotId] = value.itemId;

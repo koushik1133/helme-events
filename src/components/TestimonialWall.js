@@ -65,7 +65,7 @@ export class TestimonialWall {
 
     if (all.length === 0) {
       this.container.innerHTML = `
-        <div class="testimonial-wall">
+        <div class="testimonial-wall" style="color:var(--text-main);">
           <div class="testimonial-header"><div><h2>Client References</h2></div></div>
           <p class="meta">No references are on file yet.</p>
         </div>`;
@@ -78,7 +78,7 @@ export class TestimonialWall {
       : '—';
 
     this.container.innerHTML = `
-      <div class="testimonial-wall">
+      <div class="testimonial-wall" style="color:var(--text-main);">
         <div class="testimonial-header">
           <div>
             <h2>Client References</h2>
