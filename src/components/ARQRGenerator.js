@@ -10,7 +10,12 @@ import { drawQRToCanvas } from '../utils/qr.js';
  * this build does — so the copy says "open on your phone", not "view in AR".
  */
 
-const MAX_URL_LENGTH = 420; // Beyond this the symbol gets too dense to scan on a phone.
+// At a 264px canvas with a 4-module quiet zone, QR version 16 (81x81 modules)
+// is the largest symbol that still gets >=3 device pixels per module — the
+// practical floor for a phone camera reading a code off a laptop screen.
+// Version 16 at ECC level L holds ~442 bytes, so that is the URL ceiling.
+const MAX_URL_LENGTH = 430;
+const MAX_VERSION = 16;
 
 export class ARQRGenerator {
   constructor(containerElement, activeSelections) {
@@ -131,9 +136,11 @@ export class ARQRGenerator {
     const meta = this.container.querySelector('#qr-meta');
     if (!canvas) return;
     try {
-      // ECC level M: ~15% recovery, the standard choice for on-screen codes.
+      // ECC M (~15% recovery) for short links; drop to L on longer ones so the
+      // symbol stays inside MAX_VERSION rather than becoming unreadably dense.
       this.lastSymbol = drawQRToCanvas(canvas, this.currentUrl, {
-        ecl: 'M',
+        ecl: this.currentUrl.length > 150 ? 'L' : 'M',
+        maxVersion: MAX_VERSION,
         quietZone: 4,
         pixelSize: 264
       });
@@ -141,7 +148,7 @@ export class ARQRGenerator {
       canvas.style.height = `${this.lastSymbol.pixelSize}px`;
       if (meta) {
         meta.textContent =
-          `QR version ${this.lastSymbol.version} · ${this.lastSymbol.size}×${this.lastSymbol.size} modules · error correction M`;
+          `QR version ${this.lastSymbol.version} · ${this.lastSymbol.size}×${this.lastSymbol.size} modules · error correction ${this.lastSymbol.ecl}`;
       }
     } catch (err) {
       this.lastSymbol = null;

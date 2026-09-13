@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Helm Events 360° — interactive 4K venue previews, live decor swapping and instant INR cost quoting for luxury and Indian event production.",
+  "description": "Helm Events 360\u00b0 \u2014 interactive 4K venue previews, live decor swapping and instant INR cost quoting for luxury and Indian event production.",
   "engines": {
     "node": ">=20"
   },
@@ -12,7 +12,8 @@
     "build": "vite build",
     "preview": "vite preview --port 3002 --strictPort",
     "api": "node server.js",
-    "seed": "node -e \"const fs=require('node:fs');fs.copyFileSync('src/data/backend_db.seed.json','src/data/backend_db.json');console.log('Seeded src/data/backend_db.json')\""
+    "seed": "node -e \"const fs=require('node:fs');fs.copyFileSync('src/data/backend_db.seed.json','src/data/backend_db.json');console.log('Seeded src/data/backend_db.json')\"",
+    "test": "node --test 'test/*.test.mjs'"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
