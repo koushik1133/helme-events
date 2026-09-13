@@ -1613,7 +1613,11 @@ class Event360App {
       this.mapComponent, this.costCard, this.venueMenuModal, this.analyticsDashboard,
       this.proposalsManager, this.timelinePlanner, this.seatingChart, this.floorPlanEditor,
       this.cartPaymentModal, this.invoiceGenerator, this.eSignatureFlow, this.budgetOptimizer,
-      this.eventBriefGenerator, this.threeDEditor, this.compareTool, this.zoneNotes
+      this.eventBriefGenerator, this.threeDEditor, this.compareTool, this.zoneNotes,
+      // The 360 viewer belongs here too. Leaving it out meant every selection
+      // change that did NOT come from a hotspot click updated the quote and the
+      // plan but left the venue showing the previous design.
+      this.viewer360
     ].filter(Boolean);
   }
 

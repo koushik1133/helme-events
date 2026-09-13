@@ -11,6 +11,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 
 import { VENUE_ZONES } from '../src/data/zones.js';
 import { getItemById, allItems } from '../src/data/catalog.js';
@@ -779,4 +780,25 @@ test('the brief field map covers client, deal, functions, requirements and event
   assert.equal(reqs.accommodation, '40 rooms, 2 nights');
   assert.equal(readDesign(res.created.deal).conceptId, 'concept-1');
   assert.ok(!('amount' in reqs) && !('milestone' in reqs), 'requirements carry no money');
+});
+
+/*
+ * Regression: every path that changes a selection must reach the 360.
+ *
+ * `updateSlotDisplay` only fires from a hotspot click inside the viewer, so when
+ * `viewer360` was missing from `statefulComponents()` the Edit panel, the design
+ * presets, the budget optimiser and Instant layout all updated the quote and the
+ * plan while the venue kept showing the previous design. Both halves are asserted
+ * because either one alone silently restores the bug.
+ */
+test('the 360 viewer is wired into the shell selection fan-out', async () => {
+  const viewer = await readFile(new URL('../src/engine/Viewer360.js', import.meta.url), 'utf8');
+  assert.match(viewer, /\bupdateSelections\s*\(/,
+    'Viewer360 must expose updateSelections() — the shell fan-out is duck-typed on it');
+
+  const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+  const block = main.slice(main.indexOf('statefulComponents()'));
+  const list = block.slice(0, block.indexOf('].filter(Boolean)'));
+  assert.ok(/this\.viewer360\b/.test(list),
+    'statefulComponents() must include this.viewer360, or swaps never reach the venue');
 });

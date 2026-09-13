@@ -280,6 +280,40 @@ export class Viewer360 {
     return this._recomposite(slotId);
   }
 
+  /**
+   * Adopt a selection map decided elsewhere in the app.
+   *
+   * `updateSlotDisplay` only ever fires from a hotspot click inside this viewer,
+   * so every OTHER way a design changes — the Edit panel, a design preset, the
+   * budget optimiser, Instant layout, a restored share link — reached the quote,
+   * the floor plan and the run sheet but never the 360 itself. The venue simply
+   * did not move. This is the method that closes that gap, and the shell calls it
+   * from `updateAllComponents` like every other stateful component.
+   *
+   * It diffs rather than reloads: an unchanged map costs nothing, and a single
+   * changed slot is passed through as `changedSlotId` so the shared-plate
+   * fallback in `_recomposite` still forces that item to composite.
+   */
+  updateSelections(selections) {
+    if (!selections || !this.currentZone || !this._compositor) return;
+
+    const slotIds = new Set((this.currentZone.slots || []).map(sl => sl.id));
+    let changedSlot = null;
+    let changedCount = 0;
+
+    for (const [slotId, itemId] of Object.entries(selections)) {
+      if (!slotIds.has(slotId)) continue;              // not this zone's business
+      if (!itemId || this.activeSelections.get(slotId) === itemId) continue;
+      this.activeSelections.set(slotId, itemId);
+      this._refreshCard(slotId, itemId, this.customWriting.get(slotId));
+      changedSlot = slotId;
+      changedCount++;
+    }
+
+    if (!changedCount) return;
+    return this._recomposite(changedCount === 1 ? changedSlot : null);
+  }
+
   async _recomposite(changedSlotId) {
     if (!this.currentZone || !this._compositor) return;
     const myGen = ++this._loadGeneration;

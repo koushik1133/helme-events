@@ -84,7 +84,14 @@ export function heroZoneFor(deal) {
   const category = CATEGORY_ALIAS[String(deal && deal.category) || ''] || 'wedding';
   const ids = (ZONES_BY_EVENT_TYPE[category] || []).filter(id => ZONE_BY_ID.has(id));
   const pool = ids.length ? ids : VENUE_ZONES.map(z => z.id);
-  const pick = pool[hashOf((deal && (deal.id || deal.code)) || '') % pool.length];
+  // ZONES_BY_EVENT_TYPE is ordered canonically — the first zone is the venue that
+  // event type actually happens in. Hashing across the whole pool gave a political
+  // rally a concert lawn, which is exactly the "why am I looking at a concert"
+  // complaint; the hash only survives as a tie-break when there is no canonical
+  // zone for the category at all.
+  const pick = ids.length
+    ? pool[0]
+    : pool[hashOf((deal && (deal.id || deal.code)) || '') % pool.length];
   return ZONE_BY_ID.get(pick) || VENUE_ZONES[0] || null;
 }
 
