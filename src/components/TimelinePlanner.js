@@ -107,6 +107,7 @@ export class TimelinePlanner {
     this.activeSelections = activeSelections || {};
     this.onLoadDay = onLoadDay;
     this.message = null;
+    this.openAddFor = null;
 
     this.days = this.loadDays();
     this.activeDayId = this.days.length ? this.days[0].id : null;
@@ -274,21 +275,39 @@ export class TimelinePlanner {
     return { duplicateDates, conflicts, parallel };
   }
 
+  /**
+   * LAYOUT NOTE — why a day is a full-width ROW, not a column.
+   *
+   * The run sheet used to be a card grid: every function became a ~280px
+   * column that had to carry a name field, a date field, a proportional strip,
+   * its timeline items AND its own five-control add form. With five functions
+   * and nineteen items that left roughly 200px for "7:00 AM – 9:30 AM", the
+   * title, the owner and the duration, so every title truncated
+   * ("Mehendi cere…", "Baraat processi…").
+   *
+   * A horizontally scrolling board of wide columns was the other option, but a
+   * run sheet is read down a day, and side-scrolling to reach the reception
+   * hides four of the five functions at any moment. A day-per-row layout gives
+   * each item a real four-column line — time · title · owner · duration — that
+   * fits at 1024px without truncation, keeps all five functions in one vertical
+   * read, and lets the proportional strip be the full width of the page, which
+   * is what makes the shape of a day legible in the first place.
+   *
+   * The per-day controls moved out of the body: the date sits in the day
+   * header, and the add-item form is a disclosure that is closed until asked
+   * for, so items — the actual content — dominate the card.
+   */
   render() {
     const { duplicateDates, conflicts, parallel } = this.analyse();
     const ev = eventState.get();
     const totalSegments = this.days.reduce((n, d) => n + d.segments.length, 0);
 
     const banner = this.message
-      ? `<div role="status" style="margin-bottom:1rem; padding:.6rem .9rem; border-radius:var(--radius-sm);
-           border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-main); font-size:.85rem;">
-           ${escapeHtml(this.message.text)}
-         </div>`
+      ? `<div role="status" class="rs-banner">${escapeHtml(this.message.text)}</div>`
       : '';
 
     const dupWarning = duplicateDates.length
-      ? `<div role="alert" style="margin-bottom:1rem; padding:.6rem .9rem; border-radius:var(--radius-sm);
-           border:1px solid var(--accent-rose); color:var(--accent-rose); font-size:.85rem;">
+      ? `<div role="alert" class="rs-banner rs-banner-alert">
            ⚠️ Two functions share the same date:
            ${duplicateDates.map(d => `${escapeHtml(formatEventDate(d.date))} — ${escapeHtml(d.names.join(' & '))}`).join('; ')}.
            Give each function its own date, or merge them into one day.
@@ -297,35 +316,34 @@ export class TimelinePlanner {
 
     const conflictCount = conflicts.size;
     const conflictWarning = conflictCount
-      ? `<div role="alert" style="margin-bottom:1rem; padding:.6rem .9rem; border-radius:var(--radius-sm);
-           border:1px solid var(--accent-rose); color:var(--accent-rose); font-size:.85rem;">
+      ? `<div role="alert" class="rs-banner rs-banner-alert">
            ⏱️ ${conflictCount} item${conflictCount === 1 ? ' books its owner' : 's book their owners'} in two places
            at once — highlighted below. Items that simply run in parallel under different owners are not flagged.
          </div>`
       : '';
 
     const body = this.days.length
-      ? `<div class="timeline-grid" id="timeline-grid">
+      ? `<div class="runsheet-days" id="timeline-grid">
            ${this.days.map((day, i) => this.renderDayCard(day, i, conflicts, parallel)).join('')}
          </div>`
       : this.renderEmptyState();
 
     this.container.innerHTML = `
-      <div class="timeline-wrapper">
-        <div class="timeline-header">
-          <div>
+      <div class="timeline-wrapper runsheet">
+        <div class="timeline-header runsheet-head">
+          <div class="runsheet-head-text">
             <h2>📅 Multi-Day Event Run-of-Show</h2>
-            <p style="color:var(--text-muted); font-size:.85rem; margin-top:.25rem;">
+            <p class="rs-sub">
               ${escapeHtml(ev.eventName)} · ${this.days.length} function${this.days.length === 1 ? '' : 's'}
               · ${totalSegments} timeline item${totalSegments === 1 ? '' : 's'}
               ${this.days.length ? `· ${escapeHtml(formatEventDate(this.days[0].date))} – ${escapeHtml(formatEventDate(this.days[this.days.length - 1].date))}` : ''}
             </p>
-            <p style="color:var(--text-dim); font-size:.75rem; margin-top:.15rem;">
+            <p class="rs-hint">
               Functions sort by date, then by first start time. ⚠️ marks an owner booked in two places at once;
               ⇉ marks items that simply run in parallel.
             </p>
           </div>
-          <div style="display:flex; gap:.5rem;">
+          <div class="runsheet-head-actions">
             <button class="btn-secondary" id="timeline-seed-btn" type="button">Load Indian wedding template</button>
             <button class="btn-primary" id="timeline-add-btn" type="button">+ Add Function Day</button>
           </div>
@@ -353,11 +371,10 @@ export class TimelinePlanner {
 
   renderEmptyState() {
     return `
-      <div style="padding:2.5rem; text-align:center; border:1px dashed var(--border-strong);
-                  border-radius:var(--radius-md); color:var(--text-muted); background:var(--bg-surface);">
+      <div class="rs-empty">
         <div style="font-size:2rem;">📅</div>
-        <h3 style="color:var(--text-main); margin:.5rem 0;">No functions planned yet</h3>
-        <p style="max-width:40ch; margin:0 auto 1rem;">
+        <h3>No functions planned yet</h3>
+        <p>
           Add your haldi, mehendi, sangeet, baraat and reception days — each with real start and end
           times — and the planner will sort them by date and flag any overlaps.
         </p>
@@ -370,7 +387,8 @@ export class TimelinePlanner {
    * A proportional run-of-show strip for one day: every segment drawn against
    * the day's own span, so a planner can see the shape of the day — the long
    * setup block, the gap before guests arrive, the overlapping service — in
-   * one glance instead of reading a list of times.
+   * one glance instead of reading a list of times. Full page width now, so the
+   * hour marks are readable rather than a 200px smear.
    */
   renderGantt(day, conflicts) {
     const placed = day.segments
@@ -385,34 +403,36 @@ export class TimelinePlanner {
 
     const hourMarks = [];
     const firstHour = Math.ceil(from / 60) * 60;
-    for (let t = firstHour; t <= to; t += 120) {
+    // One mark an hour reads fine across a full-width strip; fall back to every
+    // two hours only when the day is long enough for the labels to collide.
+    const stepMinutes = span > 8 * 60 ? 120 : 60;
+    for (let t = firstHour; t <= to; t += stepMinutes) {
       const left = ((t - from) / span) * 100;
       const hh = Math.floor((t / 60) % 24);
       hourMarks.push(`
-        <span aria-hidden="true" style="position:absolute; left:${left.toFixed(2)}%; top:0; bottom:0;
-              border-left:1px solid var(--border-subtle);"></span>
-        <span aria-hidden="true" style="position:absolute; left:${left.toFixed(2)}%; bottom:-14px;
-              transform:translateX(-50%); font-size:.6rem; color:var(--text-dim);
-              font-family:var(--font-mono);">${String(hh).padStart(2, '0')}</span>`);
+        <span aria-hidden="true" class="rs-strip-rule" style="left:${left.toFixed(2)}%;"></span>
+        <span aria-hidden="true" class="rs-strip-tick" style="left:${left.toFixed(2)}%;">${String(hh).padStart(2, '0')}:00</span>`);
     }
 
-    const bars = placed.map(({ seg, ext }, i) => {
+    // Lay bars out into as few rows as fit without overlapping, so parallel
+    // items are all visible instead of alternating blindly between two rows.
+    const rowEnds = [];
+    const bars = placed.map(({ seg, ext }) => {
       const left = ((ext.start - from) / span) * 100;
-      const width = Math.max(1.5, (ext.duration / span) * 100);
+      const width = Math.max(1.2, (ext.duration / span) * 100);
+      let row = rowEnds.findIndex(end => ext.start >= end);
+      if (row === -1) { row = rowEnds.length; rowEnds.push(ext.end); }
+      else rowEnds[row] = ext.end;
       const isConflict = conflicts.has(seg.id);
-      const colour = isConflict ? 'var(--accent-rose)' : 'var(--accent-indigo)';
-      // Stagger rows so parallel items are both visible.
-      const row = i % 2;
-      return `<span title="${escapeHtml(`${fmtTime(seg.start)}–${fmtTime(seg.end)} ${seg.label}`)}"
-                    style="position:absolute; left:${left.toFixed(2)}%; width:${width.toFixed(2)}%;
-                           top:${row === 0 ? '4px' : '18px'}; height:12px; background:${colour};
-                           opacity:${isConflict ? 1 : 0.75}; border-radius:2px;"></span>`;
+      return `<span class="rs-strip-bar ${isConflict ? 'is-conflict' : ''}"
+                    title="${escapeHtml(`${fmtTime(seg.start)}–${fmtTime(seg.end)} ${seg.label}`)}"
+                    style="left:${left.toFixed(2)}%; width:${width.toFixed(2)}%; top:${4 + row * 16}px;"
+              ><span class="rs-strip-bar-label">${escapeHtml(seg.label)}</span></span>`;
     }).join('');
 
+    const rows = Math.max(2, rowEnds.length);
     return `
-      <div aria-hidden="true" style="position:relative; height:34px; margin:.1rem 0 1.1rem;
-                  background:var(--bg-surface-hover); border:1px solid var(--border-subtle);
-                  border-radius:var(--radius-xs);">
+      <div class="rs-strip" aria-hidden="true" style="height:${8 + rows * 16}px;">
         ${hourMarks.join('')}${bars}
       </div>`;
   }
@@ -422,98 +442,100 @@ export class TimelinePlanner {
     const extents = day.segments.map(segmentExtent).filter(Boolean);
     const dayMinutes = extents.reduce((n, e) => n + e.duration, 0);
     const itemCount = Object.keys(day.selections || {}).length;
+    const addOpen = this.openAddFor === day.id;
+    const id = escapeHtml(day.id);
 
     return `
-      <div class="timeline-card ${isActive ? 'active' : ''}" data-id="${escapeHtml(day.id)}">
-        <div class="timeline-card-header">
-          <input type="text" class="timeline-name-input" aria-label="Function name"
-                 value="${escapeHtml(day.name)}" data-id="${escapeHtml(day.id)}" />
-          <button class="btn-icon timeline-remove-btn" type="button"
-                  aria-label="Remove ${escapeHtml(day.name)}" data-id="${escapeHtml(day.id)}">❌</button>
-        </div>
-
-        <input type="date" class="timeline-date-input" aria-label="Date for ${escapeHtml(day.name)}"
-               value="${escapeHtml(day.date)}" data-id="${escapeHtml(day.id)}" />
-
-        <div class="timeline-summary">
-          Day ${index + 1} · ${day.segments.length} item${day.segments.length === 1 ? '' : 's'}
-          · ${formatDuration(dayMinutes)} scheduled
-          · ${itemCount} design item${itemCount === 1 ? '' : 's'} saved
+      <section class="rs-day ${isActive ? 'is-active' : ''}" data-id="${id}"
+               aria-label="${escapeHtml(day.name)}">
+        <div class="rs-day-head">
+          <div class="rs-day-id">
+            <span class="rs-day-index">Day ${index + 1}</span>
+            <input type="text" class="timeline-name-input rs-day-name" aria-label="Function name"
+                   value="${escapeHtml(day.name)}" data-id="${id}" />
+          </div>
+          <input type="date" class="timeline-date-input rs-day-date" aria-label="Date for ${escapeHtml(day.name)}"
+                 value="${escapeHtml(day.date)}" data-id="${id}" />
+          <p class="rs-day-stats">
+            ${day.segments.length} item${day.segments.length === 1 ? '' : 's'}
+            · ${formatDuration(dayMinutes)} scheduled
+            · ${itemCount} design item${itemCount === 1 ? '' : 's'} saved
+          </p>
+          <div class="rs-day-actions">
+            <button class="btn-secondary rs-add-toggle" type="button" data-id="${id}"
+                    aria-expanded="${addOpen}">${addOpen ? 'Close' : '+ Item'}</button>
+            <button class="btn-secondary timeline-load-btn ${isActive ? 'is-current' : ''}" type="button" data-id="${id}"
+                    ${isActive ? 'aria-current="true"' : ''}>${isActive ? 'Currently active' : 'Load design'}</button>
+            <button class="btn-secondary timeline-save-design-btn" type="button" data-id="${id}"
+                    title="Overwrite this day's saved design with what is live in the 360° Studio">Save design</button>
+            <button class="btn-icon timeline-remove-btn" type="button"
+                    aria-label="Remove ${escapeHtml(day.name)}" data-id="${id}">❌</button>
+          </div>
         </div>
 
         ${this.renderGantt(day, conflicts)}
 
-        <div style="display:flex; flex-direction:column; gap:.35rem; margin:.5rem 0;">
+        <div class="rs-items" role="list">
           ${day.segments.length
             ? day.segments
                 .slice()
                 .sort((a, b) => (toMinutes(a.start) ?? 0) - (toMinutes(b.start) ?? 0))
                 .map(seg => this.renderSegment(day, seg, conflicts.get(seg.id), parallel.get(seg.id)))
                 .join('')
-            : `<p style="color:var(--text-muted); font-size:.8rem; margin:.25rem 0;">
-                 No run-of-show items yet — add the first one below.
-               </p>`}
+            : `<p class="rs-items-empty">No run-of-show items yet — use <strong>+ Item</strong> to add the first one.</p>`}
         </div>
 
-        <div style="display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.5rem;">
-          <input type="text" class="seg-label-input" data-id="${escapeHtml(day.id)}" placeholder="e.g. Varmala"
-                 aria-label="New item name" style="flex:1 1 8rem; min-width:0; padding:.35rem; font-size:.8rem;
-                 background:var(--bg-input); color:var(--text-main); border:1px solid var(--border-subtle);
-                 border-radius:var(--radius-xs);" />
-          <input type="text" class="seg-owner-input" data-id="${escapeHtml(day.id)}" placeholder="Owner (e.g. AV crew)"
-                 aria-label="New item owner" list="timeline-owner-options"
-                 style="flex:1 1 7rem; min-width:0; padding:.35rem; font-size:.8rem;
-                 background:var(--bg-input); color:var(--text-main); border:1px solid var(--border-subtle);
-                 border-radius:var(--radius-xs);" />
-          <input type="time" class="seg-start-input" data-id="${escapeHtml(day.id)}" value="19:00"
-                 aria-label="New item start time" style="padding:.35rem; font-size:.8rem; background:var(--bg-input);
-                 color:var(--text-main); border:1px solid var(--border-subtle); border-radius:var(--radius-xs);" />
-          <input type="time" class="seg-end-input" data-id="${escapeHtml(day.id)}" value="20:00"
-                 aria-label="New item end time" style="padding:.35rem; font-size:.8rem; background:var(--bg-input);
-                 color:var(--text-main); border:1px solid var(--border-subtle); border-radius:var(--radius-xs);" />
-          <button class="btn-secondary seg-add-btn" type="button" data-id="${escapeHtml(day.id)}"
-                  style="font-size:.8rem; padding:.35rem .6rem;">+ Item</button>
-        </div>
+        ${addOpen ? this.renderAddForm(day) : ''}
+      </section>
+    `;
+  }
 
-        <div style="display:flex; gap:.35rem; flex-wrap:wrap;">
-          <button class="btn-secondary timeline-load-btn" type="button" data-id="${escapeHtml(day.id)}">
-            ${isActive ? 'Currently Active' : 'Load Design'}
-          </button>
-          <button class="btn-secondary timeline-save-design-btn" type="button" data-id="${escapeHtml(day.id)}"
-                  title="Overwrite this day's saved design with what is live in the 360° Studio">
-            Save Current Design
-          </button>
-        </div>
+  renderAddForm(day) {
+    const id = escapeHtml(day.id);
+    return `
+      <div class="rs-add-form">
+        <label class="rs-field rs-field-grow">
+          <span>Item</span>
+          <input type="text" class="seg-label-input" data-id="${id}" placeholder="e.g. Varmala" />
+        </label>
+        <label class="rs-field rs-field-grow">
+          <span>Owner</span>
+          <input type="text" class="seg-owner-input" data-id="${id}" placeholder="e.g. AV crew"
+                 list="timeline-owner-options" />
+        </label>
+        <label class="rs-field">
+          <span>Starts</span>
+          <input type="time" class="seg-start-input" data-id="${id}" value="19:00" />
+        </label>
+        <label class="rs-field">
+          <span>Ends</span>
+          <input type="time" class="seg-end-input" data-id="${id}" value="20:00" />
+        </label>
+        <button class="btn-primary seg-add-btn" type="button" data-id="${id}">Add item</button>
       </div>
     `;
   }
 
   renderSegment(day, seg, conflictReason, parallelReason) {
     const ext = segmentExtent(seg);
-    const border = conflictReason ? 'var(--accent-rose)' : 'var(--border-subtle)';
     return `
-      <div style="display:flex; align-items:center; gap:.5rem; padding:.35rem .5rem;
-                  border:1px solid ${border}; border-radius:var(--radius-xs); background:var(--bg-surface-hover);">
-        <span style="font-family:var(--font-mono); font-size:.72rem; color:var(--text-muted); white-space:nowrap;">
-          ${escapeHtml(fmtTime(seg.start))} – ${escapeHtml(fmtTime(seg.end))}
+      <div class="rs-item ${conflictReason ? 'is-conflict' : ''}" role="listitem">
+        <span class="rs-item-time">${escapeHtml(fmtTime(seg.start))} – ${escapeHtml(fmtTime(seg.end))}</span>
+        <span class="rs-item-title">${escapeHtml(seg.label)}</span>
+        <span class="rs-item-owner">${seg.owner ? escapeHtml(seg.owner) : '<em>Unassigned</em>'}</span>
+        <span class="rs-item-dur">${escapeHtml(formatDuration(ext ? ext.duration : 0))}</span>
+        <span class="rs-item-flag">
+          ${conflictReason
+            ? `<span role="img" aria-label="Conflict: ${escapeHtml(conflictReason)}" title="${escapeHtml(conflictReason)}"
+                     class="rs-flag-conflict">⚠️</span>`
+            : parallelReason
+              ? `<span role="img" aria-label="Parallel: ${escapeHtml(parallelReason)}" title="${escapeHtml(parallelReason)}"
+                       class="rs-flag-parallel">⇉</span>`
+              : ''}
         </span>
-        <span style="flex:1; min-width:0; font-size:.8rem; color:var(--text-main); overflow:hidden; text-overflow:ellipsis;">
-          ${escapeHtml(seg.label)}
-          ${seg.owner ? `<em style="color:var(--text-dim); font-style:normal;"> · ${escapeHtml(seg.owner)}</em>` : ''}
-        </span>
-        <span style="font-size:.72rem; color:var(--text-dim); white-space:nowrap;">
-          ${escapeHtml(formatDuration(ext ? ext.duration : 0))}
-        </span>
-        ${conflictReason
-          ? `<span role="img" aria-label="Conflict: ${escapeHtml(conflictReason)}" title="${escapeHtml(conflictReason)}"
-                   style="color:var(--accent-rose); font-size:.75rem;">⚠️</span>`
-          : parallelReason
-            ? `<span role="img" aria-label="Parallel: ${escapeHtml(parallelReason)}" title="${escapeHtml(parallelReason)}"
-                     style="color:var(--text-dim); font-size:.7rem;">⇉</span>`
-            : ''}
-        <button class="btn-icon seg-remove-btn" type="button"
+        <button class="btn-icon seg-remove-btn rs-item-del" type="button"
                 data-day="${escapeHtml(day.id)}" data-seg="${escapeHtml(seg.id)}"
-                aria-label="Remove ${escapeHtml(seg.label)}" style="font-size:.7rem;">✕</button>
+                aria-label="Remove ${escapeHtml(seg.label)}">✕</button>
       </div>
     `;
   }
@@ -545,6 +567,7 @@ export class TimelinePlanner {
         selections: { ...this.activeSelections }
       });
       if (!this.activeDayId) this.activeDayId = id;
+      this.openAddFor = id;
       this.save();
       this.render();
     });
@@ -585,6 +608,7 @@ export class TimelinePlanner {
       const day = this.days.find(d => d.id === id);
       if (day && day.segments.length && !window.confirm(`Remove “${day.name}” and its ${day.segments.length} timeline items?`)) return;
       this.days = this.days.filter(d => d.id !== id);
+      if (this.openAddFor === id) this.openAddFor = null;
       if (this.activeDayId === id) {
         this.activeDayId = this.days.length ? this.days[0].id : null;
         if (this.activeDayId && this.onLoadDay) {
@@ -607,11 +631,24 @@ export class TimelinePlanner {
       this.saveDesignToDay(e.currentTarget.dataset.id);
     });
 
+    // The add form is a disclosure: closed, the card is its items. Open, focus
+    // lands in the item name so the keyboard path is one tab short.
+    on('.rs-add-toggle', 'click', (e) => {
+      const id = e.currentTarget.dataset.id;
+      this.openAddFor = this.openAddFor === id ? null : id;
+      const wasOpened = this.openAddFor === id;
+      this.render();
+      if (wasOpened) {
+        const input = this.container.querySelector(`.rs-day[data-id="${CSS.escape(id)}"] .seg-label-input`);
+        if (input) input.focus();
+      }
+    });
+
     on('.seg-add-btn', 'click', (e) => {
       const id = e.currentTarget.dataset.id;
       const day = this.days.find(d => d.id === id);
       if (!day) return;
-      const card = e.currentTarget.closest('.timeline-card');
+      const card = e.currentTarget.closest('.rs-day');
       const label = card.querySelector('.seg-label-input').value.trim();
       const owner = card.querySelector('.seg-owner-input').value.trim();
       const start = card.querySelector('.seg-start-input').value;

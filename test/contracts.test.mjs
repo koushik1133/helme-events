@@ -562,3 +562,221 @@ test('the shared-artwork debt list does not contain entries that are already fix
   const stale = [...KNOWN_SHARED_ARTWORK].filter(url => !shared.has(url));
   assert.deepEqual(stale, [], 'these no longer share artwork — remove them from KNOWN_SHARED_ARTWORK');
 });
+
+// ------------------------------------------------- brief → CRM intake (w5)
+
+/**
+ * The event brief is the one form at the start of a job. Everything typed into
+ * it has to land somewhere real, or the owner is back to re-keying the same
+ * client into three screens. These tests pin the four things that make that
+ * true, and the one thing that must NOT happen.
+ */
+
+/** A complete, valid brief. Tests mutate a copy of it to break one thing at a time. */
+function completeBrief(overrides = {}) {
+  const base = {
+    client: {
+      name: 'Sharma Family Trust', type: 'individual', source: 'referral',
+      sourceDetail: 'referred by the Kapoor wedding',
+      contactName: 'Anil Sharma', contactRole: 'Father of the bride',
+      phone: '98490 44551', whatsapp: '', email: 'anil@example.com',
+      altContacts: [{ name: 'Ritu Sharma', role: 'Sister', phone: '9849044552', email: '' }],
+      city: 'Bengaluru', state: 'Karnataka',
+      billing: { legalName: '', gstin: '', pan: '', isRegistered: false, tdsApplicable: false, tdsSection: '' }
+    },
+    event: {
+      name: 'Sharma–Mehta Wedding', category: 'social', subType: 'wedding',
+      venueName: 'Taj Falaknuma Palace', venueCity: 'Hyderabad', venueState: 'Telangana',
+      venueType: 'heritage', guestCount: 600, budgetIndicated: 4500000,
+      startDate: '2026-11-20', endDate: '2026-11-22', startTime: '18:00', endTime: '23:00',
+      ownerId: 'u-priya', eventManagerId: 'u-arjun', notes: 'Load-in only after 6am'
+    },
+    functions: [
+      { type: 'mehendi', label: 'Mehendi', date: '2026-11-20', headcount: 200, requirements: 'Satvik menu only' },
+      { type: 'wedding', label: 'Wedding ceremony', date: '2026-11-22', headcount: 600, requirements: '' }
+    ],
+    requirements: {
+      cateringStyle: 'Grand multi-cuisine buffet', dietary: ['veg', 'jain'],
+      av: 'Standard social AV', security: 'Marshals and access control',
+      power: '2 x 250 kVA silent DG', accommodation: '40 rooms, 2 nights', transport: '6 coaches'
+    },
+    design: {
+      conceptId: 'concept-1', conceptTitle: 'Royal Gold Carved Mandap',
+      panoramaUrl: '/images/zone_stage_360.jpg',
+      selections: { 'slot-stage-main': 'stage-royal-pavilion' }, styleKeywords: 'marigold, gold'
+    }
+  };
+  return { ...base, ...overrides, client: { ...base.client, ...(overrides.client || {}) }, event: { ...base.event, ...(overrides.event || {}) } };
+}
+
+/** A throwaway in-memory CRM store, so these tests never touch the seeded one. */
+async function freshStore() {
+  // store.js exports a seeded singleton and not its class, so these tests use a
+  // minimal stand-in with the same write surface. It deliberately copies the one
+  // behaviour under test: `addDeal` writes a schedule ONLY when asked to.
+  const { makeClient, makeDeal, phaseForStage, probabilityForStage, templateById, defaultTemplateFor } =
+    await import('../src/crm/schema.js');
+  const state = { clients: [], deals: [], milestones: [], n: 0 };
+  return {
+    clients: () => [...state.clients],
+    dealsForClient: (id) => state.deals.filter(d => d.clientId === id),
+    milestonesForDeal: (id) => state.milestones.filter(m => m.dealId === id),
+    addClient(patch) {
+      state.n += 1;
+      const c = makeClient(patch);
+      c.code = `CL-${String(state.n).padStart(4, '0')}`;
+      state.clients.push(c);
+      return c;
+    },
+    updateClient(id, patch) {
+      const i = state.clients.findIndex(c => c.id === id);
+      if (i < 0) return null;
+      state.clients[i] = makeClient({ ...state.clients[i], ...patch, id, code: state.clients[i].code });
+      return state.clients[i];
+    },
+    addDeal(patch, { withSchedule = true } = {}) {
+      state.n += 1;
+      const d = makeDeal(patch);
+      d.code = `EV-2026-${String(state.n).padStart(4, '0')}`;
+      d.phase = phaseForStage(d.stage);
+      d.probability = probabilityForStage(d.stage);
+      // Mirrors the real store: a schedule is ONLY written when asked for.
+      if (withSchedule) {
+        const t = templateById(d.milestoneTemplateId) || defaultTemplateFor(d.category);
+        (t ? t.milestones : []).forEach((m, i) => state.milestones.push({ id: `ms${state.n}_${i}`, dealId: d.id, ...m }));
+      }
+      state.deals.push(d);
+      return d;
+    },
+    updateDeal(id, patch) {
+      const i = state.deals.findIndex(d => d.id === id);
+      if (i < 0) return null;
+      state.deals[i] = makeDeal({ ...state.deals[i], ...patch, id, code: state.deals[i].code });
+      return state.deals[i];
+    },
+    _state: state
+  };
+}
+
+const fakeEventState = () => ({ patches: [], set(patch) { this.patches.push(patch); return patch; } });
+
+test('a completed brief creates exactly one client and one deal', async () => {
+  const { submitIntake } = await import('../src/crm/intake.js');
+  const store = await freshStore();
+  const state = fakeEventState();
+
+  const res = submitIntake(completeBrief(), { store, state });
+  assert.equal(res.ok, true, JSON.stringify(res.errors));
+  assert.equal(store._state.clients.length, 1);
+  assert.equal(store._state.deals.length, 1);
+  assert.equal(res.created.deal.stage, 'enquiry', 'a brief is an enquiry, never a booking');
+  assert.equal(res.created.deal.phase, 'sales');
+  assert.equal(res.created.deal.functions.length, 2, 'the function is the costing unit — all of them must land');
+  assert.equal(res.created.deal.clientId, res.created.client.id);
+  // And the shared event state follows the brief rather than keeping its own copy.
+  assert.equal(state.patches.length, 1);
+  assert.equal(state.patches[0].guestCount, 600);
+  assert.equal(state.patches[0].clientState, 'Telangana');
+});
+
+test('submitting the same brief twice does not create a second client or deal', async () => {
+  const { submitIntake } = await import('../src/crm/intake.js');
+  const store = await freshStore();
+  const state = fakeEventState();
+
+  const first = submitIntake(completeBrief(), { store, state });
+  const second = submitIntake(completeBrief(), { store, state });
+  assert.equal(first.ok && second.ok, true);
+  assert.equal(store._state.clients.length, 1, 'the same family enquiring twice is ONE client');
+  assert.equal(store._state.deals.length, 1, 'the same event submitted twice is ONE deal');
+  assert.equal(second.created.clientCreated, false);
+  assert.equal(second.created.dealCreated, false);
+  assert.equal(second.created.client.code, first.created.client.code);
+});
+
+test('intake blocks on the fields the CRM requires, and says what to do', async () => {
+  const { validateIntake } = await import('../src/crm/intake.js');
+
+  // Source is the field this whole model refuses to lose.
+  const noSource = completeBrief({ client: { source: '' } });
+  const a = validateIntake(noSource);
+  assert.equal(a.ok, false);
+  assert.match(a.errors.clientSource, /where this enquiry came from/i);
+
+  const noVenueState = completeBrief({ event: { venueState: '' } });
+  const b = validateIntake(noVenueState);
+  assert.equal(b.ok, false);
+  assert.match(b.errors.venueState, /GST split/i);
+
+  const badPhone = completeBrief({ client: { phone: '12345' } });
+  assert.match(validateIntake(badPhone).errors.contactPhone, /10-digit/);
+
+  const noOwner = completeBrief({ event: { ownerId: '' } });
+  assert.match(validateIntake(noOwner).errors.ownerId, /owner/i);
+
+  // Every message must be an instruction, not a label.
+  const empty = validateIntake({});
+  assert.ok(Object.keys(empty.errors).length >= 8);
+  for (const [key, msg] of Object.entries(empty.errors)) {
+    assert.ok(msg.length > 20, `${key} message is too terse to act on: "${msg}"`);
+  }
+});
+
+test('no payment record is created at intake — only a suggestion', async () => {
+  const { submitIntake } = await import('../src/crm/intake.js');
+  const store = await freshStore();
+  const res = submitIntake(completeBrief(), { store, state: fakeEventState() });
+
+  assert.equal(res.created.milestonesCreated, 0);
+  assert.equal(store._state.milestones.length, 0,
+    'payment milestones belong to a BOOKED deal, not to an enquiry');
+  // The template is recorded so nobody has to remember the segment convention…
+  assert.ok(res.created.deal.milestoneTemplateId, 'the suggested template should be recorded');
+  assert.ok(res.created.suggestedTemplate.milestones.length > 0);
+  // …but nothing about money-in exists yet.
+  assert.equal(res.created.deal.quotedValue, 0);
+  assert.equal(res.created.deal.budgetIndicated, 4500000, 'what the client SAID is not what we quoted');
+});
+
+test('GST place of supply follows the VENUE state, not the client address', async () => {
+  const { submitIntake } = await import('../src/crm/intake.js');
+  const { placeOfSupplyFor } = await import('../src/crm/finance.js');
+  const { stateCodeForName } = await import('../src/crm/schema.js');
+  const store = await freshStore();
+
+  // Client registered in Karnataka (29); event at a Telangana (36) venue.
+  const res = submitIntake(completeBrief(), { store, state: fakeEventState() });
+  const { client, deal } = res.created;
+
+  assert.equal(client.billing.address.stateCode, '29', 'the client keeps their own registered state');
+  assert.equal(deal.venue.stateCode, '36');
+  assert.equal(placeOfSupplyFor(deal, client), '36',
+    'for an event the place of supply is the venue state — a Bengaluru client at a Hyderabad venue is INTRA-state');
+  assert.equal(res.created.placeOfSupply.from, 'venue');
+
+  // Flip only the venue and the answer must flip with it.
+  const other = submitIntake(
+    completeBrief({ event: { venueState: 'Maharashtra', name: 'Sharma Mumbai Reception' } }),
+    { store, state: fakeEventState() }
+  );
+  assert.equal(other.created.deal.venue.stateCode, stateCodeForName('Maharashtra'));
+  assert.equal(placeOfSupplyFor(other.created.deal, client), '27');
+});
+
+test('the brief field map covers client, deal, functions, requirements and eventState', async () => {
+  const { FIELD_MAP, readRequirements, readDesign, submitIntake } = await import('../src/crm/intake.js');
+  // The map is the owner-facing deliverable: it must not quietly shrink.
+  const keys = Object.keys(FIELD_MAP);
+  for (const needle of ['client.source', 'event.venueState', 'functions[].headcount', 'requirements.*', 'design.*']) {
+    assert.ok(keys.includes(needle), `FIELD_MAP lost "${needle}"`);
+  }
+  assert.match(FIELD_MAP['(none) payment details'], /NOTHING/);
+
+  const store = await freshStore();
+  const res = submitIntake(completeBrief(), { store, state: fakeEventState() });
+  const reqs = readRequirements(res.created.deal);
+  assert.deepEqual(reqs.dietary, ['veg', 'jain'], 'veg/Jain/satvik must survive into the deal');
+  assert.equal(reqs.accommodation, '40 rooms, 2 nights');
+  assert.equal(readDesign(res.created.deal).conceptId, 'concept-1');
+  assert.ok(!('amount' in reqs) && !('milestone' in reqs), 'requirements carry no money');
+});

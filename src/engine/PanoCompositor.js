@@ -1,6 +1,18 @@
 import {
-  billboardFrame, frameBBox, rasteriseBillboard, rasteriseContactShadow
+  billboardFrame, frameBBox, rasteriseBillboard, rasteriseContactShadow,
+  arrangementPlacements, rasteriseBlockShadow, unionBBox, blitOver, cutoutOccupancy
 } from './equirectBillboard.js';
+import { arrangementFor } from '../data/propOverlays.js';
+import { VENUE_ZONES } from '../data/zones.js';
+
+/**
+ * Slot lookup by id. The compositor is handed `slotId`/`itemId` by the viewer
+ * and needs the slot's QUANTITY to know whether a layer is one object or a
+ * block of twenty, so it resolves the slot itself rather than requiring every
+ * caller to thread quantity through.
+ */
+const SLOT_BY_ID = new Map();
+for (const z of VENUE_ZONES) for (const s of z.slots) SLOT_BY_ID.set(s.id, s);
 
 /**
  * PanoCompositor — builds the equirectangular image the 360 sphere is textured
@@ -145,8 +157,8 @@ export class PanoCompositor {
 
   /** Stable cache key: identical geometry never re-rasterises. */
   _key(s) {
-    return [s.baked?.colour || s.cutoutUrl, s.yawDeg, s.pitchDeg, s.distanceM,
-      s.heightM, s.ground ? 1 : 0, this.width, this.height].join('|');
+    return [s.baked?.colour || s.cutoutUrl, s.slotId, s.itemId, s.yawDeg, s.pitchDeg,
+      s.distanceM, s.heightM, s.ground ? 1 : 0, this.width, this.height].join('|');
   }
 
   /**
@@ -179,7 +191,7 @@ export class PanoCompositor {
         catch (e) { /* fall through to the runtime rasteriser */ }
       }
       const cut = await loadPixels(spec.cutoutUrl);
-      const frame = billboardFrame({
+      const base = {
         yawDeg: spec.yawDeg,
         pitchDeg: spec.pitchDeg,
         distanceM: spec.distanceM,
@@ -188,7 +200,13 @@ export class PanoCompositor {
         contact: spec.contact,
         cameraHeightM: spec.cameraHeightM ?? 1.5,
         ground: spec.ground !== false
-      });
+      };
+      const plan = base.ground
+        ? arrangementFor(SLOT_BY_ID.get(spec.slotId), spec.itemId)
+        : null;
+      if (plan) return this._blockPatch(cut, base, plan, spec);
+
+      const frame = billboardFrame(base);
       const bbox = frameBBox(frame, this.width, this.height);
       const colour = rasteriseBillboard(cut, frame, bbox, this.width, this.height);
       const shadow = (spec.shadow !== false && spec.ground !== false)
@@ -198,6 +216,55 @@ export class PanoCompositor {
     })();
     this._patchCache.set(key, p);
     return p;
+  }
+
+  /**
+   * A slot that represents MANY objects: draw the SET, not one cut-out.
+   *
+   * `slot-stage-seating` is twenty VIP chairs. Drawing one cut-out for it is
+   * what made the concert lawn show a single chair — or, with a throne pair
+   * selected, two thrones standing alone in a field. Here the block is laid out
+   * on the ground plane (see arrangementPlacements), each instance rasterised
+   * through the same exact inverse map at ITS OWN ground distance so the
+   * perspective falls out rather than being faked, composited back-to-front
+   * into ONE patch, and given ONE merged floor shadow.
+   *
+   * Merging into a single patch matters beyond tidiness: the exposure and
+   * sharpness match in `render()` then runs once for the whole block against
+   * the untouched plate, so every chair is graded identically instead of each
+   * one drifting toward whatever the previous chair left behind it.
+   */
+  _blockPatch(cut, base, plan, spec) {
+    const W = this.width, H = this.height;
+    // One reference frame gives us the object's true metric width, which is what
+    // the lateral pitch is expressed in.
+    const ref = billboardFrame(base);
+    const places = arrangementPlacements({
+      yawDeg: base.yawDeg, distanceM: base.distanceM, wM: ref.wM,
+      occupancy: cutoutOccupancy(cut), plan
+    });
+
+    const frames = [], boxes = [];
+    for (const p of places) {
+      const f = billboardFrame({ ...base, yawDeg: p.yawDeg, distanceM: p.distanceM });
+      frames.push(f);
+      boxes.push(frameBBox(f, W, H));
+    }
+    const bbox = unionBBox(boxes, W, H);
+    const colour = {
+      data: new Uint8ClampedArray(bbox.w * bbox.h * 4),
+      width: bbox.w, height: bbox.h
+    };
+    // places is already sorted far -> near, so a nearer chair overwrites the
+    // one behind it and the block occludes itself correctly.
+    for (let i = 0; i < frames.length; i++) {
+      const patch = rasteriseBillboard(cut, frames[i], boxes[i], W, H);
+      blitOver(colour, bbox, patch, boxes[i]);
+    }
+    const shadow = spec.shadow === false
+      ? null
+      : rasteriseBlockShadow(frames, bbox, W, H);
+    return { bbox, colour, shadow };
   }
 
   /**

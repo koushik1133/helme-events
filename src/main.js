@@ -50,7 +50,10 @@ import { HomeScreen } from './components/home/HomeScreen.js';
 import { crmStore } from './crm/store.js';
 import * as crmFinance from './crm/finance.js';
 import { can } from './auth/permissions.js';
+import { EventsGrid } from './components/events/EventsGrid.js';
+import { EventOverview } from './components/events/EventOverview.js';
 import { ensureShellStyles } from './shell/shellStyles.js';
+import { createPopover } from './shell/popover.js';
 import { StudioModeBar } from './components/studio/StudioModeBar.js';
 import { StudioEditPanel } from './components/studio/StudioEditPanel.js';
 import { loadCutoutManifest } from './data/propOverlays.js';
@@ -196,6 +199,7 @@ class Event360App {
 
   initUI() {
     // Original containers
+    this.eventsContainer = document.getElementById('eventsContainer');
     this.mapContainer = document.getElementById('mapViewContainer');
     this.studioContainer = document.getElementById('studio360Container');
     this.floorPlanContainer = document.getElementById('floorPlanContainer');
@@ -249,6 +253,7 @@ class Event360App {
     this.threeDEditorContainer = document.getElementById('threeDEditorContainer');
 
     // Original tabs
+    this.tabEventsView = document.getElementById('tabEventsView');
     this.tabMapView = document.getElementById('tabMapView');
     this.tab360View = document.getElementById('tab360View');
     this.tabFloorPlanView = document.getElementById('tabFloorPlanView');
@@ -599,6 +604,13 @@ class Event360App {
       }
     );
 
+    // The wizard now creates a CLIENT and an ENQUIRY DEAL, and offers to open
+    // them. Give it a real callback so it stops reaching for `window.app`.
+    this.customEventBriefWizard.onOpenRecord = ({ clientId } = {}) => {
+      if (clientId) this.openCrmClient(clientId);
+      else this.setSection('deals');
+    };
+
     // Phase 5: AI & Ops Architecture
 
     this.eventDetailsPanel = new EventDetailsPanel(this.eventDetailsContainer, (details) => {
@@ -614,6 +626,7 @@ class Event360App {
 
   bindGlobalEvents() {
     // Original tab events
+    this.tabEventsView?.addEventListener('click', () => this.switchView('events'));
     this.tabMapView.addEventListener('click', () => this.switchView('map'));
     this.tab360View.addEventListener('click', () => this.switchView('studio360'));
     if (this.tabFloorPlanView) this.tabFloorPlanView.addEventListener('click', () => this.switchView('floorplan'));
@@ -704,50 +717,41 @@ class Event360App {
     });
 
     if (this.btnPresetDropdown && this.presetPopoverMenu) {
-      const positionThemeMenu = () => {
-        const rect = this.btnPresetDropdown.getBoundingClientRect();
-        const menu = this.presetPopoverMenu;
-        const width = menu.offsetWidth || 240;
-        let left = rect.right - width;
-        if (left < 8) left = 8;
-        if (left + width > window.innerWidth - 8) {
-          left = Math.max(8, window.innerWidth - width - 8);
-        }
-        menu.style.top = `${Math.round(rect.bottom + 6)}px`;
-        menu.style.left = `${Math.round(left)}px`;
-        menu.style.right = 'auto';
-      };
-
-      const closeThemeMenu = () => {
-        this.presetPopoverMenu.classList.add('hidden');
-        this.btnPresetDropdown.setAttribute('aria-expanded', 'false');
-      };
-
-      const openThemeMenu = () => {
-        this.presetPopoverMenu.classList.remove('hidden');
-        this.btnPresetDropdown.setAttribute('aria-expanded', 'true');
-        positionThemeMenu();
-      };
+      // The menu markup stays in index.html; only its ANCHORING moves. Every
+      // ancestor of the trigger clips (`#presetPopoverWrapper` hidden,
+      // `#studioActionStrip` auto), so the menu was painted and then erased —
+      // which is the whole of "the theme dropdown does nothing". Rendering it
+      // into the shared body-level layer removes the clip. See shell/popover.js.
+      this.presetPopover = createPopover({
+        element: this.presetPopoverMenu,
+        trigger: this.btnPresetDropdown,
+        surface: false,            // `.preset-popover-menu` brings its own surface.
+        role: 'menu',
+        label: 'Design preset',
+        align: 'end',
+        minWidth: 240
+      });
 
       this.btnPresetDropdown.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (this.presetPopoverMenu.classList.contains('hidden')) openThemeMenu();
-        else closeThemeMenu();
+        this.presetPopover.toggle();
       });
 
       const menuItems = this.presetPopoverMenu.querySelectorAll('.preset-menu-item');
       menuItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-          e.stopPropagation();
+        if (!item.hasAttribute('tabindex')) item.setAttribute('tabindex', '0');
+        const choose = () => {
           menuItems.forEach(m => {
             m.classList.remove('active');
+            m.setAttribute('aria-checked', 'false');
             const check = m.querySelector('.item-check');
             if (check) check.textContent = '';
           });
 
           item.classList.add('active');
+          item.setAttribute('aria-checked', 'true');
           const check = item.querySelector('.item-check');
-          if (check) check.textContent = '✓';
+          if (check) check.textContent = '\u2713';
 
           const val = item.getAttribute('data-value');
           const icon = item.querySelector('.item-icon')?.textContent || '';
@@ -758,24 +762,14 @@ class Event360App {
             this.presetCurrentName.textContent = `${icon} ${parts[0]} ${parts[1] || ''}`.trim();
           }
 
-          closeThemeMenu();
+          this.presetPopover.close();
           this.applyThemePreset(val);
+        };
+        item.addEventListener('click', (e) => { e.stopPropagation(); choose(); });
+        item.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); }
         });
       });
-
-      document.addEventListener('click', (e) => {
-        if (this.presetPopoverMenu.classList.contains('hidden')) return;
-        if (!this.btnPresetDropdown.contains(e.target) && !this.presetPopoverMenu.contains(e.target)) {
-          closeThemeMenu();
-        }
-      });
-
-      window.addEventListener('resize', () => {
-        if (!this.presetPopoverMenu.classList.contains('hidden')) positionThemeMenu();
-      });
-      window.addEventListener('scroll', () => {
-        if (!this.presetPopoverMenu.classList.contains('hidden')) positionThemeMenu();
-      }, true);
     }
 
     // Escape closes the TOP-MOST modal only. It used to fire close() on all 17
@@ -969,8 +963,8 @@ class Event360App {
       if (name === 'deals' && this.dealBoard?.render) this.dealBoard.render();
       if (name === 'payments' && this.paymentsScreen?.render) this.paymentsScreen.render();
       if (name === 'studio') {
-        const studioViews = ['map', 'studio360', 'floorplan'];
-        this.switchView(studioViews.includes(this.activeView) ? this.activeView : 'map');
+        const studioViews = ['events', 'map', 'studio360', 'floorplan'];
+        this.switchView(studioViews.includes(this.activeView) ? this.activeView : 'events');
       }
       if (name === 'plan') {
         const planViews = ['timeline', 'seating', 'analytics', 'vendors', 'inventory', 'calendar', 'proposals'];
@@ -1012,6 +1006,73 @@ class Event360App {
    * hand-maintained arrays, because those arrays were how a removed view kept a
    * dead reference and a new one got silently forgotten.
    */
+  /**
+   * The Events board: every event in the book as a card.
+   *
+   * This is the studio's entry point rather than the aerial map, because "which
+   * events do I have" is the question anyone actually opens this app with — the
+   * venue map only answers "where in this one venue", which presumes you already
+   * picked the event.
+   *
+   * Grid and overview share one container and are torn down properly on the way
+   * out: both subscribe to the CRM store, and a leaked subscription re-renders a
+   * detached node on every save.
+   */
+  renderEvents(dealId = null) {
+    if (!this.eventsContainer) return;
+    this.teardownEvents();
+
+    const deps = { store: crmStore, finance: crmFinance, session, can };
+
+    if (dealId) {
+      this.eventsView = new EventOverview(this.eventsContainer, dealId, {
+        ...deps,
+        onBack: () => this.renderEvents(null),
+        onAction: (kind, id, ctx = {}) => this.onEventAction(kind, id, ctx)
+      });
+    } else {
+      this.eventsView = new EventsGrid(this.eventsContainer, {
+        ...deps,
+        onOpenEvent: (id) => this.renderEvents(id)
+      });
+    }
+    this.eventsView.render();
+  }
+
+  teardownEvents() {
+    try { this.eventsView?.destroy?.(); } catch (err) { console.error('[Helm] events teardown', err); }
+    this.eventsView = null;
+  }
+
+  /** Route the overview's action rail into the screens that already exist. */
+  onEventAction(kind, dealId, ctx = {}) {
+    switch (kind) {
+      case 'studio360':
+        // ctx.zoneId is this event's own venue zone, so the 360 opens where the
+        // event actually is instead of the generic default zone.
+        if (ctx.zoneId) this.currentZoneId = ctx.zoneId;
+        this.switchView('studio360');
+        if (ctx.zoneId) this.openStudio360(ctx.zoneId);
+        break;
+      case 'floorplan':
+        this.switchView('floorplan');
+        break;
+      case 'runsheet':
+        this.setSection('plan');
+        this.switchView('timeline');
+        break;
+      case 'payments':
+        this.setSection('payments');
+        break;
+      case 'client':
+        if (ctx.clientId) this.openCrmClient(ctx.clientId);
+        else this.setSection('clients');
+        break;
+      default:
+        console.warn('[Helm] unhandled event action', kind, dealId);
+    }
+  }
+
   switchView(viewName) {
     this.activeView = viewName;
 
@@ -1027,7 +1088,16 @@ class Event360App {
       this.threeDLiveSpaceEditor.unmount();
     }
 
+    // Same reasoning as the WebGL context above: the events screens hold a live
+    // store subscription, so leaving must unsubscribe rather than just hide.
+    if (viewName !== 'events') this.teardownEvents();
+
     switch (viewName) {
+      case 'events':
+        this.activateSection(this.eventsContainer, this.tabEventsView);
+        this.renderEvents();
+        break;
+
       case 'map':
         this.activateSection(this.mapContainer, this.tabMapView);
         break;
@@ -1426,7 +1496,9 @@ class Event360App {
    */
   modalRegistry() {
     return [
-      ['notificationCenter', this.notificationCenter, this.notificationContainer],
+      // The bell no longer renders into #notificationContainer — it lives in the
+      // shared popover layer and owns its own Escape handling, so listing it here
+      // would have closeTopModal() fight a menu that is already closed.
       ['beforeAfterCompare', this.beforeAfterCompare, this.compareContainer],
       ['collaborationMode', this.collaborationMode, this.collabContainer],
       ['styleLibrary', this.styleLibrary, this.styleLibraryContainer],

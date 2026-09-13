@@ -16,6 +16,13 @@ import {
   formatMoney, formatNumber, sumLines, computeGst,
   escapeHtml, SELLER_STATE, GST_RATE
 } from '../utils/format.js';
+import {
+  CLIENT_TYPES, CLIENT_SOURCES, STATE_CODES, MILESTONE_TEMPLATES,
+  defaultTemplateFor, templateById
+} from '../crm/schema.js';
+import { submitIntake, validateIntake, describeIntake, crmCategoryFor } from '../crm/intake.js';
+import { TEAM } from '../auth/users.js';
+import { session } from '../auth/session.js';
 
 /* ───────────────────────────── Reference data ───────────────────────────── */
 
@@ -104,6 +111,43 @@ const OPTIONS = {
     ['first-aid', '🏥 First aid tent & security patrols']
   ]
 };
+
+/**
+ * The functions a brief offers by default, per wizard category. An Indian
+ * wedding is five events, not one, and the FUNCTION — not the event — is the
+ * costing unit, so the brief has to capture them the first time round.
+ */
+const FUNCTION_PRESETS = {
+  social: [
+    ['mehendi', 'Mehendi'], ['haldi', 'Haldi'], ['sangeet', 'Sangeet'],
+    ['wedding', 'Wedding ceremony'], ['reception', 'Reception']
+  ],
+  corporate: [
+    ['keynote', 'Keynote / plenary'], ['product_launch', 'Launch session'],
+    ['gala_dinner', 'Gala dinner'], ['townhall', 'Town hall']
+  ],
+  political: [['rally', 'Rally'], ['roadshow', 'Roadshow'], ['townhall', 'Town hall']],
+  public: [['other', 'Day 1 programme'], ['other', 'Day 2 programme'], ['gala_dinner', 'Closing night']]
+};
+
+/** Dietary requirements that actually change a kitchen brief in India. */
+const DIETARY_OPTIONS = [
+  ['veg', 'Pure vegetarian'],
+  ['jain', 'Jain (no root vegetables)'],
+  ['satvik', 'Satvik'],
+  ['no_onion_garlic', 'No onion / no garlic'],
+  ['halal', 'Halal'],
+  ['vegan', 'Vegan'],
+  ['nut_free', 'Nut allergy'],
+  ['non_veg', 'Non-vegetarian served']
+];
+
+/** Venue kinds, because "banquet hall" and "open ground" are different jobs. */
+const VENUE_TYPES = [
+  ['hotel', 'Hotel'], ['banquet', 'Banquet hall'], ['farmhouse', 'Farmhouse'],
+  ['outdoor', 'Open ground / lawn'], ['convention', 'Convention centre'],
+  ['heritage', 'Palace / heritage property'], ['office', 'Client premises']
+];
 
 const labelFor = (field, value) => {
   const found = (OPTIONS[field] || []).find(([v]) => v === value);
@@ -362,13 +406,58 @@ export class CustomEventBriefWizard {
   }
 
   blankForm() {
-    const today = new Date().toISOString().split('T')[0];
+    // Local date, never `toISOString()` — that stamps yesterday before 05:30 IST.
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const me = session.getUser();
     return {
+      // ── client identity (→ CRM client record) ──
       clientName: '',
+      clientType: 'individual',
+      clientSource: '',
+      clientSourceDetail: '',
+      contactName: '',
+      contactRole: '',
+      contactPhone: '',
+      contactWhatsapp: '',
+      contactEmail: '',
+      altContacts: [],
+      clientCity: '',
+      clientState: SELLER_STATE,
+
+      // ── billing identity (→ CRM client.billing) ──
+      billingLegalName: '',
+      gstin: '',
+      pan: '',
+      isRegistered: false,
+      tdsApplicable: false,
+      tdsSection: '',
+
+      // ── the event (→ CRM deal) ──
+      eventName: '',
       category: 'social',
       subCategory: 'reception',
       eventDate: today,
+      eventEndDate: '',
       altDate: '',
+      venueName: '',
+      venueCity: '',
+      venueType: 'banquet',
+      venueContact: '',
+      ownerId: me && me.id ? me.id : 'u-priya',
+      eventManagerId: '',
+      eventNotes: '',
+      budgetAmount: '',
+      milestoneTemplateId: '',
+      functions: [],
+
+      // ── requirements that are NOT money (→ deal notes, read by production) ──
+      dietary: [],
+      powerRequirement: '',
+      accommodation: '',
+      transport: '',
+      requirementNotes: '',
+
       venueState: SELLER_STATE,
       startTime: '10:00',
       endTime: '18:00',
@@ -396,7 +485,9 @@ export class CustomEventBriefWizard {
     if (fresh) {
       this.formData = this.blankForm();
       this.selectedConceptId = 'concept-1';
+      this.intakeResult = null;
     }
+    this.ensureFunctionRows();
     document.addEventListener('keydown', this.onKeyDown);
     this.render();
   }
@@ -415,6 +506,165 @@ export class CustomEventBriefWizard {
     this.currentStep = stepNum;
     this.errors = {};
     this.render();
+  }
+
+  // ── Functions: the costing unit, not the event ───────────────────────────
+
+  /** Seed the function rows for the current category, keeping anything already filled in. */
+  ensureFunctionRows() {
+    const preset = FUNCTION_PRESETS[this.formData.category] || FUNCTION_PRESETS.social;
+    const existing = Array.isArray(this.formData.functions) ? this.formData.functions : [];
+    const byLabel = new Map(existing.map(f => [f.label, f]));
+    this.formData.functions = preset.map(([type, label], i) => {
+      const prev = byLabel.get(label);
+      return prev || {
+        type, label,
+        // The main ceremony is on by default; the rest are opt-in, because a
+        // pre-ticked function nobody wanted becomes a line item nobody priced.
+        include: i === preset.length - 2 || preset.length < 3,
+        date: '', startTime: '', endTime: '', headcount: '', requirements: ''
+      };
+    });
+    return this.formData.functions;
+  }
+
+  includedFunctions() {
+    return (this.formData.functions || []).filter(f => f.include);
+  }
+
+  // ── The brief payload the CRM router consumes ────────────────────────────
+
+  /**
+   * Everything this wizard collected, in the shape `src/crm/intake.js` routes.
+   * This is the ONLY place the form's field names meet the CRM's field names —
+   * `intake.js` owns the map from here on, and documents it in FIELD_MAP.
+   */
+  toBrief() {
+    const f = this.formData;
+    const concept = this.chosenConcept();
+    const bracket = this.bracket();
+    const budget = Number(f.budgetAmount);
+    const indicated = Number.isFinite(budget) && budget > 0
+      ? Math.round(budget)
+      // No figure given: use the middle of the stated bracket rather than zero,
+      // so the pipeline is not full of ₹0 enquiries that sort to the bottom.
+      : Math.round(bracket.max === Infinity ? bracket.min : (bracket.min + bracket.max) / 2);
+
+    const fns = this.includedFunctions();
+    const dates = fns.map(x => x.date).filter(Boolean).sort();
+
+    return {
+      client: {
+        name: f.clientName,
+        type: f.clientType,
+        source: f.clientSource,
+        sourceDetail: f.clientSourceDetail,
+        contactName: f.contactName,
+        contactRole: f.contactRole,
+        phone: f.contactPhone,
+        whatsapp: f.contactWhatsapp,
+        email: f.contactEmail,
+        altContacts: f.altContacts,
+        city: f.clientCity,
+        state: f.clientState,
+        ownerId: f.ownerId,
+        billing: {
+          legalName: f.billingLegalName,
+          gstin: f.gstin,
+          pan: f.pan,
+          isRegistered: f.isRegistered,
+          tdsApplicable: f.tdsApplicable,
+          tdsSection: f.tdsSection
+        }
+      },
+      event: {
+        // Fall back to "<client> — <sub-event>" only when there IS a client name,
+        // otherwise a blank form would produce a plausible-looking title and slip
+        // past the "give the event a name" check.
+        name: f.eventName || (f.clientName ? `${f.clientName} — ${SUB_LABELS[f.subCategory] || f.subCategory}` : ''),
+        category: f.category,
+        subType: f.subCategory,
+        venueName: f.venueName,
+        venueCity: f.venueCity || f.clientCity,
+        venueState: f.venueState,
+        venueType: f.venueType,
+        venueContact: f.venueContact,
+        guestCount: f.guestCount,
+        budgetIndicated: indicated,
+        startDate: dates[0] || f.eventDate,
+        endDate: f.eventEndDate || dates[dates.length - 1] || f.eventDate,
+        startTime: f.startTime,
+        endTime: f.endTime,
+        altDate: f.altDate,
+        ownerId: f.ownerId,
+        eventManagerId: f.eventManagerId,
+        notes: f.eventNotes
+      },
+      functions: fns.map(x => ({
+        type: x.type, label: x.label, date: x.date,
+        startTime: x.startTime || f.startTime, endTime: x.endTime || f.endTime,
+        headcount: x.headcount, requirements: x.requirements
+      })),
+      requirements: {
+        // Requirements, never rupees. Payment is deliberately absent here.
+        cateringStyle: f.category === 'social' ? labelFor('cateringStyle', f.cateringStyle) : 'Standard service',
+        dietary: f.dietary,
+        av: f.category === 'corporate' ? labelFor('avTech', f.avTech)
+          : f.category === 'political' ? labelFor('stagePodium', f.stagePodium)
+            : f.category === 'public' ? labelFor('soundSystem', f.soundSystem)
+              : 'Standard social AV, PA and show lighting',
+        security: f.category === 'political' ? labelFor('securityLevel', f.securityLevel)
+          : f.category === 'public' ? labelFor('crowdFacilities', f.crowdFacilities)
+            : `Marshals and access control for ${formatNumber(f.guestCount || 0)} guests`,
+        power: f.powerRequirement,
+        accommodation: f.accommodation,
+        transport: f.transport,
+        notes: f.requirementNotes
+      },
+      design: {
+        conceptId: concept ? concept.id : '',
+        conceptTitle: concept ? concept.title : '',
+        panoramaUrl: concept ? concept.panoramaUrl : '',
+        selections: concept ? concept.selections : {},
+        styleKeywords: f.styleKeywords,
+        matchedKeywords: (this.promptFeedback?.matched || []).map(m => m.keyword)
+      },
+      suggestedTemplateId: this.suggestedTemplate().id
+    };
+  }
+
+  /**
+   * The payment shape this segment usually takes. SUGGESTED ONLY — nothing is
+   * written. Milestones are laid down when the deal is actually booked and a
+   * value is agreed, which is not what a brief is.
+   */
+  suggestedTemplate() {
+    const category = crmCategoryFor(this.formData.category, this.formData.subCategory);
+    return templateById(this.formData.milestoneTemplateId) || defaultTemplateFor(category);
+  }
+
+  // ── Validation ───────────────────────────────────────────────────────────
+
+  /** Which wizard step owns which `validateIntake` error key. */
+  static stepForField(key) {
+    if (/^(altContactPhone|altContactEmail)/.test(key)) return 1;
+    if (/^(functionDate|functionHeadcount)/.test(key)) return 2;
+    const step1 = [
+      'clientName', 'clientSource', 'contactName', 'contactPhone', 'contactWhatsapp',
+      'contactEmail', 'clientCity', 'gstin', 'pan', 'tdsSection',
+      'eventName', 'eventDate', 'eventEndDate', 'altDate', 'title'
+    ];
+    return step1.includes(key) ? 1 : 2;
+  }
+
+  /** CRM-blocking errors for one step. The CRM decides; the wizard only routes. */
+  crmErrorsForStep(step) {
+    const { errors } = validateIntake(this.toBrief());
+    const out = {};
+    Object.entries(errors).forEach(([k, v]) => {
+      if (CustomEventBriefWizard.stepForField(k) === step) out[k] = v;
+    });
+    return out;
   }
 
   // ── Derived values ───────────────────────────────────────────────────────
@@ -653,12 +903,9 @@ export class CustomEventBriefWizard {
   // ── Validation ───────────────────────────────────────────────────────────
 
   validateStep1() {
-    const e = {};
-    if (!String(this.formData.clientName).trim()) e.clientName = 'Client or organisation name is required.';
-    if (!this.formData.eventDate) e.eventDate = 'Pick an event date.';
-    if (this.formData.altDate && this.formData.altDate === this.formData.eventDate) {
-      e.altDate = 'The alternate date must differ from the primary date.';
-    }
+    // Every rule here comes from the CRM, so the form can never accept a brief
+    // the CRM would then refuse. Messages say what to do, not what is wrong.
+    const e = this.crmErrorsForStep(1);
     this.errors = e;
     return Object.keys(e).length === 0;
   }
@@ -683,9 +930,22 @@ export class CustomEventBriefWizard {
         e.bridalPartySize = 'Bridal / VIP party size must be between 2 and 100.';
       }
     }
-    if (!String(f.venueState).trim()) e.venueState = 'Venue state is required for the GST split.';
+    Object.assign(e, this.crmErrorsForStep(2));
     this.errors = e;
     return Object.keys(e).length === 0;
+  }
+
+  /** Both steps at once — what the submit button checks before it writes anything. */
+  validateAll() {
+    const step1 = this.crmErrorsForStep(1);
+    if (Object.keys(step1).length) {
+      this.errors = step1;
+      this.currentStep = 1;
+      return false;
+    }
+    const ok2 = this.validateStep2();
+    if (!ok2) this.currentStep = 2;
+    return ok2;
   }
 
   err(field) {
@@ -708,6 +968,64 @@ export class CustomEventBriefWizard {
   }
 
   // ── Apply / handoff ──────────────────────────────────────────────────────
+
+  /**
+   * Write the brief into the CRM. ONE call, and it is the only write path:
+   * `intake.js` decides what a client, a deal, its functions, its design and
+   * its requirements are. Nothing about payment is created here.
+   *
+   * Idempotent by construction: `intake.js` matches an existing client on name
+   * or phone and an existing deal on client + title + first date, so a second
+   * click updates rather than duplicates. We also latch `intakeResult` so the
+   * button stops offering to do it again.
+   */
+  createRecords() {
+    if (this.intakeResult) {
+      this.setBriefStatus('Already saved — this brief has its client and enquiry.');
+      return;
+    }
+    if (!this.validateAll()) { this.render(); return; }
+
+    const result = submitIntake(this.toBrief());
+    if (!result.ok) {
+      this.errors = result.errors;
+      const first = Object.keys(result.errors)[0];
+      this.currentStep = first ? CustomEventBriefWizard.stepForField(first) : 1;
+      this.render();
+      return;
+    }
+    this.intakeResult = result.created;
+    this.render();
+  }
+
+  /**
+   * Jump to the record we just created.
+   *
+   * If the shell sets `wizard.onOpenRecord`, that wins. Otherwise we fall back to
+   * `window.app`, the shell instance created in main.js — a file this component
+   * does not own and must not import. Every call is guarded, so if the shell is
+   * ever renamed the wizard degrades to doing nothing rather than throwing.
+   */
+  openCreated(where) {
+    const created = this.intakeResult;
+    if (!created) return;
+    // Preferred route: a callback the shell sets on us.
+    if (typeof this.onOpenRecord === 'function') {
+      this.onOpenRecord({ clientId: where === 'client' ? created.client.id : '', dealId: created.deal.id });
+      this.close();
+      return;
+    }
+    const app = typeof window !== 'undefined' ? window.app : null;
+    if (!app) return;
+    if (where === 'client' && typeof app.openCrmClient === 'function') {
+      app.openCrmClient(created.client.id);
+    } else if (typeof app.setSection === 'function') {
+      app.setSection('deals');
+    }
+    this.close();
+  }
+
+
 
   applySelectedConcept() {
     const concepts = this.generateSubEventConcepts();
@@ -740,6 +1058,10 @@ export class CustomEventBriefWizard {
       const choose = () => {
         this.formData.category = card.getAttribute('data-category');
         this.formData.subCategory = SUBS_BY_CATEGORY[this.formData.category][0];
+        // A different category is a different function list: a corporate summit
+        // has no haldi, and a wedding has no keynote.
+        this.formData.functions = [];
+        this.ensureFunctionRows();
         this.render();
       };
       card.addEventListener('click', choose);
@@ -753,9 +1075,11 @@ export class CustomEventBriefWizard {
       input.addEventListener(evt, (e) => {
         const field = e.target.getAttribute('data-bind');
         const raw = e.target.value;
-        this.formData[field] = e.target.type === 'number' || e.target.type === 'range'
-          ? (String(raw).trim() === '' ? '' : Number(raw))
-          : raw;
+        this.formData[field] = e.target.type === 'checkbox'
+          ? e.target.checked
+          : e.target.type === 'number' || e.target.type === 'range'
+            ? (String(raw).trim() === '' ? '' : Number(raw))
+            : raw;
 
         if (field === 'startTime' || field === 'endTime') {
           const hrsEl = this.container.querySelector('#calculatedHoursDisplay');
@@ -765,6 +1089,53 @@ export class CustomEventBriefWizard {
           const guestEl = this.container.querySelector('#guestCountValDisplay');
           if (guestEl) guestEl.textContent = `${formatNumber(this.formData.guestCount || 0)} Guests`;
         }
+      });
+    });
+
+    // Dietary is a multi-select expressed as checkboxes: a kitchen brief that
+    // cannot say "Jain AND satvik" is not a kitchen brief.
+    this.container.querySelectorAll('[data-dietary]').forEach(box => {
+      box.addEventListener('change', (e) => {
+        const value = e.target.getAttribute('data-dietary');
+        const set = new Set(this.formData.dietary || []);
+        if (e.target.checked) set.add(value); else set.delete(value);
+        this.formData.dietary = [...set];
+      });
+    });
+
+    // Function rows. Each row is its own date, headcount and requirement.
+    this.container.querySelectorAll('[data-fn-field]').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const i = Number(e.target.getAttribute('data-fn-index'));
+        const field = e.target.getAttribute('data-fn-field');
+        const row = (this.formData.functions || [])[i];
+        if (!row) return;
+        if (e.target.type === 'checkbox') {
+          row.include = e.target.checked;
+          this.render();
+          return;
+        }
+        row[field] = e.target.type === 'number'
+          ? (String(e.target.value).trim() === '' ? '' : Number(e.target.value))
+          : e.target.value;
+      });
+    });
+
+    // Alternate contacts — the second number that gets picked up when the first
+    // one does not, which on an event day is the whole point of the field.
+    this.container.querySelectorAll('[data-alt-field]').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const i = Number(e.target.getAttribute('data-alt-index'));
+        const field = e.target.getAttribute('data-alt-field');
+        const row = (this.formData.altContacts || [])[i];
+        if (row) row[field] = e.target.value;
+      });
+    });
+    this.container.querySelectorAll('[data-alt-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = Number(btn.getAttribute('data-alt-remove'));
+        this.formData.altContacts.splice(i, 1);
+        this.render();
       });
     });
 
@@ -780,6 +1151,13 @@ export class CustomEventBriefWizard {
     on('#btnStep3Next', () => this.setStep(4));
     on('#btnStep4Back', () => this.setStep(3));
     on('#btnStep4Launch', () => this.applySelectedConcept());
+    on('#btnAddAltContact', () => {
+      this.formData.altContacts.push({ name: '', role: '', phone: '', email: '' });
+      this.render();
+    });
+    on('#btnCreateRecords', () => this.createRecords());
+    on('#btnOpenClient', () => this.openCreated('client'));
+    on('#btnOpenPipeline', () => this.openCreated('pipeline'));
     on('#btnStartFresh', () => { this.formData = this.blankForm(); this.selectedConceptId = 'concept-1'; this.setStep(1); });
     on('#btnPrintBrief', () => this.printBrief());
     on('#btnCopyBrief', () => this.copyBrief());
@@ -810,6 +1188,61 @@ export class CustomEventBriefWizard {
 
   // ── Shared field helpers ─────────────────────────────────────────────────
 
+  /** A labelled text-ish input bound to `formData[field]`. */
+  textField(field, label, { id = '', type = 'text', placeholder = '', required = false, full = false, hint = '' } = {}) {
+    const inputId = id || `fld_${field}`;
+    return `
+      <div class="wizard-form-group ${full ? 'wizard-full-col' : ''}">
+        <label class="wizard-label" for="${inputId}">${escapeHtml(label)}${required ? ' <span aria-hidden="true">*</span>' : ''}</label>
+        <input id="${inputId}" type="${type}" class="wizard-input" data-bind="${field}"
+               value="${escapeHtml(this.formData[field] ?? '')}" placeholder="${escapeHtml(placeholder)}"
+               ${this.errors[field] ? 'aria-invalid="true"' : ''} />
+        ${hint ? `<p style="font-size:.76rem;opacity:.72;margin:.3rem 0 0;">${escapeHtml(hint)}</p>` : ''}
+        ${this.err(field)}
+      </div>`;
+  }
+
+  /** A labelled select bound to `formData[field]`, from `[value, label]` pairs. */
+  selectField(field, label, pairs, { id = '', required = false, full = false, blank = '', hint = '' } = {}) {
+    const inputId = id || `fld_${field}`;
+    const current = String(this.formData[field] ?? '');
+    return `
+      <div class="wizard-form-group ${full ? 'wizard-full-col' : ''}">
+        <label class="wizard-label" for="${inputId}">${escapeHtml(label)}${required ? ' <span aria-hidden="true">*</span>' : ''}</label>
+        <select id="${inputId}" class="wizard-input" data-bind="${field}"
+                ${this.errors[field] ? 'aria-invalid="true"' : ''}>
+          ${blank ? `<option value="" ${current === '' ? 'selected' : ''}>${escapeHtml(blank)}</option>` : ''}
+          ${pairs.map(([v, l]) => `<option value="${escapeHtml(v)}" ${current === String(v) ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('')}
+        </select>
+        ${hint ? `<p style="font-size:.76rem;opacity:.72;margin:.3rem 0 0;">${escapeHtml(hint)}</p>` : ''}
+        ${this.err(field)}
+      </div>`;
+  }
+
+  /** A single checkbox bound to a boolean field. */
+  checkField(field, label, { hint = '' } = {}) {
+    const inputId = `fld_${field}`;
+    return `
+      <div class="wizard-form-group">
+        <label class="wizard-label" for="${inputId}" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+          <input id="${inputId}" type="checkbox" data-bind="${field}" ${this.formData[field] ? 'checked' : ''} />
+          <span>${escapeHtml(label)}</span>
+        </label>
+        ${hint ? `<p style="font-size:.76rem;opacity:.72;margin:.3rem 0 0;">${escapeHtml(hint)}</p>` : ''}
+      </div>`;
+  }
+
+  /** Venue / client state options, sorted by name, from the GST state table. */
+  stateOptions() {
+    return Object.entries(STATE_CODES)
+      .map(([code, name]) => [name, `${name} (${code})`])
+      .sort((a, b) => a[0].localeCompare(b[0]));
+  }
+
+  teamOptions(roles) {
+    return TEAM.filter(u => !roles || roles.includes(u.role)).map(u => [u.id, `${u.name} — ${u.title}`]);
+  }
+
   select(field, extra = '') {
     return `
       <select class="wizard-input" data-bind="${field}" ${extra}>
@@ -828,35 +1261,128 @@ export class CustomEventBriefWizard {
       ['political', '🗳️', 'Political & Rallies', 'Rallies, town halls, press conferences & fundraisers'],
       ['public', '🎪', 'Public & Community', 'Festivals, charity runs, live concerts & cultural fairs']
     ];
+    const f = this.formData;
 
     return `
       <div class="wizard-step-body">
-        <h3 class="step-title">Step 1: Client &amp; event category</h3>
-        <p class="step-subtitle">Who the brief is for, when it runs, and which category drives the specification fields.</p>
+        <h3 class="step-title">Step 1: Client, contact &amp; event</h3>
+        <p class="step-subtitle">
+          Everything on this step becomes the <strong>client record</strong> in the CRM and the
+          <strong>enquiry</strong> on the pipeline. Fill it once here and nothing has to be retyped later.
+        </p>
 
         ${this.errorSummary()}
 
         <div class="wizard-section-box">
+          <h4 class="section-box-title">👤 Who the client is</h4>
           <div class="wizard-grid-2col">
-            <div class="wizard-form-group wizard-full-col">
-              <label class="wizard-label" for="fldClientName">Client / organisation name <span aria-hidden="true">*</span></label>
-              <input id="fldClientName" type="text" class="wizard-input" data-bind="clientName"
-                     value="${escapeHtml(this.formData.clientName)}" placeholder="e.g. Reddy family · Aurex Technologies Pvt Ltd"
-                     ${this.errors.clientName ? 'aria-invalid="true"' : ''} />
-              ${this.err('clientName')}
-            </div>
+            ${this.textField('clientName', 'Client / organisation name', {
+              id: 'fldClientName', required: true, full: true,
+              placeholder: 'e.g. Reddy family · Aurex Technologies Pvt Ltd'
+            })}
+            ${this.selectField('clientType', 'Client type', CLIENT_TYPES.map(t => [t.id, t.label]), {
+              hint: 'Corporates and government deduct TDS; families do not.'
+            })}
+            ${this.textField('clientCity', 'Client city', { required: true, placeholder: 'e.g. Hyderabad' })}
+            ${this.selectField('clientState', 'Client state', this.stateOptions(), {
+              hint: 'Their registered state. The GST split follows the VENUE state, set on the next step.'
+            })}
+          </div>
+        </div>
 
+        <div class="wizard-section-box mt-3">
+          <h4 class="section-box-title">📞 Who we actually talk to</h4>
+          <div class="wizard-grid-2col">
+            ${this.textField('contactName', 'Primary contact name', { required: true, placeholder: 'e.g. Anil Reddy' })}
+            ${this.textField('contactRole', 'Their role', { placeholder: 'e.g. Father of the bride · Marketing head' })}
+            ${this.textField('contactPhone', 'Phone', { type: 'tel', required: true, placeholder: '98490 11002' })}
+            ${this.textField('contactWhatsapp', 'WhatsApp', { type: 'tel', placeholder: 'Leave blank to reuse the phone number' })}
+            ${this.textField('contactEmail', 'Email', { type: 'email', full: true, placeholder: 'name@example.com' })}
+          </div>
+
+          <div style="margin-top:.6rem;">
+            ${(f.altContacts || []).map((a, i) => `
+              <div class="wizard-grid-2col" style="align-items:end;">
+                ${['name', 'role', 'phone', 'email'].map(key => `
+                  <div class="wizard-form-group">
+                    <label class="wizard-label" for="alt_${key}_${i}">Alternate contact ${i + 1} — ${key}</label>
+                    <input id="alt_${key}_${i}" class="wizard-input" data-alt-index="${i}" data-alt-field="${key}"
+                           type="${key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}"
+                           value="${escapeHtml(a[key] || '')}" />
+                    ${this.err(key === 'phone' ? `altContactPhone${i}` : key === 'email' ? `altContactEmail${i}` : '')}
+                  </div>`).join('')}
+                <div class="wizard-form-group wizard-full-col">
+                  <button type="button" class="wizard-btn wizard-btn-secondary" data-alt-remove="${i}">
+                    ✕ Remove alternate contact ${i + 1}
+                  </button>
+                </div>
+              </div>`).join('')}
+            <button type="button" class="wizard-btn wizard-btn-secondary" id="btnAddAltContact">
+              ＋ Add an alternate contact
+            </button>
+          </div>
+        </div>
+
+        <div class="wizard-section-box mt-3">
+          <h4 class="section-box-title">📣 Where this enquiry came from</h4>
+          <div class="wizard-grid-2col">
+            ${this.selectField('clientSource', 'Enquiry source', CLIENT_SOURCES.map(x => [x.id, x.label]), {
+              required: true, blank: '— choose a source —',
+              hint: 'Required. It is the one field nobody can reconstruct afterwards, and the only way to tell which channel is worth paying for.'
+            })}
+            ${this.textField('clientSourceDetail', 'Source detail', {
+              placeholder: 'e.g. referred by the Kapoor wedding · DM on 4 Sep'
+            })}
+          </div>
+        </div>
+
+        <details class="wizard-section-box mt-3" ${f.gstin || f.pan || f.tdsApplicable ? 'open' : ''}>
+          <summary class="section-box-title" style="cursor:pointer;list-style:revert;">
+            🧾 Billing identity — optional now, required before the first invoice
+          </summary>
+          <div class="wizard-grid-2col" style="margin-top:.75rem;">
+            ${this.textField('billingLegalName', 'Legal / billing name', {
+              full: true, placeholder: 'As it must appear on the tax invoice'
+            })}
+            ${this.textField('gstin', 'GSTIN', { placeholder: '36AABCI1234M1Z5' })}
+            ${this.textField('pan', 'PAN', { placeholder: 'AABCI1234M' })}
+            ${this.checkField('isRegistered', 'GST-registered (can claim input credit)', {
+              hint: 'Unregistered clients cannot claim the 18% back, so it is a real cost to them and a live negotiation point.'
+            })}
+            ${this.checkField('tdsApplicable', 'This client deducts TDS at source')}
+            ${this.selectField('tdsSection', 'TDS section', [
+              ['194C', '194C — contractual execution (1% individual / 2% others)'],
+              ['194J', '194J — professional or management fee (10%)'],
+              ['194I', '194I — bare venue or stall rental (10%)']
+            ], { blank: '— not applicable —', full: true,
+              hint: 'TDS is money the client pays the government on our behalf. It settles the invoice; it is not a shortfall.' })}
+          </div>
+        </details>
+
+        <div class="wizard-section-box mt-3">
+          <h4 class="section-box-title">📅 The event</h4>
+          <div class="wizard-grid-2col">
+            ${this.textField('eventName', 'Event name', {
+              required: true, full: true,
+              placeholder: 'e.g. Reddy–Iyer Wedding · Aurex Annual Summit 2026',
+              hint: 'This is the title on the pipeline card.'
+            })}
             <div class="wizard-form-group">
               <label class="wizard-label" for="fldEventDate">Primary event date <span aria-hidden="true">*</span></label>
               <input id="fldEventDate" type="date" class="wizard-input" data-bind="eventDate"
-                     value="${escapeHtml(this.formData.eventDate)}" />
+                     value="${escapeHtml(f.eventDate)}" ${this.errors.eventDate ? 'aria-invalid="true"' : ''} />
               ${this.err('eventDate')}
             </div>
-
+            <div class="wizard-form-group">
+              <label class="wizard-label" for="fldEventEndDate">Last day (multi-day events)</label>
+              <input id="fldEventEndDate" type="date" class="wizard-input" data-bind="eventEndDate"
+                     value="${escapeHtml(f.eventEndDate)}" />
+              ${this.err('eventEndDate')}
+            </div>
             <div class="wizard-form-group">
               <label class="wizard-label" for="fldAltDate">Alternate / hold date</label>
               <input id="fldAltDate" type="date" class="wizard-input" data-bind="altDate"
-                     value="${escapeHtml(this.formData.altDate)}" />
+                     value="${escapeHtml(f.altDate)}" />
               ${this.err('altDate')}
             </div>
           </div>
@@ -864,9 +1390,9 @@ export class CustomEventBriefWizard {
 
         <div class="category-cards-grid mt-3">
           ${cats.map(([key, icon, title, blurb]) => `
-            <div class="cat-select-card ${this.formData.category === key ? 'selected' : ''}"
+            <div class="cat-select-card ${f.category === key ? 'selected' : ''}"
                  data-category="${key}" role="radio" tabindex="0"
-                 aria-checked="${this.formData.category === key}" aria-label="${title}">
+                 aria-checked="${f.category === key}" aria-label="${title}">
               <div class="cat-card-icon" aria-hidden="true">${icon}</div>
               <div class="cat-card-info"><h4>${title}</h4><p>${blurb}</p></div>
             </div>
@@ -876,8 +1402,8 @@ export class CustomEventBriefWizard {
         <div class="wizard-form-group mt-4">
           <label class="wizard-label" for="fldSubCategory">Specific sub-event type</label>
           <select id="fldSubCategory" class="wizard-input" data-bind="subCategory">
-            ${SUBS_BY_CATEGORY[this.formData.category].map(sub =>
-              `<option value="${sub}" ${this.formData.subCategory === sub ? 'selected' : ''}>${escapeHtml(SUB_LABELS[sub])} — 3 concepts</option>`
+            ${SUBS_BY_CATEGORY[f.category].map(sub =>
+              `<option value="${sub}" ${f.subCategory === sub ? 'selected' : ''}>${escapeHtml(SUB_LABELS[sub])} — 3 concepts</option>`
             ).join('')}
           </select>
         </div>
@@ -885,7 +1411,7 @@ export class CustomEventBriefWizard {
         <div class="wizard-footer-actions">
           <button class="wizard-btn wizard-btn-secondary" id="btnStartFresh" type="button">↺ Start fresh</button>
           <button class="wizard-btn wizard-btn-primary" id="btnStep1Next" type="button">
-            Next: event details ➔
+            Next: venue, functions &amp; requirements ➔
           </button>
         </div>
       </div>
@@ -911,6 +1437,63 @@ export class CustomEventBriefWizard {
         ${this.errorSummary()}
 
         <div class="wizard-section-box">
+          <h4 class="section-box-title">📍 Venue — and the state that sets the GST split</h4>
+          <div class="wizard-grid-2col">
+            ${this.textField('venueName', 'Venue name', {
+              required: true, full: true,
+              placeholder: 'e.g. Taj Falaknuma Palace · to be confirmed — Jubilee Hills'
+            })}
+            ${this.textField('venueCity', 'Venue city', { placeholder: 'Leave blank to reuse the client city' })}
+            ${this.selectField('venueState', 'Venue state', this.stateOptions(), {
+              id: 'fldVenueState', required: true,
+              hint: 'For an event the place of supply is the VENUE state, not the client address. A Bengaluru client with a Hyderabad venue is an intra-state supply: CGST + SGST, not IGST.'
+            })}
+            ${this.selectField('venueType', 'Venue type', VENUE_TYPES, {
+              hint: 'An open ground needs power, cover and toilets a banquet hall already has.'
+            })}
+            ${this.textField('venueContact', 'Venue contact', { placeholder: 'Name and number of the banquet manager' })}
+          </div>
+        </div>
+
+        <div class="wizard-section-box mt-3">
+          <h4 class="section-box-title">🗓️ Functions — the unit everything is costed against</h4>
+          <p style="font-size:.8rem;opacity:.78;margin:0 0 .7rem;">
+            An Indian wedding is mehendi, haldi, sangeet, the wedding and the reception — five jobs on
+            different days with different headcounts. Tick the ones in scope and give each its own date.
+            Untick them all for a single-day event.
+          </p>
+          ${(this.formData.functions || []).map((fn, i) => `
+            <div class="wizard-grid-2col" style="align-items:end;border-top:1px solid rgba(128,128,128,.25);padding-top:.6rem;margin-top:.6rem;">
+              <div class="wizard-form-group wizard-full-col">
+                <label class="wizard-label" for="fn_inc_${i}" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+                  <input id="fn_inc_${i}" type="checkbox" data-fn-index="${i}" data-fn-field="include" ${fn.include ? 'checked' : ''} />
+                  <strong>${escapeHtml(fn.label)}</strong>
+                </label>
+              </div>
+              ${!fn.include ? '' : `
+                <div class="wizard-form-group">
+                  <label class="wizard-label" for="fn_date_${i}">${escapeHtml(fn.label)} — date <span aria-hidden="true">*</span></label>
+                  <input id="fn_date_${i}" type="date" class="wizard-input" data-fn-index="${i}" data-fn-field="date"
+                         value="${escapeHtml(fn.date || '')}" ${this.errors[`functionDate${i}`] ? 'aria-invalid="true"' : ''} />
+                  ${this.err(`functionDate${i}`)}
+                </div>
+                <div class="wizard-form-group">
+                  <label class="wizard-label" for="fn_head_${i}">${escapeHtml(fn.label)} — headcount</label>
+                  <input id="fn_head_${i}" type="number" min="0" step="10" class="wizard-input"
+                         data-fn-index="${i}" data-fn-field="headcount" value="${escapeHtml(fn.headcount ?? '')}" />
+                  ${this.err(`functionHeadcount${i}`)}
+                </div>
+                <div class="wizard-form-group wizard-full-col">
+                  <label class="wizard-label" for="fn_req_${i}">${escapeHtml(fn.label)} — specific requirements</label>
+                  <input id="fn_req_${i}" type="text" class="wizard-input" data-fn-index="${i}" data-fn-field="requirements"
+                         value="${escapeHtml(fn.requirements || '')}"
+                         placeholder="e.g. satvik menu only · dhol at 7pm · mandap must face east" />
+                </div>
+              `}
+            </div>`).join('')}
+        </div>
+
+        <div class="wizard-section-box mt-3">
           <h4 class="section-box-title">
             ${isSocial ? '💒 Ceremony & hospitality requirements'
               : isPolitical ? '🗳️ Rally, security & press requirements'
@@ -990,13 +1573,6 @@ export class CustomEventBriefWizard {
               <div class="wizard-readout-pill" id="calculatedHoursDisplay">${this.hoursLabel()}</div>
             </div>
 
-            <div class="wizard-form-group">
-              <label class="wizard-label" for="fldVenueState">Venue state (sets the GST split)</label>
-              <input id="fldVenueState" type="text" class="wizard-input" value="${escapeHtml(f.venueState)}"
-                     data-bind="venueState" placeholder="e.g. Telangana" />
-              ${this.err('venueState')}
-            </div>
-
             <div class="wizard-form-group wizard-full-col">
               <label class="wizard-label" for="fldBudget">Target budget bracket</label>
               <select id="fldBudget" class="wizard-input" data-bind="targetBudget">
@@ -1021,6 +1597,67 @@ export class CustomEventBriefWizard {
               ${this.err('guestCount')}
             </div>
           </div>
+        </div>
+
+        <div class="wizard-section-box mt-3">
+          <h4 class="section-box-title">💰 Indicated budget &amp; who owns this enquiry</h4>
+          <div class="wizard-grid-2col">
+            ${this.textField('budgetAmount', 'Budget the client indicated (₹)', {
+              type: 'number',
+              placeholder: 'e.g. 4500000',
+              hint: 'What they said, not what we will quote. Leave blank and the middle of the bracket above is used.'
+            })}
+            ${this.selectField('ownerId', 'Enquiry owner', this.teamOptions(['admin', 'sales_manager']), {
+              required: true, blank: '— assign an owner —',
+              hint: 'An unassigned enquiry is an unanswered enquiry, and the first responder wins two thirds of these.'
+            })}
+            ${this.selectField('eventManagerId', 'Event manager (assign now or at booking)',
+              this.teamOptions(['admin', 'event_manager']), { blank: '— not yet assigned —', full: true })}
+          </div>
+        </div>
+
+        <div class="wizard-section-box mt-3">
+          <h4 class="section-box-title">🧾 Requirements handed to production</h4>
+          <p style="font-size:.8rem;opacity:.78;margin:0 0 .7rem;">
+            None of this is money. It is stored on the enquiry so the production side can read it
+            without going back to whoever took the call.
+          </p>
+          <fieldset style="border:1px solid rgba(128,128,128,.3);border-radius:10px;padding:.7rem .9rem;margin:0 0 .8rem;">
+            <legend style="font-size:.8rem;padding:0 .4rem;">Catering &amp; dietary</legend>
+            <div style="display:flex;flex-wrap:wrap;gap:.6rem 1.2rem;">
+              ${DIETARY_OPTIONS.map(([v, l]) => `
+                <label for="diet_${v}" style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem;">
+                  <input id="diet_${v}" type="checkbox" data-dietary="${v}"
+                         ${(this.formData.dietary || []).includes(v) ? 'checked' : ''} />
+                  <span>${escapeHtml(l)}</span>
+                </label>`).join('')}
+            </div>
+          </fieldset>
+          <div class="wizard-grid-2col">
+            ${this.textField('powerRequirement', 'Power &amp; generators', {
+              placeholder: 'e.g. 2 × 250 kVA silent DG + venue mains'
+            })}
+            ${this.textField('accommodation', 'Accommodation', { placeholder: 'e.g. 40 rooms, 2 nights, on site' })}
+            ${this.textField('transport', 'Transport &amp; logistics', { placeholder: 'e.g. 6 coaches airport–venue–hotel' })}
+            ${this.textField('eventNotes', 'Anything else worth recording', {
+              placeholder: 'Constraints, house rules, deadlines'
+            })}
+            ${this.textField('requirementNotes', 'Production notes', {
+              full: true, placeholder: 'e.g. load-in only after 6am · no pyro permitted · lift is 1.8m'
+            })}
+          </div>
+        </div>
+
+        <div class="wizard-section-box mt-3">
+          <h4 class="section-box-title">📆 Suggested payment shape — nothing is created</h4>
+          ${this.selectField('milestoneTemplateId', 'Payment template we would normally propose',
+            MILESTONE_TEMPLATES.map(t => [t.id, t.label]),
+            { blank: `— use the default for this segment (${escapeHtml(this.suggestedTemplate().label)}) —`, full: true })}
+          <p style="font-size:.8rem;opacity:.8;margin:.2rem 0 0;">
+            This is a <strong>suggestion recorded against the enquiry</strong>. No milestone, invoice or
+            receipt is created by this brief — the schedule is laid down when the event is actually booked
+            and a value has been agreed.
+          </p>
         </div>
 
         <div class="wizard-footer-actions">
@@ -1194,6 +1831,16 @@ export class CustomEventBriefWizard {
       reqs.push(['Security', 'Perimeter marshals, gate screening and a medical post']);
     }
 
+    if (f.dietary && f.dietary.length) {
+      reqs.push(['Dietary', f.dietary.map(v => (DIETARY_OPTIONS.find(d => d[0] === v) || [v, v])[1]).join(', ')]);
+    }
+    if (f.powerRequirement) reqs.push(['Power & generators', f.powerRequirement]);
+    if (f.accommodation) reqs.push(['Accommodation', f.accommodation]);
+    if (f.transport) reqs.push(['Transport & logistics', f.transport]);
+    if (f.requirementNotes) reqs.push(['Production notes', f.requirementNotes]);
+    if (f.eventNotes) reqs.push(['Other notes', f.eventNotes]);
+    reqs.push(['Payment', `Suggested schedule: ${this.suggestedTemplate().label}. No payment record is created by this brief — milestones are raised when the event is booked.`]);
+
     const promptLine = this.promptFeedback?.matched?.length
       ? `<p style="font-size:13px;margin:6px 0 0;"><strong>Client style notes applied:</strong>
            ${escapeHtml(this.promptFeedback.matched.map(m => m.keyword).join(', '))}</p>`
@@ -1225,10 +1872,36 @@ export class CustomEventBriefWizard {
           ${field('Client', f.clientName || '—')}
           ${field('Category', CATEGORY_LABELS[f.category])}
           ${field('Event type', SUB_LABELS[f.subCategory] || f.subCategory)}
+          ${field('Event name', f.eventName || '—')}
           ${field('Primary date', f.eventDate || '—')}
           ${field('Alternate / hold date', f.altDate || 'Not held')}
+          ${field('Contact', f.contactName ? `${f.contactName}${f.contactRole ? ` · ${f.contactRole}` : ''}` : '—')}
+          ${field('Phone / WhatsApp', [f.contactPhone, f.contactWhatsapp].filter(Boolean).join(' · ') || '—')}
+          ${field('Email', f.contactEmail || '—')}
+          ${field('Enquiry source', f.clientSource ? `${(CLIENT_SOURCES.find(x => x.id === f.clientSource) || {}).label || f.clientSource}${f.clientSourceDetail ? ` — ${f.clientSourceDetail}` : ''}` : 'Not recorded')}
+          ${field('Venue', f.venueName ? `${f.venueName}${f.venueCity ? `, ${f.venueCity}` : ''}` : '—')}
           ${field('Venue state', f.venueState)}
         </div>
+
+        ${!this.includedFunctions().length ? '' : `
+          <h2 style="${h2}">2a · Functions</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr>
+              <th style="${th}">Function</th><th style="${th}">Date</th>
+              <th style="${th}text-align:right;">Headcount</th><th style="${th}">Specific requirements</th>
+            </tr></thead>
+            <tbody>
+              ${this.includedFunctions().map(fn => `<tr>
+                <td style="${td}">${escapeHtml(fn.label)}</td>
+                <td style="${td}">${escapeHtml(fn.date || 'date to confirm')}</td>
+                <td style="${tdN}">${fn.headcount ? formatNumber(fn.headcount) : '—'}</td>
+                <td style="${td}">${escapeHtml(fn.requirements || '—')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+          <p style="font-size:12px;opacity:.65;margin:6px 0 0;">
+            Each function is costed separately; the totals below cover the main function only.
+          </p>`}
 
         <h2 style="${h2}">2 · Schedule &amp; capacity</h2>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0 20px;">
@@ -1330,7 +2003,17 @@ export class CustomEventBriefWizard {
     L.push(`Date: ${f.eventDate}${f.altDate ? `  |  Alternate: ${f.altDate}` : ''}`);
     L.push(`Schedule: ${f.startTime}–${f.endTime} (${this.calculateTotalHours()} hours)`);
     L.push(`Attendance: ${formatNumber(f.guestCount)} guests`);
+    L.push(`Venue: ${f.venueName || '—'}${f.venueCity ? `, ${f.venueCity}` : ''}`);
     L.push(`Venue state: ${f.venueState}   Budget bracket: ${b.label}`);
+    L.push(`Contact: ${f.contactName || '—'}  ${f.contactPhone || ''}  ${f.contactEmail || ''}`);
+    L.push(`Source: ${f.clientSource || 'not recorded'}${f.clientSourceDetail ? ` (${f.clientSourceDetail})` : ''}`);
+    if (this.includedFunctions().length) {
+      L.push('');
+      L.push('FUNCTIONS');
+      this.includedFunctions().forEach(fn => {
+        L.push(`  ${fn.label}: ${fn.date || 'date to confirm'}${fn.headcount ? ` · ${formatNumber(fn.headcount)} pax` : ''}${fn.requirements ? ` · ${fn.requirements}` : ''}`);
+      });
+    }
     L.push('');
     L.push(`CONCEPT: ${concept.title} — ${concept.badge}`);
     L.push(concept.description);
@@ -1353,9 +2036,43 @@ export class CustomEventBriefWizard {
       : `IGST: ${formatMoney(cost.gst.igst)}`);
     L.push(`ESTIMATED TOTAL PAYABLE: ${formatMoney(cost.grandTotal)}`);
     L.push('');
+    L.push(`Suggested payment schedule (nothing raised yet): ${this.suggestedTemplate().label}`);
     L.push('Preliminary estimate — not a contract or tax invoice. Excludes venue hire,');
     L.push('permits, artist fees, alcohol licensing, guest travel and overtime.');
     return L.join('\n');
+  }
+
+  /** What the CRM now holds because of this brief — said plainly, with a way in. */
+  renderIntakeResult() {
+    const r = this.intakeResult;
+    if (!r) return '';
+    const rows = [
+      `<li><strong>Client ${escapeHtml(r.client.name)}</strong> ${r.clientCreated ? 'created' : 'matched — this is a repeat client, not a duplicate'} · ${escapeHtml(r.client.code)}</li>`,
+      `<li><strong>Enquiry ${escapeHtml(r.deal.code)}</strong> ${r.dealCreated ? 'added to' : 'updated in'} the pipeline at stage <strong>enquiry</strong></li>`
+    ];
+    if (r.functionCount) {
+      rows.push(`<li>${r.functionCount} function${r.functionCount > 1 ? 's' : ''} recorded, each with its own date and headcount</li>`);
+    }
+    rows.push(`<li>Place of supply <strong>${escapeHtml(r.placeOfSupply.stateName)}</strong>, taken from the venue — this is what splits CGST/SGST from IGST</li>`);
+    rows.push(`<li><strong>No payment record was created.</strong> ${r.suggestedTemplate
+      ? `“${escapeHtml(r.suggestedTemplate.label)}” is noted as the suggested schedule` : 'No schedule is suggested yet'} — milestones are laid down when the event is booked.</li>`);
+
+    return `
+      <div role="status" style="margin:0 0 1rem;padding:.9rem 1rem;border-radius:12px;
+             border:1px solid #15803d;background:rgba(21,128,61,.08);">
+        <strong style="font-size:.95rem;">✅ Saved to the CRM</strong>
+        <ul style="margin:.5rem 0 .8rem;padding-left:1.15rem;font-size:.86rem;line-height:1.55;">
+          ${rows.join('')}
+        </ul>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+          <button class="wizard-btn wizard-btn-secondary" id="btnOpenClient" type="button">
+            Open ${escapeHtml(r.client.name)}
+          </button>
+          <button class="wizard-btn wizard-btn-secondary" id="btnOpenPipeline" type="button">
+            Open the pipeline
+          </button>
+        </div>
+      </div>`;
   }
 
   renderStep4() {
@@ -1363,9 +2080,11 @@ export class CustomEventBriefWizard {
       <div class="wizard-step-body">
         <h3 class="step-title">Step 4: Event brief</h3>
         <p class="step-subtitle">
-          Generated from everything captured in steps 1–3. Copy it into an email, print it to PDF,
-          or apply the concept and continue into the 3D editor.
+          Generated from everything captured in steps 1–3. Save it to the CRM — that creates the client
+          and the enquiry in one go — then copy it, print it, or carry the concept into the 3D editor.
         </p>
+
+        ${this.renderIntakeResult()}
 
         <div class="wizard-footer-actions" style="justify-content:flex-start;gap:.6rem;margin-bottom:1rem;">
           <button class="wizard-btn wizard-btn-secondary" id="btnCopyBrief" type="button">📋 Copy brief text</button>
@@ -1380,6 +2099,10 @@ export class CustomEventBriefWizard {
 
         <div class="wizard-footer-actions mt-3">
           <button class="wizard-btn wizard-btn-secondary" id="btnStep4Back" type="button">⬅️ Back to concepts</button>
+          ${this.intakeResult ? '' : `
+            <button class="wizard-btn wizard-btn-primary" id="btnCreateRecords" type="button">
+              💾 Save to CRM — create the client &amp; enquiry
+            </button>`}
           <button class="wizard-btn wizard-btn-success" id="btnStep4Launch" type="button">
             🚀 Apply concept &amp; open the 3D editor ➔
           </button>

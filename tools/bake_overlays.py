@@ -204,6 +204,122 @@ def contact_shadow(fr, bbox, W, H, strength=0.72, spread=1.04, squash=0.42):
     return out
 
 
+# ------------------------------------------------------- quantity-aware blocks
+
+def cutout_occupancy(cut_rgba):
+    """
+    Fraction of the cut-out FRAME width the object really occupies.
+
+    Product photos carry a lot of transparent margin, so spacing a row by the
+    frame width leaves a chair-sized hole between every chair. Mirrors
+    cutoutOccupancy() in src/engine/equirectBillboard.js.
+    """
+    cols = np.where(cut_rgba[..., 3] > 96, 1, 0).any(axis=0)
+    idx = np.flatnonzero(cols)
+    if idx.size == 0:
+        return 1.0
+    return float(min(1.0, max(0.12, (idx[-1] - idx[0] + 1) / cut_rgba.shape[1])))
+
+
+def arrangement_placements(yaw_deg, distance_m, w_m, plan, occupancy=1.0):
+    """
+    Ground-plane layout for a slot that represents MANY objects.
+
+    Byte-for-byte the same maths as `arrangementPlacements` in
+    src/engine/equirectBillboard.js, including the deterministic sin-hash
+    jitter, so a baked block layer and the runtime fallback are the SAME
+    picture. Returned back-to-front.
+    """
+    lam = math.radians(yaw_deg)
+    d0 = max(0.4, distance_m)
+    pitch_x = max(0.25, w_m * occupancy * plan['gapX'])
+    pitch_z = plan['gapZ']
+
+    def jit(i, salt):
+        x = math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453
+        return (x - math.floor(x)) * 2 - 1
+
+    sin_l, cos_l = math.sin(lam), math.cos(lam)
+    ax, az = d0 * sin_l, -d0 * cos_l
+
+    out, n = [], 0
+    for r in range(plan['rows']):
+        if n >= plan['count']:
+            break
+        in_row = min(plan['cols'], plan['count'] - n)
+        offset = plan['stagger'] * pitch_x if (r % 2) else 0.0
+        for c in range(in_row):
+            ox = (c - (in_row - 1) / 2) * pitch_x + offset + jit(n, 1) * plan['jitterX'] * pitch_x
+            oz = r * pitch_z + jit(n, 2) * 0.06 * (pitch_z or 1)
+            px = ax + cos_l * ox + sin_l * oz
+            pz = az + sin_l * ox - cos_l * oz
+            out.append(dict(yaw=math.degrees(math.atan2(px, -pz)),
+                            distance=math.hypot(px, pz), col=c, row=r))
+            n += 1
+    out.sort(key=lambda p: -p['distance'])
+    return out
+
+
+def union_bbox(boxes, W, H):
+    x0 = min(b[0] for b in boxes); y0 = min(b[1] for b in boxes)
+    x1 = max(b[0] + b[2] for b in boxes); y1 = max(b[1] + b[3] for b in boxes)
+    x0 = max(0, x0); y0 = max(0, y0); x1 = min(W, x1); y1 = min(H, y1)
+    return x0, y0, max(1, x1 - x0), max(1, y1 - y0)
+
+
+def blit_over(dst, dst_box, src, src_box):
+    """Straight-alpha over-composite of one uint8 RGBA patch into another."""
+    ox = src_box[0] - dst_box[0]
+    oy = src_box[1] - dst_box[1]
+    h, w = src.shape[:2]
+    y0 = max(0, oy); y1 = min(dst_box[3], oy + h)
+    x0 = max(0, ox); x1 = min(dst_box[2], ox + w)
+    if y1 <= y0 or x1 <= x0:
+        return
+    sub_s = src[y0 - oy:y1 - oy, x0 - ox:x1 - ox].astype(np.float32)
+    sub_d = dst[y0:y1, x0:x1].astype(np.float32)
+    sa = sub_s[..., 3:4] / 255.0
+    da = sub_d[..., 3:4] / 255.0
+    oa = sa + da * (1 - sa)
+    safe = np.where(oa > 0, oa, 1.0)
+    rgb = (sub_s[..., :3] * sa + sub_d[..., :3] * da * (1 - sa)) / safe
+    dst[y0:y1, x0:x1, :3] = np.clip(np.where(oa > 0, rgb, sub_d[..., :3]), 0, 255).astype(np.uint8)
+    dst[y0:y1, x0:x1, 3] = np.clip(oa[..., 0] * 255, 0, 255).astype(np.uint8)
+
+
+def block_shadow(frames, bbox, W, H, strength=0.6, spread=1.25, squash=0.5):
+    """
+    ONE merged floor shadow under the whole block.
+
+    A per-chair ellipse rubber-stamped across the lawn is exactly the visible
+    repetition the research warns about, and overlapping ellipses double-darken.
+    Take the MAX over instances: a union, not a sum.
+    """
+    x0, y0, w, h = bbox
+    dx, dy, dz = _rays(x0, y0, w, h, W, H)
+    floor_y = frames[0]['contact'][1]
+    with np.errstate(divide='ignore', invalid='ignore'):
+        t = np.where(dy < -1e-6, floor_y / dy, -1.0)
+    ok = t > 0
+    fx = t * dx
+    fz = t * dz
+    best = np.zeros((h, w), dtype=np.float64)
+    for fr in frames:
+        rx = (fr['wM'] / 2) * spread
+        rz = rx * squash
+        ddx = fx - fr['contact'][0]
+        ddz = fz - fr['contact'][2]
+        cl, sl = math.cos(fr['lam']), math.sin(fr['lam'])
+        a = ddx * cl + ddz * sl
+        b = -ddx * sl + ddz * cl
+        rr = np.sqrt((a / rx) ** 2 + (b / rz) ** 2)
+        f = np.where(ok & (rr < 1), np.power(np.clip(1 - rr, 0, 1), 1.5), 0.0)
+        best = np.maximum(best, f)
+    out = np.zeros((h, w, 4), dtype=np.uint8)
+    out[..., 3] = np.clip(best * 255 * strength, 0, 255).astype(np.uint8)
+    return out
+
+
 # ------------------------------------------------------------------ driver
 
 def load_cutout(item_id, manifest):
@@ -227,7 +343,7 @@ def targets_from_app():
 import {VENUE_ZONES} from './src/data/zones.js';
 import {SCENE_VARIANTS} from './src/data/sceneVariants.js';
 import {ITEM_CATALOG, getItemById} from './src/data/catalog.js';
-import {overlaySpec, CAMERA_HEIGHT_M} from './src/data/propOverlays.js';
+import {overlaySpec, arrangementFor, slotQuantity, CAMERA_HEIGHT_M} from './src/data/propOverlays.js';
 const out = [];
 for (const z of VENUE_ZONES) for (const s of z.slots) {
   let ids = s.allowedItemIds || [];
@@ -242,6 +358,8 @@ for (const z of VENUE_ZONES) for (const s of z.slots) {
     out.push({zone: z.id, slot: s.id, item: id, yaw: spec.anchorYaw,
               pitch: spec.anchorPitch, distance: spec.distanceM,
               height: spec.heightM, ground: spec.ground,
+              quantity: slotQuantity(s, id),
+              plan: arrangementFor(s, id),
               cameraHeight: CAMERA_HEIGHT_M});
   }
 }
@@ -258,14 +376,41 @@ def bake_one(t, manifest, W, H, force=False):
     cut, entry = load_cutout(t['item'], manifest)
     if cut is None:
         return None, f"no cut-out for {t['item']}"
-    fr = billboard_frame(t['yaw'], t['distance'], t['height'],
-                         cut.shape[1] / cut.shape[0], entry.get('contact', 0.9),
-                         t.get('cameraHeight', CAMERA_HEIGHT_M),
-                         ground=t.get('ground', True), pitch_deg=t.get('pitch', 0))
-    bbox = frame_bbox(fr, W, H)
-    colour = rasterise(cut, fr, bbox, W, H)
-    if colour[..., 3].max() == 0:
-        return None, 'billboard projects to nothing (check yaw/distance)'
+    aspect = cut.shape[1] / cut.shape[0]
+    contact_v = entry.get('contact', 0.9)
+    cam_h = t.get('cameraHeight', CAMERA_HEIGHT_M)
+    ground = t.get('ground', True)
+
+    def frame_at(yaw, dist):
+        return billboard_frame(yaw, dist, t['height'], aspect, contact_v,
+                               cam_h, ground=ground, pitch_deg=t.get('pitch', 0))
+
+    plan = t.get('plan') if ground else None
+    if plan:
+        # A slot that represents MANY objects (twenty VIP chairs, twelve banquet
+        # tables). Lay the block out on the floor, rasterise each instance at ITS
+        # OWN ground distance so perspective is correct rather than faked, and
+        # composite back-to-front into one layer with one merged shadow.
+        ref = frame_at(t['yaw'], t['distance'])
+        places = arrangement_placements(t['yaw'], t['distance'], ref['wM'], plan,
+                                        cutout_occupancy(cut))
+        frames = [frame_at(p['yaw'], p['distance']) for p in places]
+        boxes = [frame_bbox(f, W, H) for f in frames]
+        bbox = union_bbox(boxes, W, H)
+        colour = np.zeros((bbox[3], bbox[2], 4), dtype=np.uint8)
+        for f, b in zip(frames, boxes):
+            blit_over(colour, bbox, rasterise(cut, f, b, W, H), b)
+        if colour[..., 3].max() == 0:
+            return None, 'block projects to nothing (check yaw/distance)'
+        fr = ref
+        shadow_patch = block_shadow(frames, bbox, W, H)
+    else:
+        fr = frame_at(t['yaw'], t['distance'])
+        bbox = frame_bbox(fr, W, H)
+        colour = rasterise(cut, fr, bbox, W, H)
+        if colour[..., 3].max() == 0:
+            return None, 'billboard projects to nothing (check yaw/distance)'
+        shadow_patch = contact_shadow(fr, bbox, W, H) if ground else None
 
     zdir = os.path.join(OUT_DIR, t['zone'])
     os.makedirs(zdir, exist_ok=True)
@@ -274,11 +419,9 @@ def bake_one(t, manifest, W, H, force=False):
     Image.fromarray(colour, 'RGBA').save(cpath, optimize=True)
 
     spath = None
-    if t.get('ground', True):
-        sh = contact_shadow(fr, bbox, W, H)
-        if sh[..., 3].max() > 0:
-            spath = os.path.join(zdir, stem + '.shadow.png')
-            Image.fromarray(sh, 'RGBA').save(spath, optimize=True)
+    if shadow_patch is not None and shadow_patch[..., 3].max() > 0:
+        spath = os.path.join(zdir, stem + '.shadow.png')
+        Image.fromarray(shadow_patch, 'RGBA').save(spath, optimize=True)
 
     x, y, w, h = bbox
     return {
@@ -287,6 +430,8 @@ def bake_one(t, manifest, W, H, force=False):
         'shadow': ('/images/overlays/%s/%s.shadow.png' % (t['zone'], stem)) if spath else None,
         'yaw': t['yaw'], 'distanceM': t['distance'], 'heightM': t['height'],
         'ground': bool(t.get('ground', True)),
+        'quantity': t.get('quantity', 1),
+        'drawn': (t.get('plan') or {}).get('count', 1),
     }, None
 
 

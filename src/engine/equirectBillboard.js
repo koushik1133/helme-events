@@ -237,3 +237,173 @@ export function rasteriseContactShadow(frame, bbox, W, H, opts = {}) {
   }
   return { data: out, width: bbox.w, height: bbox.h };
 }
+
+/**
+ * Fraction of a cut-out's FRAME width that the object actually occupies.
+ *
+ * The billboard's `wM` is the width of the whole cut-out frame, and a product
+ * photo carries a lot of transparent margin. Spacing a row of chairs by the
+ * frame width therefore leaves a chair-sized hole between every chair, which is
+ * exactly how the first attempt read — a scatter, not a row. Measure the alpha
+ * bounding box once and space by the object's REAL width.
+ *
+ * @param {{data:Uint8ClampedArray,width:number,height:number}} cut
+ * @returns {number} 0..1
+ */
+export function cutoutOccupancy(cut) {
+  const { data, width, height } = cut;
+  let minX = width, maxX = -1;
+  const step = Math.max(1, Math.floor(height / 160));
+  for (let y = 0; y < height; y += step) {
+    const row = y * width * 4;
+    for (let x = 0; x < width; x++) {
+      if (data[row + x * 4 + 3] > 96) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
+    }
+  }
+  if (maxX < minX) return 1;
+  return Math.min(1, Math.max(0.12, (maxX - minX + 1) / width));
+}
+
+/**
+ * Ground-plane layout for a slot that represents MANY objects.
+ *
+ * The camera never translates, so every instance is exactly the same billboard
+ * maths at its own ground point — which means per-instance perspective is
+ * correct by construction rather than faked: an instance two rows back has a
+ * larger `distanceM`, so `billboardFrame` gives it a smaller angular height AND
+ * a shallower (higher in the frame) base pitch automatically. No scale hacks.
+ *
+ * Returns instances sorted BACK TO FRONT, which is the order they must be drawn
+ * in for the nearer chairs to occlude the further ones.
+ *
+ * @param {object} o
+ * @param {number} o.yawDeg     azimuth of the block's centre
+ * @param {number} o.distanceM  ground distance to the FRONT row
+ * @param {number} o.wM         one object's billboard width, metres
+ * @param {object} o.plan       from arrangementFor()
+ * @returns {Array<{yawDeg:number, distanceM:number, col:number, row:number}>}
+ */
+export function arrangementPlacements(o) {
+  const { plan } = o;
+  const lam = o.yawDeg * DEG;
+  const D0 = Math.max(0.4, o.distanceM);
+  const pitchX = Math.max(0.25, o.wM * (o.occupancy ?? 1) * plan.gapX);
+  const pitchZ = plan.gapZ;
+
+  // Deterministic jitter: the same slot+item must bake and re-render identically,
+  // so this is a hash of the index, never Math.random().
+  const jit = (i, salt) => {
+    const x = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+    return (x - Math.floor(x)) * 2 - 1;                 // -1..1
+  };
+
+  const sinL = Math.sin(lam), cosL = Math.cos(lam);
+  const right = [cosL, sinL];                            // ground (x, z=+sinL? ) see below
+  // right  = ( cos λ, ·, sin λ ), forward (away from camera) = ( sin λ, ·, −cos λ )
+  const ax = D0 * sinL, az = -D0 * cosL;                 // block centre on the floor
+
+  const out = [];
+  let n = 0;
+  for (let r = 0; r < plan.rows && n < plan.count; r++) {
+    const inRow = Math.min(plan.cols, plan.count - n);
+    const offset = (r % 2) ? plan.stagger * pitchX : 0;
+    for (let c = 0; c < inRow; c++, n++) {
+      const ox = (c - (inRow - 1) / 2) * pitchX + offset
+        + jit(n, 1) * plan.jitterX * pitchX;
+      const oz = r * pitchZ + jit(n, 2) * 0.06 * (pitchZ || 1);
+      const px = ax + right[0] * ox + sinL * oz;
+      const pz = az + right[1] * ox - cosL * oz;
+      out.push({
+        yawDeg: Math.atan2(px, -pz) / DEG,
+        distanceM: Math.hypot(px, pz),
+        col: c, row: r
+      });
+    }
+  }
+  return out.sort((a, b) => b.distanceM - a.distanceM);
+}
+
+/**
+ * Merged contact shadow for a whole block.
+ *
+ * One ellipse per chair rubber-stamped across the lawn is exactly the "visible
+ * repetition" tell the research warns about, and it also double-darkens where
+ * the ellipses overlap. Instead take the MAX darkening over all instances —
+ * a union, not a sum — so the block reads as one shadowed area of floor.
+ *
+ * @param {Array} frames  billboardFrame() results, one per instance
+ */
+export function rasteriseBlockShadow(frames, bbox, W, H, opts = {}) {
+  const strength = opts.strength ?? 0.6;
+  const out = new Uint8ClampedArray(bbox.w * bbox.h * 4);
+  const ells = frames.map(f => ({
+    cx: f.contactC[0], cy: f.contactC[1], cz: f.contactC[2],
+    rx: (f.wM / 2) * (opts.spread ?? 1.25),
+    rz: (f.wM / 2) * (opts.spread ?? 1.25) * (opts.squash ?? 0.5),
+    cosL: Math.cos(f.lam), sinL: Math.sin(f.lam)
+  }));
+  if (!ells.length) return { data: out, width: bbox.w, height: bbox.h };
+  const floorY = ells[0].cy;
+
+  for (let j = 0; j < bbox.h; j++) {
+    const v = bbox.y + j + 0.5;
+    for (let i = 0; i < bbox.w; i++) {
+      const u = bbox.x + i + 0.5;
+      const d = uvToDir(u, v, W, H);
+      if (d[1] >= -1e-6) continue;
+      const t = floorY / d[1];
+      if (t <= 0) continue;
+      const fx = t * d[0], fz = t * d[2];
+      let best = 0;
+      for (const e of ells) {
+        const dx = fx - e.cx, dz = fz - e.cz;
+        const a = dx * e.cosL + dz * e.sinL;
+        const b = -dx * e.sinL + dz * e.cosL;
+        const r = Math.hypot(a / e.rx, b / e.rz);
+        if (r >= 1) continue;
+        const f = Math.pow(1 - r, 1.5);
+        if (f > best) best = f;
+      }
+      if (best <= 0) continue;
+      out[(j * bbox.w + i) * 4 + 3] = Math.round(255 * strength * best);
+    }
+  }
+  return { data: out, width: bbox.w, height: bbox.h };
+}
+
+/** Union of several bboxes, clamped to the equirect. */
+export function unionBBox(boxes, W, H) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const b of boxes) {
+    x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+    x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h);
+  }
+  x0 = Math.max(0, x0); y0 = Math.max(0, y0);
+  x1 = Math.min(W, x1); y1 = Math.min(H, y1);
+  return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+}
+
+/** Alpha-over blit of one RGBA patch into another at (dx, dy). Straight alpha. */
+export function blitOver(dst, dstBox, src, srcBox) {
+  const D = dst.data, S = src.data;
+  const ox = srcBox.x - dstBox.x, oy = srcBox.y - dstBox.y;
+  for (let j = 0; j < srcBox.h; j++) {
+    const dj = j + oy;
+    if (dj < 0 || dj >= dstBox.h) continue;
+    for (let i = 0; i < srcBox.w; i++) {
+      const di = i + ox;
+      if (di < 0 || di >= dstBox.w) continue;
+      const so = (j * srcBox.w + i) * 4;
+      const sa = S[so + 3] / 255;
+      if (sa <= 0) continue;
+      const dOff = (dj * dstBox.w + di) * 4;
+      const da = D[dOff + 3] / 255;
+      const oa = sa + da * (1 - sa);
+      if (oa <= 0) continue;
+      for (let c = 0; c < 3; c++) {
+        D[dOff + c] = (S[so + c] * sa + D[dOff + c] * da * (1 - sa)) / oa;
+      }
+      D[dOff + 3] = Math.round(oa * 255);
+    }
+  }
+}

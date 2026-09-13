@@ -133,25 +133,32 @@ export const ITEM_HEIGHT_M = {
 export const SLOT_OVERLAY = {
   'slot-stage-main':        { ground: true, distanceM: 9,  calibrated: false },
   'slot-stage-backdrop':    { heightM: 7, ground: false, distanceM: 11, calibrated: false },
-  'slot-stage-seating':     { ground: true, distanceM: 3.5, calibrated: false },
-  'slot-banquet-table':     { ground: true, distanceM: 4,  calibrated: false },
-  'slot-banquet-chairs':    { ground: true, distanceM: 3.5, calibrated: false },
+  // 2.6 m, not 3.5: at 3.5 the front row lands INSIDE the plate's crowd and the
+  // chairs read as hovering at head height. 2.6 puts them on the visible lawn
+  // in front of it, which is where VIP front-row seating actually goes.
+  'slot-stage-seating':     { ground: true, distanceM: 2.6, calibrated: false },
+  'slot-banquet-table':     { ground: true, distanceM: 3,  calibrated: false },
+  'slot-banquet-chairs':    { ground: true, distanceM: 2.2, calibrated: false },
   'slot-banquet-lighting':  { heightM: 1.1, ground: false, distanceM: 5,  calibrated: false },
   'slot-fountain-center':   { ground: true, distanceM: 7,  calibrated: false },
   'slot-fountain-lighting': { heightM: 1.1, ground: false, distanceM: 6,  calibrated: false },
-  'slot-lounge-table':      { ground: true, distanceM: 3.5, calibrated: false },
-  'slot-lounge-seating':    { ground: true, distanceM: 4,  calibrated: false },
+  // The lounge slots' own pos3D yaws point at the GLASS — a table anchored there
+  // stands on the city skyline. Re-aimed at the carpet on either side of the bar.
+  'slot-lounge-table':      { anchorYaw: -70, ground: true, distanceM: 2.6, calibrated: false },
+  'slot-lounge-seating':    { anchorYaw: 110, ground: true, distanceM: 3,  calibrated: false },
   'slot-lounge-lighting':   { heightM: 1.1, ground: false, distanceM: 4.5, calibrated: false },
   'slot-entrance-arch':     { heightM: 4.5, ground: false, distanceM: 8,  calibrated: false },
   'slot-entrance-water':    { ground: true, distanceM: 9,  calibrated: false },
-  'slot-entrance-seating':  { ground: true, distanceM: 3.5, calibrated: false },
+  'slot-entrance-seating':  { ground: true, distanceM: 2.8, calibrated: false },
   'slot-election-podium':   { ground: true, distanceM: 5,  calibrated: false },
   'slot-election-hoarding': { heightM: 6, ground: false, distanceM: 10, calibrated: false },
   'slot-election-audio':    { ground: true, distanceM: 7,  calibrated: false },
-  'slot-election-seating':  { ground: true, distanceM: 4.5, calibrated: false },
+  'slot-election-seating':  { ground: true, distanceM: 3.2, calibrated: false },
   'slot-function-mandap':   { ground: true, distanceM: 8,  calibrated: false },
   'slot-function-marigold': { heightM: 4.5, ground: false, distanceM: 9,  calibrated: false },
-  'slot-function-throne':   { ground: true, distanceM: 6,  calibrated: false },
+  // 6 m put the thrones in the air above the mandap; 3 m stands them on the
+  // floor beside the couple, which is where thrones go.
+  'slot-function-throne':   { ground: true, distanceM: 3,  calibrated: false },
   'slot-function-jhula':    { ground: true, distanceM: 6,  calibrated: false },
   'slot-meeting-podium':    { ground: true, distanceM: 4.5, calibrated: false },
   'slot-meeting-screen':    { heightM: 3.2, ground: false, distanceM: 7,  calibrated: false },
@@ -256,4 +263,101 @@ export function setOverlayManifest(json) { _overlayManifest = json || {}; return
  */
 export function bakedOverlay(zoneId, slotId, itemId) {
   return _overlayManifest?.[`${zoneId}/${slotId}/${itemId}`] || null;
+}
+
+/**
+ * QUANTITY-AWARE ARRANGEMENTS
+ * ==========================================================================
+ * A slot is not always one object. `slot-stage-seating` is "VIP Front Row
+ * Seating" with a quantity of 20 chairs, and until now the compositor drew ONE
+ * cut-out for it — so twenty chairs rendered as a single chair, and a throne
+ * PAIR rendered as two gold thrones sitting alone on a festival lawn. The
+ * owner was right that it looked wrong.
+ *
+ * The research (§3) is explicit about the fix and about what NOT to do: never
+ * instance N cut-outs as independent sprites, because mutual occlusion,
+ * per-instance grading and visible repetition all compound. Render the SET as
+ * one layer: laid out on the ground plane with correct per-instance
+ * perspective (each instance gets its own ground distance, so it is smaller and
+ * higher in the frame the further back it sits), drawn back-to-front into ONE
+ * patch, graded once, and carrying ONE merged contact shadow under the whole
+ * block rather than a rubber-stamped ellipse per chair.
+ *
+ * We do not pretend to draw 120 chairs. A believable front row plus a
+ * suggestion of depth behind it is what a client reads as "seating"; drawing
+ * the literal count would be both slower and less honest, because the plate's
+ * lawn does not extend that far. `drawn` below is capped and the viewer keeps
+ * reporting the real quantity in the price line.
+ */
+
+/**
+ * Per-category block rules.
+ *   cols      max instances across the front row
+ *   rows      max rows of depth
+ *   gapX      lateral pitch as a multiple of the object's own width
+ *   gapZ      row pitch in metres (floor, so a wide object still gets room)
+ *   jitterX   lateral jitter as a fraction of the lateral pitch
+ *   stagger   fraction of the lateral pitch that odd rows are offset by, so
+ *             the back row is visible BETWEEN the front row rather than behind
+ *   maxDrawn  hard cap on rasterised instances
+ */
+export const ARRANGEMENT_RULES = {
+  chairs:  { cols: 8, rows: 2, gapX: 1.02, gapZ: 0.95, jitterX: 0.05, stagger: 0.5, maxDrawn: 14 },
+  sofas:   { cols: 3, rows: 1, gapX: 1.35, gapZ: 1.6,  jitterX: 0.03, stagger: 0,   maxDrawn: 3 },
+  tables:  { cols: 3, rows: 2, gapX: 1.9,  gapZ: 2.4,  jitterX: 0.04, stagger: 0.5, maxDrawn: 5 },
+  audio:   { cols: 2, rows: 1, gapX: 3.2,  gapZ: 0,    jitterX: 0,    stagger: 0,   maxDrawn: 2 }
+};
+
+/**
+ * Cut-outs that already depict MORE THAN ONE object.
+ *
+ * `chair-maharaja-throne` and `sofa-royal-maharani` are photographed as a PAIR,
+ * so a slot with a quantity of 2 is already satisfied by one cut-out. Laying
+ * two of them out puts four thrones on the mandap. Verified by looking at the
+ * artwork, not assumed — every other seating cut-out is a single object.
+ */
+export const UNITS_PER_CUTOUT = {
+  'chair-maharaja-throne': 2,
+  'sofa-royal-maharani': 2
+};
+
+/** Quantity a given slot/item pair actually represents. */
+export function slotQuantity(slot, itemId) {
+  if (!slot) return 1;
+  const q = slot.quantityByItem?.[itemId] ?? slot.quantity ?? 1;
+  return Math.max(1, Math.round(q));
+}
+
+/** How many CUT-OUTS that quantity corresponds to. */
+export function cutoutCount(slot, itemId) {
+  return Math.max(1, Math.round(slotQuantity(slot, itemId) / (UNITS_PER_CUTOUT[itemId] || 1)));
+}
+
+/**
+ * Block plan for a slot + item, or null when the slot is a single object
+ * (a podium, a fountain, a mandap — those stay exactly as they are).
+ *
+ * @returns {{count:number, cols:number, rows:number, gapX:number, gapZ:number,
+ *            jitterX:number, stagger:number}|null}
+ */
+export function arrangementFor(slot, itemId) {
+  const qty = cutoutCount(slot, itemId);
+  if (qty < 2) return null;
+  // The SLOT's category is the seating bucket ("chairs"), but the lounge's
+  // seating slot also offers sofas — and fourteen sofas in a row is not a
+  // lounge. Let the item's own family pick the rule when it differs.
+  const family = /^sofa-/.test(itemId || '') ? 'sofas' : slot?.category;
+  const rule = ARRANGEMENT_RULES[family];
+  if (!rule) return null;
+  const cfg = SLOT_OVERLAY[slot.id] || {};
+  if (cfg.ground === false) return null;      // hanging things are never a block
+
+  const count = Math.min(qty, rule.maxDrawn);
+  const cols = Math.min(count, rule.cols);
+  const rows = Math.min(rule.rows, Math.ceil(count / cols));
+  return {
+    count, cols, rows,
+    gapX: rule.gapX, gapZ: rule.gapZ,
+    jitterX: rule.jitterX, stagger: rule.stagger
+  };
 }

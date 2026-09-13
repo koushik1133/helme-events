@@ -57,7 +57,6 @@
   <!-- Helm Events Navbar Header -->
   <header class="app-navbar">
     <div class="nav-brand">
-      <img class="helm-logo" src="/images/helm-logo.png" alt="Helm Events" width="120" height="48" />
       <div class="brand-text">
         <h1 class="logo-title">Helm Events</h1>
       </div>
@@ -69,7 +68,7 @@
       <button class="section-tab" data-section="clients" id="sectionClients"><span>Clients</span></button>
       <button class="section-tab" data-section="deals" id="sectionDeals"><span>Pipeline</span></button>
       <button class="section-tab" data-section="payments" id="sectionPayments"><span>Payments</span></button>
-      <button class="section-tab" data-section="studio" id="sectionStudio"><span>Studio</span></button>
+      <button class="section-tab" data-section="studio" id="sectionStudio"><span>Events</span></button>
       <button class="section-tab" data-section="plan" id="sectionPlan"><span>Plan</span></button>
     </nav>
 
@@ -79,7 +78,8 @@
     <!-- Navigation View Switcher (Center Segmented Pill) -->
     <div class="studio-only" id="studioNavGroup">
     <nav class="view-toggle-group" aria-label="Studio views">
-      <button class="nav-tab active" id="tabMapView"><span>Venue</span></button>
+      <button class="nav-tab active" id="tabEventsView"><span>Events</span></button>
+      <button class="nav-tab" id="tabMapView"><span>Venue</span></button>
       <button class="nav-tab" id="tab360View"><span>360° Studio</span></button>
       <button class="nav-tab" id="tabFloorPlanView"><span>Floor plan</span></button>
     </nav>
@@ -143,7 +143,7 @@
   <div class="studio-action-strip studio-only" id="studioActionStrip">
     <div class="preset-popover-wrapper nav-theme-pin" id="presetPopoverWrapper">
       <button class="preset-trigger-btn" id="btnPresetDropdown" aria-label="Select Theme Preset" aria-haspopup="true" aria-expanded="false">
-        <span class="preset-label-tag">Theme:</span>
+        <span class="preset-label-tag">Design:</span>
         <span id="presetCurrentName" class="preset-current-val">👑 Royal Gold</span>
         <span class="preset-chevron">▾</span>
       </button>
@@ -181,8 +181,12 @@
 
     <!-- Design Studio: the 360 venue planner and everything around it. -->
     <div id="studioSection" class="app-section hidden">
+    <!-- View 0: every event as a card. This is the entry point now — the venue
+         map is a design surface, not a place to find out what is happening. -->
+    <section id="eventsContainer" class="view-section active"></section>
+
     <!-- View 1: Interactive Aerial Venue Map -->
-    <section id="mapViewContainer" class="view-section active"></section>
+    <section id="mapViewContainer" class="view-section hidden"></section>
 
     <!-- View 2: Full 360° Photo WebGL Studio -->
     <section id="studio360Container" class="view-section hidden">

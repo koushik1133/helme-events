@@ -6746,3 +6746,320 @@ body:not([data-section="studio"]) #costCardContainer { display: none; }
 }
 
 #workspace > .studio-action-strip { flex: 0 0 auto; }
+
+/* ==========================================================================
+   RUN SHEET (Plan › Run sheet) — day-per-row layout
+   Replaces the 280px card grid, where four function columns fought over the
+   same ~200px and every title truncated ("Mehendi cere…"). A day is now a
+   full-width row: the proportional strip spans the page, and each item gets a
+   real four-column line — time · title · owner · duration — so nothing is
+   clipped at any desktop width.
+   ========================================================================== */
+.runsheet { max-width: 1200px; }
+.runsheet-head { align-items: flex-start; gap: var(--space-4); flex-wrap: wrap; }
+.runsheet-head-text { min-width: 0; flex: 1 1 22rem; }
+.runsheet-head-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.rs-sub { color: var(--text-muted); font-size: var(--fs-sm); margin-top: var(--space-1); }
+.rs-hint { color: var(--text-dim); font-size: var(--fs-xs); margin-top: var(--space-px); }
+
+.rs-banner {
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font-size: var(--fs-sm);
+}
+.rs-banner-alert { border-color: var(--accent-rose); color: var(--accent-rose); background: transparent; }
+
+.runsheet-days { display: flex; flex-direction: column; gap: var(--space-5); margin-top: var(--space-6); }
+
+.rs-day {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+}
+.rs-day.is-active { border-color: var(--accent-indigo); }
+
+.rs-day-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.rs-day-id { display: flex; align-items: center; gap: var(--space-2); flex: 1 1 18rem; min-width: 0; }
+.rs-day-index {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.rs-day-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  font-weight: 600;
+  font-size: var(--fs-lg);
+}
+.rs-day-date { width: auto; flex: 0 0 auto; margin-bottom: 0; }
+.rs-day-stats { flex: 1 1 14rem; min-width: 0; font-size: var(--fs-xs); color: var(--text-muted); }
+.rs-day-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.rs-day-actions .btn-secondary { font-size: var(--fs-sm); padding: var(--space-1) var(--space-3); }
+.timeline-load-btn.is-current { opacity: .8; cursor: default; }
+
+/* Proportional strip — full width, bars packed into as few lanes as fit. */
+.rs-strip {
+  position: relative;
+  margin: var(--space-3) 0 var(--space-6);
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+}
+.rs-strip-rule { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--border-subtle); }
+.rs-strip-tick {
+  position: absolute;
+  bottom: -16px;
+  transform: translateX(-50%);
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.rs-strip-bar {
+  position: absolute;
+  height: 13px;
+  background: var(--accent-indigo);
+  opacity: .78;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.rs-strip-bar.is-conflict { background: var(--accent-rose); opacity: 1; }
+.rs-strip-bar-label {
+  display: block;
+  padding: 0 4px;
+  font-size: var(--fs-2xs);
+  line-height: 13px;
+  color: var(--btn-primary-text);
+  white-space: nowrap;
+}
+
+/* Items */
+.rs-items { display: flex; flex-direction: column; gap: var(--space-1); }
+.rs-items-empty { color: var(--text-muted); font-size: var(--fs-sm); padding: var(--space-2) 0; }
+.rs-item {
+  display: grid;
+  grid-template-columns: 11.5rem minmax(0, 1fr) minmax(0, 15rem) 4.5rem 1.5rem 2rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface-hover);
+}
+.rs-item.is-conflict { border-color: var(--accent-rose); }
+.rs-item-time {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.rs-item-title {
+  font-size: var(--fs-md);
+  color: var(--text-main);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rs-item-owner { font-size: var(--fs-sm); color: var(--text-dim); min-width: 0; overflow-wrap: anywhere; }
+.rs-item-owner em { font-style: normal; opacity: .7; }
+.rs-item-dur { font-size: var(--fs-xs); color: var(--text-dim); white-space: nowrap; text-align: right; }
+.rs-item-flag { font-size: var(--fs-xs); text-align: center; }
+.rs-flag-conflict { color: var(--accent-rose); }
+.rs-flag-parallel { color: var(--text-dim); }
+.rs-item-del { justify-self: end; }
+
+/* Add-item disclosure */
+.rs-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--border-subtle);
+}
+.rs-field { display: flex; flex-direction: column; gap: var(--space-px); min-width: 0; }
+.rs-field-grow { flex: 1 1 12rem; }
+.rs-field > span { font-size: var(--fs-2xs); color: var(--text-dim); }
+.rs-field input {
+  padding: var(--space-2);
+  font-size: var(--fs-sm);
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  min-width: 0;
+  width: 100%;
+}
+
+.rs-empty {
+  padding: var(--space-8);
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  background: var(--bg-surface);
+}
+.rs-empty h3 { color: var(--text-main); margin: var(--space-2) 0; }
+.rs-empty p { max-width: 40ch; margin: 0 auto var(--space-4); }
+
+/* A narrow window folds the item line into two rows rather than truncating. */
+@media (max-width: 900px) {
+  .rs-item {
+    grid-template-columns: minmax(0, 1fr) 4.5rem 1.5rem 2rem;
+    grid-template-areas:
+      "time time flag del"
+      "title title title title"
+      "owner dur dur dur";
+    row-gap: var(--space-px);
+  }
+  .rs-item-time { grid-area: time; }
+  .rs-item-title { grid-area: title; }
+  .rs-item-owner { grid-area: owner; }
+  .rs-item-dur { grid-area: dur; text-align: left; }
+  .rs-item-flag { grid-area: flag; }
+  .rs-item-del { grid-area: del; }
+  .rs-day-stats { flex-basis: 100%; }
+}
+
+@media (max-width: 768px) {
+  .rs-day { padding: var(--space-3); }
+  .rs-day-actions { width: 100%; }
+  .rs-day-actions .btn-secondary { flex: 1 1 auto; min-height: 44px; }
+  .rs-day-actions .btn-icon { min-height: 44px; min-width: 44px; }
+  .rs-day-date { min-height: 44px; }
+  .rs-add-form .btn-primary { flex: 1 1 100%; min-height: 44px; }
+  .rs-field input { min-height: 44px; }
+  .rs-item-del { min-height: 44px; min-width: 44px; }
+  .rs-strip-bar-label { display: none; }
+}
+
+/* ==========================================================================
+   W5 RESPONSIVE PASS — measured, not eyeballed.
+   Every rule below closes a specific failure found by sweeping all six
+   sections (and every Studio/Plan tab) at 1920 / 1512 / 1280 / 1024 / 834 /
+   768 / 430 / 390, checking documentElement.scrollWidth against innerWidth
+   for page-level overflow and scrollWidth vs clientWidth on every leaf node
+   for clipped text.
+   ========================================================================== */
+
+/* 1. Navbar labels were ellipsing at desktop widths ("Instant layou…",
+   "👑 Royal Gol…"). A label either fits or it goes — it does not truncate.
+   Above 1200px every label is shown in full; between 769 and 1200 the action
+   buttons go icon-only (each already carries aria-label + title), which is
+   what the phone bar has always done. */
+@media (min-width: 1201px) {
+  .nav-action-btn { max-width: none; }
+  .preset-trigger-btn { max-width: none; }
+}
+@media (max-width: 1200px) and (min-width: 769px) {
+  .nav-action-btn { max-width: none; }
+  .nav-action-btn .btn-label { display: none; }
+  .preset-trigger-btn { max-width: none; }
+}
+/* Overrides the older `max-width: 11ch` truncation in the 1025–1400 band. */
+@media (max-width: 1400px) and (min-width: 1025px) {
+  .nav-action-btn { max-width: none; }
+}
+
+/* 2. 360° hotspot card names were clipped to 110px ("Royal Sculpted White M…")
+   at every width. The name wraps to a second line instead. */
+.hs-card-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 220px;
+  line-height: 1.25;
+}
+
+/* 3. Inventory card titles carry inline `text-overflow: ellipsis`, so every
+   long item name was cut at every width from 390 to 1920. The title wraps. */
+.inventory-card h4 {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.3;
+}
+
+/* 4. Home schedule chips clamped an event name to two lines and then cut the
+   word ("Warangal Public Meetin…"). Let the chip grow instead. */
+body .hh-chip { -webkit-line-clamp: initial; display: block; overflow: visible; }
+
+/* 5. Budget breakdown labels no longer half-render inside a 40px segment on a
+   phone; the bar keeps its colour split and the figures stay in the list
+   below it. Each segment still carries its full title on hover/focus. */
+@media (max-width: 600px) {
+  .b-segment { font-size: 0; }
+}
+
+/* 6. Touch targets. Below 768 every control the finger has to hit is at least
+   44px tall. The navbar stays one 48px row — the controls inside it grow to
+   44px, the bar does not grow. */
+@media (max-width: 768px) {
+  .section-tab,
+  .nav-tab { height: 44px; min-height: 44px; }
+  .nav-action-btn,
+  .theme-mode-toggle,
+  .preset-trigger-btn,
+  .btn-nav-primary { height: 44px; min-height: 44px; }
+
+  body .crm-input,
+  body .crm-select,
+  body .crm-search,
+  body .crm-filter { min-height: 44px; }
+  body .crm-link { min-height: 44px; display: inline-flex; align-items: center; }
+  body .hh-btn { min-height: 44px; }
+  body .inv-adj { min-width: 44px; min-height: 44px; }
+  .seating-sidebar button,
+  .seating-sidebar input,
+  .seating-sidebar select { min-height: 44px; }
+}
+
+/* 7. Second measured pass: the remaining sub-44px controls below 768, and the
+   theme trigger, which was still ellipsing "👑 Royal Gold" at 768. The
+   trigger is hidden entirely below 720, so it never needs to truncate. */
+@media (min-width: 721px) {
+  .nav-theme-pin .preset-trigger-btn,
+  .preset-trigger-btn { max-width: none; }
+}
+
+@media (max-width: 768px) {
+  /* Every ordinary content control. Nav chrome is handled above; these are
+     the buttons inside the sections. */
+  .btn-primary, .btn-secondary, .btn-submit, .btn-apply-ai, .btn-apply-rec,
+  .btn-optimize, .btn-generate, .btn-sign-download, .btn-filter, .btn-preset,
+  .btn-print, .btn-download-html, .btn-mark-all, .btn-clear-all, .btn-clear-sig,
+  .btn-load-prop, .btn-print-prop, .btn-delete-prop, .btn-toggle-expand,
+  .btn-launch, .studio-btn, .h3d-btn, .hh-link, .hh-btn,
+  .tooltip-slot-item, .photo-node-button, .style-apply-btn, .add-song-btn {
+    min-height: 44px;
+  }
+
+  /* Form controls. Checkboxes, radios, ranges and hidden inputs keep their
+     own sizing — a 44px checkbox is not a 44px checkbox. */
+  input:not([type="hidden"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea { min-height: 44px; }
+}
+
+/* 8. The role switcher's trigger measured 37px at 768 — the one control left
+   under the 44px floor. Its own styles live in RoleBadge.js (another owner),
+   so this is a scoped height floor only, nothing else about it is touched. */
+@media (max-width: 768px) {
+  .role-badge-slot .role-badge-btn { min-height: 44px; }
+}
+
+/* 9. On a phone the Studio's action strip still shows the theme trigger, and
+   at 390 it was cutting "👑 Royal Gol…". The strip is a horizontal scroller,
+   so the trigger can have its full width there; nothing is clipped and the
+   strip scrolls if it must. */
+@media (max-width: 720px) {
+  .preset-trigger-btn { max-width: none; }
+  .preset-trigger-btn .preset-current-val { overflow: visible; text-overflow: clip; }
+}
