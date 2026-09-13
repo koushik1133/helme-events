@@ -1,6 +1,7 @@
 import { getItemById } from '../data/catalog.js';
 import { resolveScenePanorama, getPropImage, hasSceneVariant } from '../data/sceneVariants.js';
 import { formatMoney, escapeHtml } from '../utils/format.js';
+import { PANORAMA_DIMENSIONS } from '../data/panoramaMeta.js';
 
 /**
  * Viewer360 — Pannellum equirectangular viewer with hotspot cards
@@ -61,6 +62,15 @@ export class Viewer360 {
     this.container.innerHTML = '';
     this.container.style.position = 'relative';
 
+    // Choose the right projection for THIS plate.
+    //
+    // Only some of our plates are true equirectangular 360s (2:1). The rest are
+    // wide-angle photographs. Wrapping a flat photo around a full sphere gives a
+    // hard seam where the left and right edges meet and smears the poles, so those
+    // are rendered as a PARTIAL panorama instead: a limited field of view that pans
+    // and zooms correctly and simply stops at the edge of the photo.
+    const projection = this._projectionFor(panoramaUrl);
+
     this.viewer = window.pannellum.viewer(this.container, {
       type: 'equirectangular',
       panorama: panoramaUrl,
@@ -75,7 +85,8 @@ export class Viewer360 {
       maxHfov: 130,
       pitch: 0,
       yaw: 0,
-      compass: false
+      compass: false,
+      ...projection
     });
 
     const buildOverlay = () => {
@@ -406,6 +417,70 @@ export class Viewer360 {
       cancelAnimationFrame(this._loopId);
       this._loopId = null;
     }
+  }
+
+  /**
+   * Projection settings for a panorama, derived from its real aspect ratio.
+   * Ratio ~2:1  -> full equirectangular sphere.
+   * Anything else -> partial panorama with a field of view matching the image,
+   *                  so the photo is shown undistorted with no wrap seam.
+   *
+   * Dimensions are read from the decoded image and cached, so a plate is only
+   * measured once and new assets are handled automatically.
+   */
+  _projectionFor(url) {
+    Viewer360._projectionCache = Viewer360._projectionCache || new Map();
+    const cached = Viewer360._projectionCache.get(url);
+    if (cached) return cached;
+
+    const dims = PANORAMA_DIMENSIONS[url] || Viewer360._dimensionCache?.get(url);
+    if (!dims) {
+      // An asset added since the manifest was generated. Measure it in the
+      // background so the next load is correct, and render it as a full sphere
+      // for now (the previous behaviour).
+      this._measurePanorama(url);
+      return {};
+    }
+
+    const ratio = dims.w / dims.h;
+    let projection;
+    if (Math.abs(ratio - 2) < 0.06) {
+      projection = {}; // true equirectangular: Pannellum's defaults are correct
+    } else {
+      // Present the photo at a natural wide-angle FOV that preserves its ratio.
+      const haov = 120;
+      const vaov = Math.min(180, haov / ratio);
+      projection = {
+        haov,
+        vaov,
+        vOffset: 0,
+        minHfov: 40,
+        maxHfov: Math.min(110, haov - 6),
+        hfov: Math.min(95, haov - 20)
+      };
+    }
+    Viewer360._projectionCache.set(url, projection);
+    return projection;
+  }
+
+  /** Decode a panorama just far enough to learn its dimensions, then cache them. */
+  _measurePanorama(url) {
+    Viewer360._dimensionCache = Viewer360._dimensionCache || new Map();
+    Viewer360._pendingMeasures = Viewer360._pendingMeasures || new Set();
+    if (Viewer360._dimensionCache.has(url) || Viewer360._pendingMeasures.has(url)) return;
+
+    Viewer360._pendingMeasures.add(url);
+    const probe = new Image();
+    probe.onload = () => {
+      Viewer360._pendingMeasures.delete(url);
+      Viewer360._dimensionCache.set(url, { w: probe.naturalWidth, h: probe.naturalHeight });
+      // If this is still the plate on screen, re-render it with the correct projection.
+      if (this._currentPanorama === url && this.currentZone) {
+        this.loadZone(this.currentZone, this._selectionsAsObject(), url);
+      }
+    };
+    probe.onerror = () => { Viewer360._pendingMeasures.delete(url); };
+    probe.src = url;
   }
 
   _destroyViewer() {

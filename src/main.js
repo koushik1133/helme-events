@@ -368,11 +368,16 @@ class Event360App {
     this.threeDLiveSpaceEditor = new ThreeDLiveSpaceEditor(
       this.threeDEditorContainer,
       this.activeSelections,
-      (selections) => {
-        Object.assign(this.activeSelections, selections);
-        this.updateAllComponents(this.activeSelections);
-      }
+      (selections) => this.updateAllComponents(selections)
     );
+
+    // The 3D floor plan is a SEPARATE costing surface from the zone catalogue.
+    // We record the layout (so proposals and exports can show it) but deliberately
+    // do NOT fold its total into the venue subtotal — the zones already price
+    // tables, chairs and staging, and adding both would double-count.
+    this.threeDLiveSpaceEditor.onLayoutChange = (layout) => {
+      this.floorPlanLayout = layout;
+    };
 
     this.customEventBriefWizard = new CustomEventBriefWizard(
       this.customBriefWizardContainer,
@@ -402,7 +407,7 @@ class Event360App {
 
         this.openStudio360(targetZoneId);
         if (themePano && this.viewer360?.updatePanorama) {
-          setTimeout(() => this.viewer360.updatePanorama(themePano), 200);
+          setTimeout(() => this.viewer360.updatePanorama(themePano, { ...this.activeSelections }), 200);
         }
 
         this.showToast(`📋 Custom ${formData.category.toUpperCase()} event setup generated & applied!`);
@@ -981,7 +986,7 @@ class Event360App {
         // Only accept backdrop plates that belong to this zone family
         this._isZoneLocalPanorama(item.panoramaUrl, zone)
       ) {
-        this.viewer360.updatePanorama(item.panoramaUrl);
+        this.viewer360.updatePanorama(item.panoramaUrl, { ...this.activeSelections });
         panoramaChanged = true;
       }
     }
@@ -1015,13 +1020,17 @@ class Event360App {
     if (!url || !zone) return false;
     if (url === zone.panoramaUrl) return true;
     const zoneFamily = {
-      'zone-stage': ['zone_stage', 'zone_shimmer', 'zone_hedge', 'zone_entrance', 'zone_marigold', 'variants/zone-stage'],
+      // Only plates that actually show the outdoor stage lawn. The wall/foyer plates
+      // are a different venue — loading one is a teleport, not a swap.
+      'zone-stage': ['zone_stage', 'variants/zone-stage'],
       'zone-banquet': ['zone_banquet'],
       'zone-fountain': ['zone_fountain', 'zone_stone', 'zone_dancing', 'variants/zone-fountain'],
       'zone-lounge': ['zone_lounge'],
-      'zone-entrance': ['zone_entrance', 'zone_hedge', 'zone_shimmer', 'zone_marigold', 'variants/zone-fountain'],
+      // zone_marigold_wall is a palace hall and variants/zone-fountain is the outdoor
+      // plaza — neither is the entrance foyer.
+      'zone-entrance': ['zone_entrance', 'zone_hedge', 'zone_shimmer'],
       'zone-india-election': ['india_election', 'variants/zone-india-election', 'political_presidential'],
-      'zone-india-function': ['india_function', 'variants/zone-india-function', 'zone_marigold'],
+      'zone-india-function': ['india_function', 'variants/zone-india-function'],
       'zone-india-meeting': ['india_meeting', 'variants/zone-india-meeting']
     };
     const keys = zoneFamily[zone.id] || [];
@@ -1260,7 +1269,7 @@ class Event360App {
     const zone = VENUE_ZONES.find(z => z.id === preferredZone);
     const pano = presetMap.theme_panorama;
     if (pano && this.viewer360?.updatePanorama) {
-      setTimeout(() => this.viewer360.updatePanorama(pano), 180);
+      setTimeout(() => this.viewer360.updatePanorama(pano, { ...this.activeSelections }), 180);
     } else if (zone && this.viewer360) {
       this.viewer360.loadZone(zone, this.activeSelections);
     }

@@ -1,9 +1,46 @@
 import { ITEM_CATALOG } from '../data/catalog.js';
+import { formatMoney, formatNumber, readJSON, writeJSON, escapeHtml } from '../utils/format.js';
+
+const INVENTORY_KEY = 'helme_events_inventory';
+
+/**
+ * Curated opening stock per category. Real hire houses hold thousands of
+ * folding chairs and two or three mandaps — random counts made a 5,000-guest
+ * rally quotable against "7 chairs". Derived deterministically from the
+ * category and the item's price tier so the numbers are stable across reloads.
+ */
+const CATEGORY_STOCK = {
+  chairs: 2400,
+  sofas: 40,
+  tables: 320,
+  podiums: 12,
+  fountains: 8,
+  audio: 48,
+  stages: 4,
+  backdrops: 14,
+  lighting: 60
+};
+
+function curatedStock(item) {
+  const base = CATEGORY_STOCK[item.category] ?? 25;
+  const price = Number(item.price) || 0;
+  // Price tier scales the holding down: the dearer the piece, the fewer held.
+  let factor = 1;
+  if (price >= 300000) factor = 0.25;
+  else if (price >= 100000) factor = 0.4;
+  else if (price >= 25000) factor = 0.6;
+  else if (price >= 5000) factor = 0.8;
+  return Math.max(2, Math.round(base * factor));
+}
 
 export class InventoryTracker {
   constructor(containerElement) {
     this.container = containerElement;
-    this.inventory = JSON.parse(localStorage.getItem('helme_events_inventory')) || this.generateInitialStock();
+    const saved = readJSON(INVENTORY_KEY, null);
+    this.inventory = (saved && typeof saved === 'object' && !Array.isArray(saved))
+      ? saved
+      : this.generateInitialStock();
+    this.storageWarning = '';
     this.filterCategory = 'All';
     this.searchQuery = '';
     this.sortBy = 'name-asc';
@@ -12,14 +49,19 @@ export class InventoryTracker {
   generateInitialStock() {
     const stock = {};
     Object.values(ITEM_CATALOG).flat().forEach(item => {
-      stock[item.id] = Math.floor(Math.random() * 196) + 5;
+      stock[item.id] = curatedStock(item);
     });
-    localStorage.setItem('helme_events_inventory', JSON.stringify(stock));
+    writeJSON(INVENTORY_KEY, stock);
     return stock;
   }
 
   persist() {
-    localStorage.setItem('helme_events_inventory', JSON.stringify(this.inventory));
+    if (writeJSON(INVENTORY_KEY, this.inventory)) {
+      this.storageWarning = '';
+      return true;
+    }
+    this.storageWarning = 'Stock change could not be saved — browser storage is full or unavailable.';
+    return false;
   }
 
   getItems() {
@@ -74,7 +116,7 @@ export class InventoryTracker {
             <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.85rem;">Search, sort, and adjust stock for every catalog item</p>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-            <input id="inv-search" type="search" placeholder="Search name, category…" value="${this.searchQuery.replace(/"/g, '&quot;')}"
+            <input id="inv-search" type="search" placeholder="Search name, category…" value="${escapeHtml(this.searchQuery)}"
               style="min-width:200px;padding:8px 12px;border-radius:10px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-main);" />
             <select id="inv-category-filter" style="padding:8px 10px;border-radius:10px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-main);">
               <option value="All">All Categories</option>
@@ -100,78 +142,110 @@ export class InventoryTracker {
     this.renderGrid();
   }
 
+  /** Reorder threshold is relative to the curated holding, so 3 of 4 stages
+   *  is healthy while 3 of 2,400 folding chairs is a crisis. */
+  reorderLevel(item) {
+    return Math.max(2, Math.round(curatedStock(item) * 0.25));
+  }
+
+  allItems() {
+    const seen = new Set();
+    return Object.values(ITEM_CATALOG).flat().filter(item => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }
+
   renderGrid() {
     const grid = this.container.querySelector('#inventory-grid');
     const alerts = this.container.querySelector('#inventory-alerts');
     const meta = this.container.querySelector('#inventory-meta');
     const items = this.getItems();
     grid.innerHTML = '';
-    alerts.innerHTML = '<h3 style="margin:0 0 8px;color:var(--text-main);">Low Stock Alerts</h3>';
 
-    let lowStockCount = 0;
-    items.forEach(item => {
+    // Alerts are computed over the WHOLE catalog, never the filtered view —
+    // typing in the search box must not make a stock crisis disappear.
+    const low = this.allItems().filter(item => (this.inventory[item.id] || 0) <= this.reorderLevel(item));
+    alerts.innerHTML =
+      '<h3 style="margin:0 0 8px;color:var(--text-main);">Low Stock Alerts</h3>' +
+      (low.length
+        ? low.map(item => `<div style="color:#f87171;">🚨 ${escapeHtml(item.name)} — ${formatNumber(this.inventory[item.id] || 0)} in stock (reorder at ${formatNumber(this.reorderLevel(item))})</div>`).join('')
+        : '<div style="color:#4ade80;">Every catalog line is above its reorder level.</div>');
+
+    if (this.storageWarning) {
+      alerts.innerHTML += `<div role="alert" style="margin-top:8px;color:#fbbf24;">⚠️ ${escapeHtml(this.storageWarning)}</div>`;
+    }
+
+    if (items.length === 0) {
+      grid.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:var(--text-muted);">No catalog items match this search or category.</div>`;
+      meta.textContent = 'Showing 0 items';
+      return;
+    }
+
+    const cards = items.map(item => {
       const stock = this.inventory[item.id] || 0;
+      const reorder = this.reorderLevel(item);
       let border = 'border-top:5px solid #22c55e;';
-      if (stock < 10) {
-        border = 'border-top:5px solid #ef4444;';
-        lowStockCount++;
-        alerts.innerHTML += `<div style="color:#f87171;">🚨 ${item.name} is running low! (${stock} left)</div>`;
-      } else if (stock <= 50) {
-        border = 'border-top:5px solid #eab308;';
-      }
+      if (stock <= reorder) border = 'border-top:5px solid #ef4444;';
+      else if (stock <= reorder * 2) border = 'border-top:5px solid #eab308;';
 
-      grid.innerHTML += `
-        <div class="inventory-card" data-item-id="${item.id}" style="border:1px solid var(--border-subtle);border-radius:12px;padding:12px;background:var(--bg-elevated);${border}">
-          <div style="height:120px;overflow:hidden;border-radius:8px;margin-bottom:10px;background:#111;">
-            <img src="${item.imageUrl}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.opacity=0.3" />
+      return `
+        <div class="inventory-card" data-item-id="${escapeHtml(item.id)}" style="border:1px solid var(--border-subtle);border-radius:12px;padding:12px;background:var(--bg-elevated);${border}">
+          <div style="height:120px;overflow:hidden;border-radius:8px;margin-bottom:10px;background:var(--bg-surface);">
+            <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.name)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.opacity=0.3" />
           </div>
-          <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.name}">${item.name}</h4>
-          <p style="margin:0 0 8px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">${item.category} · $${item.price}</p>
+          <h4 style="margin:0 0 4px;font-size:14px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
+          <p style="margin:0 0 8px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">${escapeHtml(item.category)} · ${formatMoney(item.price)}</p>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <strong style="color:var(--text-main);">Stock: ${stock}</strong>
+            <strong style="color:var(--text-main);">Stock: ${formatNumber(stock)}</strong>
             <div style="display:flex;gap:4px;">
-              <button type="button" class="inv-adj" data-delta="-1" data-item-id="${item.id}" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main);cursor:pointer;">−</button>
-              <button type="button" class="inv-adj" data-delta="1" data-item-id="${item.id}" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main);cursor:pointer;">+</button>
-              <button type="button" class="inv-adj" data-delta="10" data-item-id="${item.id}" style="padding:0 8px;height:28px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main);cursor:pointer;font-size:11px;">+10</button>
+              <button type="button" class="inv-adj" data-delta="-1" data-item-id="${escapeHtml(item.id)}" aria-label="Decrease stock of ${escapeHtml(item.name)} by 1" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main);cursor:pointer;">−</button>
+              <button type="button" class="inv-adj" data-delta="1" data-item-id="${escapeHtml(item.id)}" aria-label="Increase stock of ${escapeHtml(item.name)} by 1" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main);cursor:pointer;">+</button>
+              <button type="button" class="inv-adj" data-delta="10" data-item-id="${escapeHtml(item.id)}" aria-label="Increase stock of ${escapeHtml(item.name)} by 10" style="padding:0 8px;height:28px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main);cursor:pointer;font-size:11px;">+10</button>
             </div>
           </div>
         </div>
       `;
     });
 
-    if (lowStockCount === 0) {
-      alerts.innerHTML += `<div style="color:#4ade80;">All listed items are well stocked.</div>`;
-    }
+    // One parse of the whole grid instead of re-parsing per item.
+    grid.innerHTML = cards.join('');
 
     meta.textContent = `Showing ${items.length} item${items.length === 1 ? '' : 's'}`;
-
-    grid.querySelectorAll('.inv-adj').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-item-id');
-        const delta = Number(btn.getAttribute('data-delta'));
-        this.inventory[id] = Math.max(0, (this.inventory[id] || 0) + delta);
-        this.persist();
-        this.renderGrid();
-      });
-    });
   }
 
   bindEvents() {
-    const search = this.container.querySelector('#inv-search');
-    const cat = this.container.querySelector('#inv-category-filter');
-    const sort = this.container.querySelector('#inv-sort');
+    // The container element persists across render() calls, so bind exactly
+    // once and delegate. Re-binding per render is what multiplied every click.
+    if (this._bound) return;
+    this._bound = true;
 
-    search?.addEventListener('input', e => {
-      this.searchQuery = e.target.value;
+    this.container.addEventListener('click', e => {
+      const btn = e.target.closest?.('.inv-adj');
+      if (!btn || !this.container.contains(btn)) return;
+      const id = btn.getAttribute('data-item-id');
+      const delta = Number(btn.getAttribute('data-delta'));
+      this.inventory[id] = Math.max(0, (this.inventory[id] || 0) + delta);
+      this.persist();
       this.renderGrid();
     });
-    cat?.addEventListener('change', e => {
-      this.filterCategory = e.target.value;
-      this.renderGrid();
+
+    this.container.addEventListener('input', e => {
+      if (e.target.id === 'inv-search') {
+        this.searchQuery = e.target.value;
+        this.renderGrid();
+      }
     });
-    sort?.addEventListener('change', e => {
-      this.sortBy = e.target.value;
-      this.renderGrid();
+
+    this.container.addEventListener('change', e => {
+      if (e.target.id === 'inv-category-filter') {
+        this.filterCategory = e.target.value;
+        this.renderGrid();
+      } else if (e.target.id === 'inv-sort') {
+        this.sortBy = e.target.value;
+        this.renderGrid();
+      }
     });
   }
 }
