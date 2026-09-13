@@ -499,3 +499,66 @@ test('no stored financial totals — every rupee is derived', async () => {
     assert.ok(!(forbidden in deal), `Deal must not store "${forbidden}" — it is derived in finance.js`);
   }
 });
+
+// ------------------------------------------------- catalogue image integrity
+
+/**
+ * Catalogue items that currently share a photograph despite different prices.
+ *
+ * This is an ASSET debt list, not a code bug. A client comparing two options sees
+ * the picture, not the id — so illustrating a Rs 25,000 floral wall and a
+ * Rs 4,20,000 LED screen with the same photo means the 360 cannot show a
+ * difference, the swap looks broken, and the higher quote is indefensible in the
+ * room. Each line needs new artwork.
+ *
+ * The test below allows exactly these and fails on any NEW one, so the list can
+ * only shrink. Delete a line when its artwork lands.
+ */
+const KNOWN_SHARED_ARTWORK = new Set([
+  '/images/chair_velvet_armchair.jpg',
+  '/images/chair_maharaja_throne.jpg',
+  '/images/fountain_royal_marble.jpg',
+  '/images/fountain_glass_waterfall.jpg',
+  '/images/lighting_rally_highmast.jpg',
+  '/images/backdrop_floral_wall.jpg',
+  '/images/backdrop_shimmer_sequin.jpg',
+  '/images/backdrop_election_flags.jpg',
+  '/images/lighting_temple_lanterns.jpg'
+]);
+
+test('no NEW catalogue item shares artwork with a differently priced one', () => {
+  const byImage = new Map();
+  for (const item of allItems()) {
+    if (!item.imageUrl) continue;
+    if (!byImage.has(item.imageUrl)) byImage.set(item.imageUrl, []);
+    byImage.get(item.imageUrl).push(item);
+  }
+
+  const offenders = [];
+  for (const [url, items] of byImage) {
+    if (items.length < 2) continue;
+    if (new Set(items.map(i => i.price)).size < 2) continue;
+    if (KNOWN_SHARED_ARTWORK.has(url)) continue;
+    offenders.push(`${url} shared by ${items.map(i => `${i.id} (${i.price})`).join(', ')}`);
+  }
+
+  assert.deepEqual(offenders, [],
+    'new items priced differently must not share artwork:\n  ' + offenders.join('\n  '));
+});
+
+test('the shared-artwork debt list does not contain entries that are already fixed', () => {
+  // Keeps the list honest in the other direction: once artwork lands, the line
+  // must be deleted rather than quietly granting a future duplicate a free pass.
+  const shared = new Set();
+  const byImage = new Map();
+  for (const item of allItems()) {
+    if (!item.imageUrl) continue;
+    if (!byImage.has(item.imageUrl)) byImage.set(item.imageUrl, []);
+    byImage.get(item.imageUrl).push(item);
+  }
+  for (const [url, items] of byImage) {
+    if (items.length > 1 && new Set(items.map(i => i.price)).size > 1) shared.add(url);
+  }
+  const stale = [...KNOWN_SHARED_ARTWORK].filter(url => !shared.has(url));
+  assert.deepEqual(stale, [], 'these no longer share artwork — remove them from KNOWN_SHARED_ARTWORK');
+});

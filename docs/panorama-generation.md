@@ -150,3 +150,34 @@ and zoom.
 
 Each item wants two layers: the colour overlay, and a soft multiply shadow on the floor.
 The contact shadow is what stops it reading as a sticker.
+
+
+---
+
+## Catalogue artwork debt — 9 groups need new photography
+
+Nine groups of catalogue items are illustrated with the **same photograph** despite
+being sold at different prices. This is the single most visible asset problem left,
+because a client comparing two options sees the picture, not the id — the 360 cannot
+show a difference, the swap looks broken, and the higher quote is indefensible.
+
+| Shared photo | Items sharing it | Spread |
+|---|---|---|
+| `backdrop_floral_wall.jpg` | Floral wall ₹25,000 · Dual LED screen ₹4,20,000 | **16.8×** |
+| `fountain_glass_waterfall.jpg` | Glass waterfall ₹35,000 · Dancing jets ₹1,85,000 | 5.3× |
+| `backdrop_election_flags.jpg` | Election flags ₹45,000 · Screen left ₹2,60,000 | 5.8× |
+| `lighting_rally_highmast.jpg` | Horn speakers ₹12,000 · Line array ₹65,000 · High-mast ₹65,000 | 5.4× |
+| `fountain_royal_marble.jpg` | Royal marble ₹65,000 · Tiered stone ₹18,000 | 3.6× |
+| `backdrop_shimmer_sequin.jpg` | Shimmer sequin ₹15,000 · Screen shimmer ₹65,000 | 4.3× |
+| `chair_velvet_armchair.jpg` | Velvet armchair ₹1,200 · Chesterfield ₹9,500 · Velvet lounge ₹14,000 | 11.7× |
+| `chair_maharaja_throne.jpg` | Maharaja throne ₹18,000 · Royal Maharani sofa ₹22,000 | 1.2× |
+| `lighting_temple_lanterns.jpg` | Temple lanterns ₹28,000 · Brass diyas ₹22,000 | 1.3× |
+
+`test/contracts.test.mjs` holds this as `KNOWN_SHARED_ARTWORK` and enforces it in
+both directions: a **new** duplicate fails the build, and a line that has been
+fixed must be deleted rather than quietly granting a future duplicate a free pass.
+The list can only shrink.
+
+Shoot or generate one photograph per item, on the same dark studio sweep as the
+rest of the catalogue, then run `python3 tools/make_cutouts.py` and
+`python3 tools/bake_overlays.py --all`.

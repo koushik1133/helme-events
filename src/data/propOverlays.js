@@ -44,6 +44,72 @@ export const CATEGORY_HEIGHT_M = {
 };
 
 /**
+ * Real-world height by catalogue item, metres.
+ *
+ * The category figure is a blunt instrument: `chairs: 0.9` sizes a folding chair
+ * correctly and then composites a Maharaja throne PAIR at the same 0.9 m, which
+ * is why it read as a miniature against the stage. These are the distinctive
+ * items where the category average is simply wrong. Anything absent falls back to
+ * its category, which is fine for the ordinary cases.
+ *
+ * Eyeballed against real product dimensions, not surveyed — the slot still
+ * reports `calibrated: false` until someone does the floor-contact click.
+ */
+export const ITEM_HEIGHT_M = {
+  // Seating — a throne is nearly twice a banquet chair, a baithak is floor-level.
+  'chair-folding': 0.85,
+  'chair-chiavari-gold': 0.92,
+  'chair-ghost': 0.95,
+  'chair-velvet-armchair': 0.85,
+  'chair-vvip-executive': 1.15,
+  'chair-throne': 1.35,
+  'chair-maharaja-throne': 1.65,
+  'chair-gaddi-baithak': 0.45,
+  'sofa-velvet-lounge': 0.8,
+  'sofa-royal-maharani': 0.95,
+  'sofa-modern-chesterfield': 0.8,
+
+  // Tables — a cocktail high-top stands, a jhula hangs from a frame.
+  'table-round-standard': 0.76,
+  'table-cocktail': 1.1,
+  'table-rustic-wood': 0.76,
+  'table-summit-desk': 0.76,
+  'table-led-glass': 0.76,
+  'table-antique-jhula': 2.2,
+
+  // Podiums.
+  'stage-digital-podium': 1.25,
+  'stage-bulletproof-podium': 1.35,
+  'podium-wooden-presidential': 1.25,
+  'podium-acrylic-modern': 1.2,
+
+  // Staging — these are architecture, not furniture.
+  'stage-led-arch': 6.5,
+  'stage-royal-pavilion': 5.5,
+  'stage-royal-mandap': 5.0,
+  'stage-wooden-riser': 1.0,
+
+  // Fountains.
+  'fountain-royal-marble': 2.5,
+  'fountain-tiered-stone': 2.2,
+  'fountain-dancing-jets': 3.0,
+  'fountain-glass-waterfall': 2.6,
+  'fountain-black-granite': 1.2,
+  'fountain-steel-sphere': 1.5,
+  'fountain-brass-lotus': 1.0,
+  'fountain-brass-diyas': 0.35,
+
+  // Audio and lighting.
+  'audio-line-array': 3.2,
+  'fountain-horn-speakers': 2.0,
+  'lighting-chandeliers': 1.6,
+  'lighting-fairy-canopy': 0.5,
+  'lighting-rgb-uplighting': 0.55,
+  'lighting-temple-lanterns': 0.6,
+  'lighting-rally-highmast': 12.0
+};
+
+/**
  * Per-slot overlay anchors.
  *   anchorPitch / anchorYaw — where the element's CENTRE sits, degrees.
  *     Defaults to the slot's own pos3D when absent.
@@ -100,7 +166,14 @@ export const SLOT_OVERLAY = {
 export function overlaySpec(slot, item) {
   if (!slot?.pos3D) return null;
   const cfg = SLOT_OVERLAY[slot.id] || {};
-  const heightM = item?.heightM || cfg.heightM || CATEGORY_HEIGHT_M[slot.category] || 1;
+  // Per-item beats per-slot beats per-category. A slot override still wins for
+  // things whose size is set by the ROOM rather than the product — a main stage
+  // backdrop is 7 m regardless of which backdrop you pick.
+  const heightM = item?.heightM
+    || cfg.heightM
+    || ITEM_HEIGHT_M[item?.id]
+    || CATEGORY_HEIGHT_M[slot.category]
+    || 1;
   return {
     anchorPitch: cfg.anchorPitch != null ? cfg.anchorPitch : slot.pos3D.pitch,
     anchorYaw:   cfg.anchorYaw   != null ? cfg.anchorYaw   : slot.pos3D.yaw,
